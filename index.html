@@ -297,10 +297,19 @@
   });
 
   let S = {
-    title: 'PS i-League 26S1',
-    a: { name:'Team A', game:0, point:0, sets:[], serving:false },
-    b: { name:'Team B', game:0, point:0, sets:[], serving:false },
+    title: '',
+    a: { name:'', game:0, point:0, sets:[], serving:false },
+    b: { name:'', game:0, point:0, sets:[], serving:false },
   };
+
+  // Firebase 로딩 전 버튼 비활성화
+  function setUILocked(locked) {
+    document.querySelectorAll('button.btn-score, button.btn-action, button.btn-serve, button.btn-star')
+      .forEach(b => b.disabled = locked);
+    const cp = document.querySelector('.cp');
+    if (cp) cp.style.opacity = locked ? '0.5' : '1';
+  }
+  setUILocked(true);
 
   // Firebase 실시간 동기화 (다른 기기에서 열어도 현재 데이터 표시)
   let _firstLoad = true;
@@ -318,10 +327,14 @@
       }
       if (_firstLoad) {
         syncInputs();   // 첫 로드 때만 입력칸 값 동기화 (타이핑 방해 방지)
+        setUILocked(false); // Firebase 로딩 완료 → 버튼 활성화
         _firstLoad = false;
       }
       renderPreview();
       renderCP();
+    } else {
+      // Firebase에 데이터 없을 때도 잠금 해제
+      setUILocked(false);
     }
   });
 
