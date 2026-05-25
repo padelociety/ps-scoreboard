@@ -263,7 +263,49 @@
     </div>
   </div>
 
+  <!-- ── League 연동 (Playus 백엔드) ── -->
+  <div class="section" id="leagueSection">
+    <div class="sec-label">🏆 리그 연동 (Playus)</div>
 
+    <!-- 설정 (접기) -->
+    <details id="lgConfigBox">
+      <summary style="cursor:pointer; font-size:12px; color:#888; margin-bottom:10px;">⚙️ 서버/토큰 설정</summary>
+      <div class="name-row"><label>API</label><input type="text" id="lgApiBase" placeholder="https://api.padelsociety.co.kr/api"></div>
+      <div class="name-row"><label>토큰</label><input type="text" id="lgToken" placeholder="운영자 JWT 토큰"></div>
+      <button class="btn-action btn-rp" onclick="lgSaveConfig()" style="margin-top:6px;">설정 저장</button>
+    </details>
+
+    <hr>
+
+    <!-- 리그 / 매치 선택 -->
+    <div class="name-row" style="margin-top:10px;">
+      <label>리그</label>
+      <select id="lgLeagueSelect" onchange="lgOnLeagueChange()" style="flex:1; background:#252525; border:1px solid #333; border-radius:6px; color:#eee; font-family:inherit; font-size:14px; padding:8px;">
+        <option value="">— 리그 불러오는 중 —</option>
+      </select>
+    </div>
+    <div class="name-row">
+      <label>매치</label>
+      <select id="lgMatchSelect" onchange="lgOnMatchChange()" style="flex:1; background:#252525; border:1px solid #333; border-radius:6px; color:#eee; font-family:inherit; font-size:14px; padding:8px;">
+        <option value="">— 리그 먼저 선택 —</option>
+      </select>
+    </div>
+    <div class="actions" style="margin-top:8px;">
+      <button class="btn-action btn-save" onclick="lgApplyMatch()">⬇️ 선수 이름 불러오기</button>
+      <button class="btn-action btn-rp" onclick="lgRefresh()">🔄 새로고침</button>
+    </div>
+
+    <hr>
+
+    <!-- 유튜브 / 라이브 -->
+    <div class="name-row"><label>유튜브</label><input type="text" id="lgYoutube" placeholder="https://youtube.com/live/..."></div>
+    <div class="actions" style="margin-top:8px;">
+      <button class="btn-action btn-gold" id="lgLiveBtn" onclick="lgToggleLive()">🔴 라이브 시작</button>
+      <button class="btn-action btn-save" onclick="lgPushResult()">💾 리그에 결과 저장</button>
+    </div>
+
+    <div id="lgStatus" style="margin-top:10px; font-size:12px; color:#6aaa8a; line-height:1.6;"></div>
+  </div>
 
 </div>
 
@@ -342,6 +384,7 @@
     set(sbRef, { ...S, superTB });
     renderPreview();
     renderCP();
+    try { lgMaybeBroadcastLive(); } catch (_) {}
   }
 
   function syncInputs() {
@@ -553,6 +596,218 @@
   // 실제 데이터는 onValue 리스너가 로드해서 다시 렌더함
   renderPreview();
   renderCP();
+
+  // ══════════════════════════════════════════════════════════
+  // League 연동 (Playus 백엔드) — 명단 fetch + 결과 push + 유튜브/라이브
+  // ══════════════════════════════════════════════════════════
+  // 스코어보드는 GitHub Pages(padelociety.github.io)에 호스팅 → 백엔드와 교차출처라
+  // 절대 URL 사용 (백엔드 CORS가 github.io origin 허용). 기본은 prod.
+  // staging 테스트 시 설정에서 https://staging.api.padelsociety.co.kr/api 로 변경.
+  const LG_DEFAULT_API = 'https://api.padelsociety.co.kr/api';
+  const lg = {
+    apiBase: localStorage.getItem('lg_api') || LG_DEFAULT_API,
+    token:   localStorage.getItem('lg_token') || '',
+    leagueId: '',
+    matchId: '',
+    leagues: [],
+    matches: [],
+    isLive: false,
+  };
+
+  const lgStatusEl = () => document.getElementById('lgStatus');
+  function lgSetStatus(msg, isError) {
+    const el = lgStatusEl();
+    if (!el) return;
+    el.style.color = isError ? '#c0392b' : '#6aaa8a';
+    el.textContent = msg;
+  }
+
+  // populate된 user → 표시명 (한글 성+이름 우선)
+  function lgUserName(u) {
+    if (!u) return '';
+    if (typeof u === 'string') return '';
+    const ko = `${u.lastNameKorean || ''}${u.firstNameKorean || ''}`.trim();
+    if (ko) return ko;
+    return `${u.firstName || ''} ${u.lastName || ''}`.trim();
+  }
+  function lgTeamName(arr) {
+    return (arr || []).map(lgUserName).filter(Boolean).join('/') || 'TBD';
+  }
+
+  async function lgFetch(path, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (lg.token) headers['Authorization'] = `Bearer ${lg.token}`;
+    const res = await fetch(`${lg.apiBase}${path}`, { ...opts, headers });
+    let body = null;
+    try { body = await res.json(); } catch (_) {}
+    if (!res.ok || (body && body.isSuccess === false)) {
+      const m = (body && body.message) || `HTTP ${res.status}`;
+      throw new Error(m);
+    }
+    return body;
+  }
+
+  // 라이브 스코어 백엔드 중계 — 매 점수 변경 시 (라이브 중 + 매치 선택) 디바운스 POST.
+  // 앱이 socket `score:league:<id>` 로 실시간 수신.
+  let _lgLiveTimer = null;
+  function lgMaybeBroadcastLive() {
+    if (typeof lg === 'undefined') return;
+    if (!lg.leagueId || !lg.matchId || !lg.isLive || !lg.token) return;
+    clearTimeout(_lgLiveTimer);
+    _lgLiveTimer = setTimeout(() => {
+      lgFetch(`/league/${lg.leagueId}/livescore`, {
+        method: 'POST',
+        body: JSON.stringify({
+          matchId: lg.matchId,
+          title: S.title,
+          a: { name: S.a.name, game: S.a.game, point: S.a.point, sets: S.a.sets || [], serving: !!S.a.serving },
+          b: { name: S.b.name, game: S.b.game, point: S.b.point, sets: S.b.sets || [], serving: !!S.b.serving },
+        }),
+      }).catch(() => {});
+    }, 400);
+  }
+
+  window.lgSaveConfig = () => {
+    lg.apiBase = (document.getElementById('lgApiBase').value || '').trim() || LG_DEFAULT_API;
+    lg.token   = (document.getElementById('lgToken').value || '').trim();
+    localStorage.setItem('lg_api', lg.apiBase);
+    localStorage.setItem('lg_token', lg.token);
+    lgSetStatus('설정이 저장되었어요.');
+    lgLoadLeagues();
+  };
+
+  async function lgLoadLeagues() {
+    const sel = document.getElementById('lgLeagueSelect');
+    try {
+      const res = await lgFetch('/league/list');
+      lg.leagues = (res && res.data && res.data.items) || [];
+      sel.innerHTML = '<option value="">— 리그 선택 —</option>' +
+        lg.leagues.map(l => `<option value="${l._id}">${l.name || '리그'}${l.status === 'completed' ? ' (종료)' : ''}</option>`).join('');
+      if (lg.leagueId) sel.value = lg.leagueId;
+    } catch (e) {
+      sel.innerHTML = '<option value="">불러오기 실패</option>';
+      lgSetStatus('리그 목록 실패: ' + e.message, true);
+    }
+  }
+
+  window.lgOnLeagueChange = async () => {
+    lg.leagueId = document.getElementById('lgLeagueSelect').value;
+    lg.matchId = '';
+    const mSel = document.getElementById('lgMatchSelect');
+    if (!lg.leagueId) { mSel.innerHTML = '<option value="">— 리그 먼저 선택 —</option>'; return; }
+    const league = lg.leagues.find(l => l._id === lg.leagueId);
+    if (league) {
+      document.getElementById('lgYoutube').value = league.youtubeUrl || '';
+      lg.isLive = !!league.isLive;
+      lgUpdateLiveBtn();
+    }
+    await lgLoadMatches();
+  };
+
+  async function lgLoadMatches() {
+    const mSel = document.getElementById('lgMatchSelect');
+    try {
+      const res = await lgFetch(`/league/${lg.leagueId}/matches`);
+      lg.matches = (res && res.data) || [];
+      if (!lg.matches.length) {
+        mSel.innerHTML = '<option value="">— 매치 없음 (앱에서 대진 생성) —</option>';
+        return;
+      }
+      mSel.innerHTML = '<option value="">— 매치 선택 —</option>' +
+        lg.matches.map(m => {
+          const div = m.division ? `[${m.division}] ` : '';
+          const tag = m.status === 'completed' ? ' ✓' : (m.status === 'live' ? ' 🔴' : '');
+          return `<option value="${m._id}">${div}#${m.matchNumber} ${lgTeamName(m.teamA)} vs ${lgTeamName(m.teamB)}${tag}</option>`;
+        }).join('');
+    } catch (e) {
+      mSel.innerHTML = '<option value="">불러오기 실패</option>';
+      lgSetStatus('매치 목록 실패: ' + e.message, true);
+    }
+  }
+
+  window.lgOnMatchChange = () => {
+    lg.matchId = document.getElementById('lgMatchSelect').value;
+  };
+
+  window.lgApplyMatch = () => {
+    if (!lg.matchId) { lgSetStatus('매치를 먼저 선택해주세요.', true); return; }
+    const m = lg.matches.find(x => x._id === lg.matchId);
+    if (!m) return;
+    S.a.name = lgTeamName(m.teamA);
+    S.b.name = lgTeamName(m.teamB);
+    document.getElementById('inNameA').value = S.a.name;
+    document.getElementById('inNameB').value = S.b.name;
+    push();
+    lgSetStatus(`선수 이름 적용: ${S.a.name} vs ${S.b.name}`);
+  };
+
+  window.lgRefresh = async () => {
+    await lgLoadLeagues();
+    if (lg.leagueId) {
+      document.getElementById('lgLeagueSelect').value = lg.leagueId;
+      await lgLoadMatches();
+    }
+  };
+
+  function lgUpdateLiveBtn() {
+    const btn = document.getElementById('lgLiveBtn');
+    if (!btn) return;
+    btn.textContent = lg.isLive ? '⏹️ 라이브 종료' : '🔴 라이브 시작';
+    btn.classList.toggle('active', lg.isLive);
+  }
+
+  window.lgToggleLive = async () => {
+    if (!lg.leagueId) { lgSetStatus('리그를 먼저 선택해주세요.', true); return; }
+    if (!lg.token) { lgSetStatus('운영자 토큰이 필요해요 (설정).', true); return; }
+    const youtubeUrl = (document.getElementById('lgYoutube').value || '').trim();
+    const next = !lg.isLive;
+    try {
+      await lgFetch(`/league/${lg.leagueId}/live`, {
+        method: 'PUT',
+        body: JSON.stringify({ isLive: next, youtubeUrl }),
+      });
+      // 선택된 매치 상태도 live 로 (시작 시)
+      if (lg.matchId && next) {
+        await lgFetch(`/league/${lg.leagueId}/matches/${lg.matchId}`, {
+          method: 'PATCH', body: JSON.stringify({ status: 'live' }),
+        }).catch(() => {});
+      }
+      lg.isLive = next;
+      lgUpdateLiveBtn();
+      if (next) lgMaybeBroadcastLive(); // 시작 즉시 현재 스코어 1회 중계
+      lgSetStatus(next ? '🔴 라이브 시작됨 (앱에 노출)' : '라이브 종료됨');
+    } catch (e) {
+      lgSetStatus('라이브 토글 실패: ' + e.message, true);
+    }
+  };
+
+  window.lgPushResult = async () => {
+    if (!lg.leagueId || !lg.matchId) { lgSetStatus('리그/매치를 먼저 선택해주세요.', true); return; }
+    if (!lg.token) { lgSetStatus('운영자 토큰이 필요해요 (설정).', true); return; }
+    const aSets = S.a.sets || [];
+    const bSets = S.b.sets || [];
+    // 현재 진행 중 게임도 마지막 세트로 포함할지 — 저장된 세트만 전송 (세트 저장 버튼 사용 가정)
+    if (!aSets.length) { lgSetStatus('저장된 세트가 없어요. "세트 저장" 후 전송하세요.', true); return; }
+    const sets = aSets.map((g, i) => ({ a: g || 0, b: bSets[i] || 0 }));
+    try {
+      await lgFetch(`/league/${lg.leagueId}/matches/${lg.matchId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ sets, status: 'completed' }),
+      });
+      lgSetStatus(`✅ 결과 저장됨 (${sets.map(s => s.a + '-' + s.b).join(' ')}) — 순위 반영`);
+      await lgLoadMatches();
+      if (lg.matchId) document.getElementById('lgMatchSelect').value = lg.matchId;
+    } catch (e) {
+      lgSetStatus('결과 저장 실패: ' + e.message, true);
+    }
+  };
+
+  // 초기화 — 설정 입력칸 채우고 리그 목록 로드
+  (function lgInit() {
+    document.getElementById('lgApiBase').value = lg.apiBase === LG_DEFAULT_API ? '' : lg.apiBase;
+    document.getElementById('lgToken').value = lg.token;
+    lgLoadLeagues();
+  })();
 
   // PWA 서비스워커 등록
   if ('serviceWorker' in navigator) {
