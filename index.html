@@ -269,10 +269,19 @@
 
     <!-- 설정 (접기) -->
     <details id="lgConfigBox">
-      <summary style="cursor:pointer; font-size:12px; color:#888; margin-bottom:10px;">⚙️ 서버/토큰 설정</summary>
-      <div class="name-row"><label>API</label><input type="text" id="lgApiBase" placeholder="https://api.padelsociety.co.kr/api"></div>
-      <div class="name-row"><label>토큰</label><input type="text" id="lgToken" placeholder="운영자 JWT 토큰"></div>
-      <button class="btn-action btn-rp" onclick="lgSaveConfig()" style="margin-top:6px;">설정 저장</button>
+      <summary style="cursor:pointer; font-size:12px; color:#888; margin-bottom:10px;">⚙️ 설정 · 운영자 로그인</summary>
+      <div class="name-row"><label>API</label><input type="text" id="lgApiBase" placeholder="비워두면 prod (api.padelsociety.co.kr)"></div>
+      <!-- 운영자 로그인 (어드민 계정) → 토큰 자동 저장 -->
+      <div class="name-row"><label>이메일</label><input type="email" id="lgEmail" placeholder="어드민 이메일"></div>
+      <div class="name-row"><label>비번</label><input type="password" id="lgPassword" placeholder="비밀번호"></div>
+      <div class="actions" style="margin-top:6px;">
+        <button class="btn-action btn-save" onclick="lgLogin()">🔑 로그인</button>
+        <button class="btn-action btn-rp" onclick="lgLogout()">로그아웃</button>
+      </div>
+      <div id="lgAuthStatus" style="margin-top:8px; font-size:12px; color:#6aaa8a;"></div>
+      <!-- 고급: 토큰 직접 입력 (선택) -->
+      <div class="name-row" style="margin-top:8px;"><label>토큰</label><input type="text" id="lgToken" placeholder="(선택) JWT 직접 입력"></div>
+      <button class="btn-action btn-rp" onclick="lgSaveConfig()" style="margin-top:6px;">API/토큰 저장</button>
     </details>
 
     <hr>
@@ -676,6 +685,46 @@
     lgLoadLeagues();
   };
 
+  function lgSetAuthStatus(msg, isError) {
+    const el = document.getElementById('lgAuthStatus');
+    if (el) { el.style.color = isError ? '#c0392b' : '#6aaa8a'; el.textContent = msg; }
+  }
+
+  // 운영자 로그인 → /auth/login → data.token 저장 (raw JWT 복붙 불필요)
+  window.lgLogin = async () => {
+    const email = (document.getElementById('lgEmail').value || '').trim();
+    const password = document.getElementById('lgPassword').value || '';
+    if (!email || !password) { lgSetAuthStatus('이메일/비밀번호를 입력하세요.', true); return; }
+    // API base 먼저 반영(로그인 대상 서버)
+    lg.apiBase = (document.getElementById('lgApiBase').value || '').trim() || LG_DEFAULT_API;
+    localStorage.setItem('lg_api', lg.apiBase);
+    lgSetAuthStatus('로그인 중...');
+    try {
+      const res = await lgFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, deviceType: 'web' }),
+      });
+      const token = res && res.data && res.data.token;
+      if (!token) throw new Error('응답에 토큰 없음');
+      lg.token = token;
+      localStorage.setItem('lg_token', token);
+      document.getElementById('lgToken').value = token;
+      document.getElementById('lgPassword').value = '';
+      lgSetAuthStatus(`✅ 로그인됨: ${email}`);
+      lgSetStatus('로그인 성공 — 라이브 시작/결과 저장 가능');
+      lgLoadLeagues();
+    } catch (e) {
+      lgSetAuthStatus('로그인 실패: ' + e.message, true);
+    }
+  };
+
+  window.lgLogout = () => {
+    lg.token = '';
+    localStorage.removeItem('lg_token');
+    document.getElementById('lgToken').value = '';
+    lgSetAuthStatus('로그아웃됨 (읽기만 가능)');
+  };
+
   async function lgLoadLeagues() {
     const sel = document.getElementById('lgLeagueSelect');
     try {
@@ -806,6 +855,8 @@
   (function lgInit() {
     document.getElementById('lgApiBase').value = lg.apiBase === LG_DEFAULT_API ? '' : lg.apiBase;
     document.getElementById('lgToken').value = lg.token;
+    if (lg.token) lgSetAuthStatus('✅ 토큰 있음 (라이브/결과 가능)');
+    else lgSetAuthStatus('로그인 필요 (읽기는 가능)');
     lgLoadLeagues();
   })();
 
