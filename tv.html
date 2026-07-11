@@ -557,7 +557,11 @@
     document.getElementById('tvGoldBanner').classList.toggle('visible', !!S.goldenPoint);
   });
 
-  ref.on('disconnect', () => dot.classList.remove('on'));
+  // 연결 상태 표시 — 'disconnect'는 유효한 RTDB 이벤트가 아니라 (기존 버그: 여기서
+  // throw되어 이후 스크립트 전체가 죽었음) 공식 .info/connected 경로로 감지한다.
+  db.ref('.info/connected').on('value', (snap) => {
+    dot.classList.toggle('on', !!snap.val());
+  });
 
   /* ══════════════ 대진표 (토너먼트 스토어 폴링) ══════════════
    * 데이터: GET {API}/tournament-store/tournaments (공개 read, 15초 폴링)
