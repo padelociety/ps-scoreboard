@@ -261,6 +261,141 @@
     transition: background 0.4s;
   }
   .conn-dot.on { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+
+  /* ══════════════ 대진표 패널 (토글: B키 / 패널 클릭 / ?bracket=0) ══════════════ */
+  /* 대진표 표시 중엔 점수판을 컴팩트하게 눌러 함께 보이게 한다 */
+  body.bracket-on { justify-content: flex-start; padding-top: 2.5vh; }
+  body.bracket-on .sb-title { padding: 10px 40px; }
+  body.bracket-on .sb-title-text { font-size: clamp(20px, 2.4vw, 34px); }
+  body.bracket-on .sb-row { min-height: 84px; }
+  body.bracket-on .sb-name span { font-size: clamp(24px, 3.2vw, 44px); }
+  body.bracket-on .sb-cell { font-size: clamp(24px, 3.4vw, 48px); }
+  body.bracket-on .sb-cell.set { font-size: clamp(18px, 2.4vw, 34px); }
+  body.bracket-on .sb-cell.set.current { font-size: clamp(22px, 2.8vw, 40px); }
+  body.bracket-on .sb-cell.point { font-size: clamp(28px, 3.8vw, 54px); }
+  body.bracket-on .sb-header { padding: 8px 40px 6px; }
+  body.bracket-on .sb-header-cell { font-size: 14px; }
+
+  .bracket-panel {
+    display: none;
+    width: min(96vw, 1400px);
+    margin-top: 64px; /* star/gold 배너(absolute)와 겹치지 않게 */
+    cursor: pointer;  /* 패널 클릭 = 숨김 (마우스/에어리모컨) */
+  }
+  body.bracket-on .bracket-panel { display: block; }
+
+  .bk-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 0 6px 10px;
+  }
+  .bk-title {
+    font-size: clamp(18px, 2vw, 28px);
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .bk-sub {
+    font-size: clamp(12px, 1.2vw, 16px);
+    color: rgba(240,234,210,0.45);
+    letter-spacing: 1px;
+  }
+  .bk-cols {
+    display: flex;
+    gap: 14px;
+    align-items: stretch;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .bk-col {
+    flex: 1 1 0;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bk-round-label {
+    font-size: clamp(11px, 1vw, 14px);
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: rgba(240,234,210,0.5);
+    text-align: center;
+    text-transform: uppercase;
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(245,197,24,0.25);
+  }
+  .bk-col-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    gap: 8px;
+  }
+  .bk-match {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .bk-match.live {
+    border-color: rgba(245,60,60,0.7);
+    animation: liveGlow 1.4s ease-in-out infinite alternate;
+  }
+  @keyframes liveGlow {
+    0%   { box-shadow: 0 0 4px rgba(245,60,60,0.3); }
+    100% { box-shadow: 0 0 14px rgba(245,60,60,0.8); }
+  }
+  .bk-time {
+    font-size: clamp(10px, 0.9vw, 13px);
+    color: rgba(240,234,210,0.4);
+    letter-spacing: 1px;
+    margin-bottom: 3px;
+  }
+  .bk-team {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: clamp(14px, 1.4vw, 20px);
+    font-weight: 600;
+    color: var(--cream);
+    line-height: 1.5;
+  }
+  .bk-team .nm {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bk-team.win { color: var(--gold); font-weight: 800; }
+  .bk-team.lose { color: rgba(240,234,210,0.45); }
+  .bk-team .sc {
+    flex-shrink: 0;
+    font-weight: 800;
+    min-width: 22px;
+    text-align: right;
+  }
+  .bk-live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #f53c3c;
+    margin-right: 6px;
+    animation: liveGlow 1s ease-in-out infinite alternate;
+  }
+
+  /* 숨김 상태 힌트 (데이터가 있을 때만) */
+  .bk-hint {
+    display: none;
+    position: fixed;
+    bottom: 18px;
+    left: 24px;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: rgba(240,234,210,0.35);
+  }
+  .bk-hint.visible { display: block; }
 </style>
 </head>
 <body>
@@ -317,6 +452,16 @@
   </div>
 
 </div>
+
+<!-- ── 대진표 패널 ── -->
+<div class="bracket-panel" id="bracketPanel" title="클릭하면 대진표를 숨깁니다">
+  <div class="bk-head">
+    <div class="bk-title" id="bkTitle"></div>
+    <div class="bk-sub" id="bkSub"></div>
+  </div>
+  <div class="bk-cols" id="bkCols"></div>
+</div>
+<div class="bk-hint" id="bkHint">대진표: B 키 또는 화면 클릭</div>
 
 <div class="conn-dot" id="connDot"></div>
 
@@ -413,6 +558,158 @@
   });
 
   ref.on('disconnect', () => dot.classList.remove('on'));
+
+  /* ══════════════ 대진표 (토너먼트 스토어 폴링) ══════════════
+   * 데이터: GET {API}/tournament-store/tournaments (공개 read, 15초 폴링)
+   * 토글 우선순위: RTDB scoreboard.showBracket(리모컨) > 로컬(B키/클릭/?bracket=)
+   * URL 파라미터:
+   *   ?tid=<토너먼트 id>  특정 대회 고정 (생략 시 진행중 대회 자동 선택)
+   *   ?bracket=0          시작 시 숨김
+   *   ?api=<base>         API 베이스 오버라이드 (기본 https://api.padelsociety.co.kr/api)
+   */
+  const bkQS   = new URLSearchParams(location.search);
+  const BK_API = bkQS.get('api') || 'https://api.padelsociety.co.kr/api';
+  const BK_TID = bkQS.get('tid') || null;
+
+  let bkLocalShow = bkQS.has('bracket')
+    ? bkQS.get('bracket') !== '0'
+    : (localStorage.getItem('tvBracketShow') ?? '1') !== '0';
+  let bkRemoteShow = null;   // RTDB scoreboard.showBracket (boolean일 때만 적용)
+  let bkTournament = null;   // 마지막으로 선택된 대회
+
+  const bkPanel = document.getElementById('bracketPanel');
+  const bkHint  = document.getElementById('bkHint');
+
+  function bkApply() {
+    const want = (bkRemoteShow !== null) ? bkRemoteShow : bkLocalShow;
+    const on = !!(want && bkTournament);
+    document.body.classList.toggle('bracket-on', on);
+    bkHint.classList.toggle('visible', !on && !!bkTournament && bkRemoteShow === null);
+  }
+
+  function bkToggle() {
+    bkLocalShow = !bkLocalShow;
+    localStorage.setItem('tvBracketShow', bkLocalShow ? '1' : '0');
+    bkApply();
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'b' || e.key === 'B' || e.key === 'ㅠ') bkToggle();
+  });
+  bkPanel.addEventListener('click', bkToggle);
+  bkHint.addEventListener('click', bkToggle);
+
+  // RTDB 리모컨: 점수 콘솔에서 scoreboard.showBracket true/false 쓰면 원격 제어
+  ref.on('value', (snap) => {
+    const S = snap.val() || {};
+    bkRemoteShow = (typeof S.showBracket === 'boolean') ? S.showBracket : null;
+    bkApply();
+  });
+
+  // ── 팀 id → 이름 (registrations / groups.teams / americano·special players) ──
+  function bkNameOf(t, id) {
+    if (!id) return 'TBD';
+    const reg = (t.registrations || []).find((r) => r.id === id);
+    if (reg) return reg.teamName || reg.playerName || '?';
+    for (const g of (t.groups || [])) {
+      const tm = (g.teams || []).find((x) => x.id === id);
+      if (tm) return tm.name;
+      const pl = (g.players || []).find((x) => x.id === id);
+      if (pl) return pl.name;
+    }
+    for (const src of [t.americanoData, t.specialData]) {
+      const p = (src && src.players || []).find((x) => x.id === id);
+      if (p) return p.name;
+    }
+    return String(id);
+  }
+
+  const BK_ROUND_LABEL = { 1: 'FINAL', 2: 'SEMIFINAL', 4: 'QUARTERFINAL', 8: 'ROUND OF 16', 16: 'ROUND OF 32' };
+
+  function bkMatchHTML(t, m) {
+    const done = !!m.completed;
+    const live = !!m.live && !done;
+    const hs = (m.homeScore ?? m.team1Score);
+    const as = (m.awayScore ?? m.team2Score);
+    const hWin = done && hs > as, aWin = done && as > hs;
+    const hName = m.home != null ? bkNameOf(t, m.home)
+      : (m.team1 || []).map((id) => bkNameOf(t, id)).join(' & ') || 'TBD';
+    const aName = m.away != null ? bkNameOf(t, m.away)
+      : (m.team2 || []).map((id) => bkNameOf(t, id)).join(' & ') || 'TBD';
+    const sc = (v) => (v == null ? '' : v);
+    return `<div class="bk-match${live ? ' live' : ''}">
+      ${m.matchTime ? `<div class="bk-time">${live ? '<span class="bk-live-dot"></span>' : ''}${m.matchTime}</div>` : (live ? '<div class="bk-time"><span class="bk-live-dot"></span>LIVE</div>' : '')}
+      <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}"><span class="nm">${hName}</span><span class="sc">${sc(hs)}</span></div>
+      <div class="bk-team${aWin ? ' win' : ''}${hWin ? ' lose' : ''}"><span class="nm">${aName}</span><span class="sc">${sc(as)}</span></div>
+    </div>`;
+  }
+
+  function bkRender(t) {
+    document.getElementById('bkTitle').textContent = t.title || t.name || '';
+    const cols = document.getElementById('bkCols');
+    const kb = t.knockoutBracket;
+
+    if (kb && Array.isArray(kb.rounds) && kb.rounds.length) {
+      document.getElementById('bkSub').textContent = 'KNOCKOUT';
+      let html = kb.rounds.map((rd) => `
+        <div class="bk-col">
+          <div class="bk-round-label">${BK_ROUND_LABEL[rd.length] || 'ROUND'}</div>
+          <div class="bk-col-inner">${rd.map((m) => bkMatchHTML(t, m)).join('')}</div>
+        </div>`).join('');
+      if (kb.thirdPlaceMatch) {
+        html += `<div class="bk-col">
+          <div class="bk-round-label">3RD PLACE</div>
+          <div class="bk-col-inner">${bkMatchHTML(t, kb.thirdPlaceMatch)}</div>
+        </div>`;
+      }
+      cols.innerHTML = html;
+      return;
+    }
+
+    if (Array.isArray(t.groups) && t.groups.length) {
+      document.getElementById('bkSub').textContent = 'GROUP STAGE';
+      cols.innerHTML = t.groups.map((g) => {
+        const ms = (g.rounds || []).flat();
+        return `<div class="bk-col">
+          <div class="bk-round-label">${(g.name || '').length <= 2 ? 'GROUP ' + (g.name || '') : g.name}</div>
+          <div class="bk-col-inner">${ms.map((m) => bkMatchHTML(t, m)).join('')}</div>
+        </div>`;
+      }).join('');
+      return;
+    }
+
+    cols.innerHTML = '';
+  }
+
+  function bkPick(items) {
+    if (!Array.isArray(items)) return null;
+    const hasDraw = (t) =>
+      (t.knockoutBracket && (t.knockoutBracket.rounds || []).length) ||
+      (t.groups && t.groups.length);
+    if (BK_TID) return items.find((t) => t.id === BK_TID && hasDraw(t)) || null;
+    const drawable = items.filter(hasDraw);
+    // 진행중(라이브) 우선 → 미완료 → 최근 완료
+    return drawable.find((t) => t.stage !== 'completed' && t.stage !== 'registration')
+        || drawable.find((t) => t.stage !== 'completed')
+        || drawable[drawable.length - 1]
+        || null;
+  }
+
+  async function bkPoll() {
+    try {
+      const res = await fetch(`${BK_API}/tournament-store/tournaments`, { headers: { Accept: 'application/json' } });
+      if (res.ok) {
+        const json = await res.json();
+        const raw = json && json.data && json.data.data;
+        const items = raw ? JSON.parse(raw) : [];
+        const picked = bkPick(items);
+        bkTournament = picked;
+        if (picked) bkRender(picked);
+        bkApply();
+      }
+    } catch (e) { /* 네트워크 일시 오류 — 다음 폴링에서 복구 */ }
+    setTimeout(bkPoll, 15000);
+  }
+  bkPoll();
 </script>
 </body>
 </html>
