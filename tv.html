@@ -424,12 +424,12 @@
     line-height: 1.1;
   }
   .bk-table td.nm { font-weight: 800; }
-  .bk-table td.rk { color: rgba(240,234,210,0.7); width: 1%; }
+  .bk-table td.rk { color: rgba(240,234,210,0.7); width: 1%; white-space: nowrap; }
   .bk-table td.grp { color: rgba(240,234,210,0.4); font-size: clamp(13px, 1.4vw, 22px); }
   .bk-table td.gw { color: var(--gold); }
   .bk-table td.gl { color: rgba(240,234,210,0.45); font-size: clamp(15px, 1.7vw, 26px); }
   .bk-table tr.top td { background: rgba(245,197,24,0.1); }
-  .bk-table tr.top td.rk::before { content: '★ '; color: var(--gold); }
+  .bk-table tr.top td.rk::before { content: '★'; color: var(--gold); margin-right: 6px; font-size: 0.8em; }
   .bk-bye {
     margin-left: 10px;
     font-size: clamp(11px, 1.1vw, 16px);
@@ -503,6 +503,7 @@
     <div class="bk-sub" id="bkSub"></div>
   </div>
   <div class="bk-standings" id="bkStandings"></div>
+  <div class="bk-round-label" id="bkBracketTitle" style="text-align:left;letter-spacing:2px;border:none;margin:14px 6px 8px;color:var(--gold)"></div>
   <div class="bk-cols" id="bkCols" style="display:none"></div>
 </div>
 <div class="bk-hint" id="bkHint">순위/대진표: B 키 또는 화면 클릭</div>
@@ -618,8 +619,10 @@
   const bkQS   = new URLSearchParams(location.search);
   const BK_API = bkQS.get('api') || 'https://api.padelsociety.co.kr/api';
   const BK_TID = bkQS.get('tid') || null;
-  // 하단 패널 모드: standings(통합순위·기본) | bracket(대진표)
-  const BK_PANEL = (bkQS.get('panel') || 'standings').toLowerCase();
+  // 하단 패널 모드: both(순위+대진표·기본) | standings | bracket
+  const BK_PANEL = (bkQS.get('panel') || 'both').toLowerCase();
+  const BK_SHOW_STANDINGS = BK_PANEL === 'both' || BK_PANEL === 'standings';
+  const BK_SHOW_BRACKET   = BK_PANEL === 'both' || BK_PANEL === 'bracket';
 
   let bkLocalShow = bkQS.has('bracket')
     ? bkQS.get('bracket') !== '0'
@@ -691,14 +694,15 @@
     return Object.values(stats);
   }
 
-  // 두 조 통합 순위 — 승 → 이긴 게임수 → 진 게임수 적은 순 (rankSpecial7과 동일)
+  // 두 조 통합 순위 — 이긴 게임수 → 득실차 → (최종)승수 (rankSpecial7과 동일)
   function bkOverallStandings(t) {
     const rows = [];
     (t.groups || []).forEach((g) => bkStandingsOf(g.teams, g.rounds).forEach((s) => rows.push({ ...s, groupName: g.name })));
     rows.sort((a, b) => {
-      if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
       if ((b.gamesWon || 0) !== (a.gamesWon || 0)) return (b.gamesWon || 0) - (a.gamesWon || 0);
-      return (a.gamesLost || 0) - (b.gamesLost || 0);
+      const da = (a.gamesWon || 0) - (a.gamesLost || 0), db = (b.gamesWon || 0) - (b.gamesLost || 0);
+      if (db !== da) return db - da;
+      return (b.wins || 0) - (a.wins || 0);
     });
     return rows;
   }
@@ -743,16 +747,19 @@
   const BK_ROUND_LABEL = { 1: 'FINAL', 2: 'SEMIFINAL', 4: 'QUARTERFINAL', 8: 'ROUND OF 16', 16: 'ROUND OF 32' };
 
   function bkMatchHTML(t, m) {
-    const done = !!m.completed;
-    const live = !!m.live && !done;
+    const proj = !!m.projected;   // 예상 대진(점수 없음)
+    const done = !m.projected && !!m.completed;
+    const live = !m.projected && !!m.live && !done;
     const hs = (m.homeScore ?? m.team1Score);
     const as = (m.awayScore ?? m.team2Score);
     const hWin = done && hs > as, aWin = done && as > hs;
     const hName = m.home != null ? bkNameOf(t, m.home)
       : (m.team1 || []).map((id) => bkNameOf(t, id)).join(' & ') || 'TBD';
-    const aName = m.away != null ? bkNameOf(t, m.away)
+    // 예상 부전승: 상대 슬롯이 비면 BYE 표기
+    const aName = (proj && m.home != null && m.away == null) ? '부전승'
+      : m.away != null ? bkNameOf(t, m.away)
       : (m.team2 || []).map((id) => bkNameOf(t, id)).join(' & ') || 'TBD';
-    const sc = (v) => (v == null ? '' : v);
+    const sc = (v) => (proj || v == null ? '' : v);
     return `<div class="bk-match${live ? ' live' : ''}">
       ${m.matchTime ? `<div class="bk-time">${live ? '<span class="bk-live-dot"></span>' : ''}${m.matchTime}</div>` : (live ? '<div class="bk-time"><span class="bk-live-dot"></span>LIVE</div>' : '')}
       <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}"><span class="nm">${hName}</span><span class="sc">${sc(hs)}</span></div>
@@ -760,22 +767,27 @@
     </div>`;
   }
 
-  function bkRender(t) {
-    // 통합순위 모드(기본): 순위표만, 대진표 컬럼 숨김
-    if (BK_PANEL !== 'bracket') {
-      document.getElementById('bkStandings').style.display = '';
-      document.getElementById('bkCols').style.display = 'none';
-      bkRenderStandings(t);
-      return;
+  // 8강 아직 없을 때: 현재 통합순위로 예상 대진 투영 (7팀 스페셜 시드 [1,·,4,5,2,7,3,6], 1위 부전승)
+  function bkProjectedRounds(t) {
+    const maxT = parseInt(t.maxTeams, 10);
+    const ranked = bkOverallStandings(t).map((s) => s.team.id);
+    if (maxT === 7 && ranked.length >= 7) {
+      const s = ranked;
+      const slots = [s[0], null, s[3], s[4], s[1], s[6], s[2], s[5]];
+      const qf = [];
+      for (let i = 0; i < 8; i += 2) qf.push({ home: slots[i], away: slots[i + 1], projected: true });
+      return [qf, [{ projected: true }, { projected: true }], [{ projected: true }]];
     }
-    document.getElementById('bkStandings').style.display = 'none';
-    document.getElementById('bkCols').style.display = '';
-    document.getElementById('bkTitle').textContent = t.title || t.name || '';
+    return null;
+  }
+
+  function bkRenderBracket(t) {
     const cols = document.getElementById('bkCols');
     const kb = t.knockoutBracket;
+    const bkTitle = document.getElementById('bkBracketTitle');
 
     if (kb && Array.isArray(kb.rounds) && kb.rounds.length) {
-      document.getElementById('bkSub').textContent = 'KNOCKOUT';
+      if (bkTitle) bkTitle.textContent = 'KNOCKOUT';
       let html = kb.rounds.map((rd) => `
         <div class="bk-col">
           <div class="bk-round-label">${BK_ROUND_LABEL[rd.length] || 'ROUND'}</div>
@@ -788,11 +800,24 @@
         </div>`;
       }
       cols.innerHTML = html;
-      return;
+      return true;
     }
 
+    // 8강 미생성 → 예상 대진 투영 (있으면)
+    const proj = bkProjectedRounds(t);
+    if (proj) {
+      if (bkTitle) bkTitle.textContent = '예상 대진 · 현재 순위 기준';
+      cols.innerHTML = proj.map((rd) => `
+        <div class="bk-col">
+          <div class="bk-round-label">${BK_ROUND_LABEL[rd.length] || 'ROUND'}</div>
+          <div class="bk-col-inner">${rd.map((m) => bkMatchHTML(t, m)).join('')}</div>
+        </div>`).join('');
+      return true;
+    }
+
+    // 투영 불가(7팀 아님/데이터 부족) → 조별 경기 일정 표시
     if (Array.isArray(t.groups) && t.groups.length) {
-      document.getElementById('bkSub').textContent = 'GROUP STAGE';
+      if (bkTitle) bkTitle.textContent = 'GROUP STAGE';
       cols.innerHTML = t.groups.map((g) => {
         const ms = (g.rounds || []).flat();
         return `<div class="bk-col">
@@ -800,19 +825,28 @@
           <div class="bk-col-inner">${ms.map((m) => bkMatchHTML(t, m)).join('')}</div>
         </div>`;
       }).join('');
-      return;
+      return true;
     }
-
     cols.innerHTML = '';
+    return false;
+  }
+
+  function bkRender(t) {
+    document.getElementById('bkTitle').textContent = t.title || t.name || '';
+    document.getElementById('bkStandings').style.display = BK_SHOW_STANDINGS ? '' : 'none';
+    document.getElementById('bkBracketTitle').style.display = BK_SHOW_BRACKET ? '' : 'none';
+    document.getElementById('bkCols').style.display = BK_SHOW_BRACKET ? '' : 'none';
+    if (BK_SHOW_STANDINGS) bkRenderStandings(t);
+    else document.getElementById('bkSub').textContent = '';
+    if (BK_SHOW_BRACKET) bkRenderBracket(t);
   }
 
   function bkPick(items) {
     if (!Array.isArray(items)) return null;
-    // 통합순위 모드는 조(groups)만 있으면 표시 가능 / 대진표 모드는 대진표 또는 조
+    // 순위/대진표 모두 조(groups)가 있어야 표시 가능 (대진표는 조가 없어도 knockout 있으면 OK)
     const hasDraw = (t) =>
-      (BK_PANEL !== 'bracket'
-        ? (t.groups && t.groups.length)
-        : ((t.knockoutBracket && (t.knockoutBracket.rounds || []).length) || (t.groups && t.groups.length)));
+      (t.groups && t.groups.length) ||
+      (t.knockoutBracket && (t.knockoutBracket.rounds || []).length);
     if (BK_TID) return items.find((t) => t.id === BK_TID && hasDraw(t)) || null;
     const drawable = items.filter(hasDraw);
     // 진행중(라이브) 우선 → 미완료 → 최근 완료
