@@ -396,6 +396,49 @@
     color: rgba(240,234,210,0.35);
   }
   .bk-hint.visible { display: block; }
+
+  /* ══════════════ 통합 순위 테이블 ══════════════ */
+  .bk-standings { width: 100%; }
+  .bk-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--cream);
+  }
+  .bk-table th {
+    font-size: clamp(11px, 1.1vw, 16px);
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(240,234,210,0.5);
+    padding: 6px 10px;
+    text-align: center;
+    border-bottom: 1px solid rgba(245,197,24,0.3);
+  }
+  .bk-table th.l, .bk-table td.l { text-align: left; }
+  .bk-table td {
+    font-size: clamp(18px, 2.2vw, 34px);
+    font-weight: 700;
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    line-height: 1.1;
+  }
+  .bk-table td.nm { font-weight: 800; }
+  .bk-table td.rk { color: rgba(240,234,210,0.7); width: 1%; }
+  .bk-table td.grp { color: rgba(240,234,210,0.4); font-size: clamp(13px, 1.4vw, 22px); }
+  .bk-table td.gw { color: var(--gold); }
+  .bk-table td.gl { color: rgba(240,234,210,0.45); font-size: clamp(15px, 1.7vw, 26px); }
+  .bk-table tr.top td { background: rgba(245,197,24,0.1); }
+  .bk-table tr.top td.rk::before { content: '★ '; color: var(--gold); }
+  .bk-bye {
+    margin-left: 10px;
+    font-size: clamp(11px, 1.1vw, 16px);
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gold);
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
 </style>
 </head>
 <body>
@@ -453,15 +496,16 @@
 
 </div>
 
-<!-- ── 대진표 패널 ── -->
-<div class="bracket-panel" id="bracketPanel" title="클릭하면 대진표를 숨깁니다">
+<!-- ── 하단 패널 (통합순위 / 대진표) ── -->
+<div class="bracket-panel" id="bracketPanel" title="클릭하면 숨깁니다">
   <div class="bk-head">
     <div class="bk-title" id="bkTitle"></div>
     <div class="bk-sub" id="bkSub"></div>
   </div>
-  <div class="bk-cols" id="bkCols"></div>
+  <div class="bk-standings" id="bkStandings"></div>
+  <div class="bk-cols" id="bkCols" style="display:none"></div>
 </div>
-<div class="bk-hint" id="bkHint">대진표: B 키 또는 화면 클릭</div>
+<div class="bk-hint" id="bkHint">순위/대진표: B 키 또는 화면 클릭</div>
 
 <div class="conn-dot" id="connDot"></div>
 
@@ -574,6 +618,8 @@
   const bkQS   = new URLSearchParams(location.search);
   const BK_API = bkQS.get('api') || 'https://api.padelsociety.co.kr/api';
   const BK_TID = bkQS.get('tid') || null;
+  // 하단 패널 모드: standings(통합순위·기본) | bracket(대진표)
+  const BK_PANEL = (bkQS.get('panel') || 'standings').toLowerCase();
 
   let bkLocalShow = bkQS.has('bracket')
     ? bkQS.get('bracket') !== '0'
@@ -627,6 +673,73 @@
     return String(id);
   }
 
+  // 순위 계산 — tournament-app.js calcStandings 이식 (승/이긴 게임/진 게임).
+  function bkStandingsOf(teams, rounds) {
+    const stats = {};
+    (teams || []).forEach((t) => { stats[t.id] = { team: t, played: 0, wins: 0, losses: 0, draws: 0, gamesWon: 0, gamesLost: 0 }; });
+    (rounds || []).forEach((rd) => (rd || []).forEach((m) => {
+      if (!m.completed) return;
+      const h = stats[m.home], a = stats[m.away];
+      if (!h || !a) return;
+      h.played++; a.played++;
+      h.gamesWon += m.homeScore; h.gamesLost += m.awayScore;
+      a.gamesWon += m.awayScore; a.gamesLost += m.homeScore;
+      if (m.homeScore > m.awayScore) { h.wins++; a.losses++; }
+      else if (m.homeScore < m.awayScore) { a.wins++; h.losses++; }
+      else { h.draws++; a.draws++; }
+    }));
+    return Object.values(stats);
+  }
+
+  // 두 조 통합 순위 — 승 → 이긴 게임수 → 진 게임수 적은 순 (rankSpecial7과 동일)
+  function bkOverallStandings(t) {
+    const rows = [];
+    (t.groups || []).forEach((g) => bkStandingsOf(g.teams, g.rounds).forEach((s) => rows.push({ ...s, groupName: g.name })));
+    rows.sort((a, b) => {
+      if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
+      if ((b.gamesWon || 0) !== (a.gamesWon || 0)) return (b.gamesWon || 0) - (a.gamesWon || 0);
+      return (a.gamesLost || 0) - (b.gamesLost || 0);
+    });
+    return rows;
+  }
+
+  function bkRenderStandings(t) {
+    const rows = bkOverallStandings(t);
+    const multiGroup = (t.groups || []).length > 1;
+    const maxT = parseInt(t.maxTeams, 10);
+    const isSpecial7 = maxT === 7;
+    document.getElementById('bkTitle').textContent = t.title || t.name || '';
+    document.getElementById('bkSub').textContent = isSpecial7 ? '통합 순위 · 1~7위' : '순위';
+    const box = document.getElementById('bkStandings');
+    if (!rows.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <table class="bk-table">
+        <thead>
+          <tr>
+            <th class="l">#</th>
+            <th class="l">선수 · 팀</th>
+            ${multiGroup ? '<th>조</th>' : ''}
+            <th>경기</th>
+            <th>승</th>
+            <th>이긴 게임</th>
+            <th>진 게임</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((s, i) => `
+            <tr class="${i === 0 && isSpecial7 ? 'top' : ''}">
+              <td class="rk">${i + 1}</td>
+              <td class="nm l">${s.team.name}${i === 0 && isSpecial7 ? '<span class="bk-bye">8강 부전승</span>' : ''}</td>
+              ${multiGroup ? `<td class="grp">${s.groupName}</td>` : ''}
+              <td>${s.played}</td>
+              <td>${s.wins}</td>
+              <td class="gw">${s.gamesWon}</td>
+              <td class="gl">${s.gamesLost}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
   const BK_ROUND_LABEL = { 1: 'FINAL', 2: 'SEMIFINAL', 4: 'QUARTERFINAL', 8: 'ROUND OF 16', 16: 'ROUND OF 32' };
 
   function bkMatchHTML(t, m) {
@@ -648,6 +761,15 @@
   }
 
   function bkRender(t) {
+    // 통합순위 모드(기본): 순위표만, 대진표 컬럼 숨김
+    if (BK_PANEL !== 'bracket') {
+      document.getElementById('bkStandings').style.display = '';
+      document.getElementById('bkCols').style.display = 'none';
+      bkRenderStandings(t);
+      return;
+    }
+    document.getElementById('bkStandings').style.display = 'none';
+    document.getElementById('bkCols').style.display = '';
     document.getElementById('bkTitle').textContent = t.title || t.name || '';
     const cols = document.getElementById('bkCols');
     const kb = t.knockoutBracket;
@@ -686,9 +808,11 @@
 
   function bkPick(items) {
     if (!Array.isArray(items)) return null;
+    // 통합순위 모드는 조(groups)만 있으면 표시 가능 / 대진표 모드는 대진표 또는 조
     const hasDraw = (t) =>
-      (t.knockoutBracket && (t.knockoutBracket.rounds || []).length) ||
-      (t.groups && t.groups.length);
+      (BK_PANEL !== 'bracket'
+        ? (t.groups && t.groups.length)
+        : ((t.knockoutBracket && (t.knockoutBracket.rounds || []).length) || (t.groups && t.groups.length)));
     if (BK_TID) return items.find((t) => t.id === BK_TID && hasDraw(t)) || null;
     const drawable = items.filter(hasDraw);
     // 진행중(라이브) 우선 → 미완료 → 최근 완료
