@@ -726,11 +726,14 @@
             <th>경기</th>
             <th>승</th>
             <th>이긴 게임</th>
+            <th>득실</th>
             <th>진 게임</th>
           </tr>
         </thead>
         <tbody>
-          ${rows.map((s, i) => `
+          ${rows.map((s, i) => {
+            const diff = (s.gamesWon || 0) - (s.gamesLost || 0);
+            return `
             <tr class="${i === 0 && isSpecial7 ? 'top' : ''}">
               <td class="rk">${i + 1}</td>
               <td class="nm l">${s.team.name}${i === 0 && isSpecial7 ? '<span class="bk-bye">8강 부전승</span>' : ''}</td>
@@ -738,8 +741,10 @@
               <td>${s.played}</td>
               <td>${s.wins}</td>
               <td class="gw">${s.gamesWon}</td>
+              <td class="gw">${diff > 0 ? '+' + diff : diff}</td>
               <td class="gl">${s.gamesLost}</td>
-            </tr>`).join('')}
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>`;
   }
