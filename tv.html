@@ -280,7 +280,6 @@
     display: none;
     width: min(96vw, 1400px);
     margin-top: 64px; /* star/gold 배너(absolute)와 겹치지 않게 */
-    cursor: pointer;  /* 패널 클릭 = 숨김 (마우스/에어리모컨) */
   }
   body.bracket-on .bracket-panel { display: block; }
 
@@ -384,6 +383,39 @@
     margin-right: 6px;
     animation: liveGlow 1s ease-in-out infinite alternate;
   }
+
+  /* ── 뷰 전환 버튼 (우상단) ── */
+  .view-switch {
+    position: fixed;
+    top: 22px; right: 24px;
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(198,168,103,0.28);
+    border-radius: 999px;
+    z-index: 50;
+    opacity: 0.55;
+    transition: opacity 0.25s;
+  }
+  .view-switch:hover { opacity: 1; }
+  body.bracket-on .view-switch { opacity: 0.9; }
+  .vbtn {
+    font-family: 'Barlow Condensed','Noto Sans KR',sans-serif;
+    font-size: 15px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: rgba(240,234,210,0.6);
+    background: transparent;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .vbtn:hover { color: var(--cream); }
+  .vbtn.on { background: var(--gold); color: #0a0a0a; }
 
   /* 숨김 상태 힌트 (데이터가 있을 때만) */
   .bk-hint {
@@ -496,8 +528,15 @@
 
 </div>
 
+<!-- ── 뷰 전환 버튼 (점수판만 / 순위 / 대진표) ── -->
+<div class="view-switch" id="viewSwitch">
+  <button class="vbtn" data-v="score">점수판</button>
+  <button class="vbtn" data-v="standings">순위</button>
+  <button class="vbtn" data-v="bracket">대진표</button>
+</div>
+
 <!-- ── 하단 패널 (통합순위 / 대진표) ── -->
-<div class="bracket-panel" id="bracketPanel" title="클릭하면 숨깁니다">
+<div class="bracket-panel" id="bracketPanel">
   <div class="bk-head">
     <div class="bk-title" id="bkTitle"></div>
     <div class="bk-sub" id="bkSub"></div>
@@ -619,43 +658,63 @@
   const bkQS   = new URLSearchParams(location.search);
   const BK_API = bkQS.get('api') || 'https://api.padelsociety.co.kr/api';
   const BK_TID = bkQS.get('tid') || null;
-  // 하단 패널 모드: standings(통합순위만·기본) | bracket | both
-  // TV엔 대진표를 띄우지 않는다 — 기본 통합순위만. (?panel=both/bracket로만 대진표 노출)
-  const BK_PANEL = (bkQS.get('panel') || 'standings').toLowerCase();
-  const BK_SHOW_STANDINGS = BK_PANEL === 'both' || BK_PANEL === 'standings';
-  const BK_SHOW_BRACKET   = BK_PANEL === 'both' || BK_PANEL === 'bracket';
 
-  let bkLocalShow = bkQS.has('bracket')
-    ? bkQS.get('bracket') !== '0'
-    : (localStorage.getItem('tvBracketShow') ?? '1') !== '0';
-  let bkRemoteShow = null;   // RTDB scoreboard.showBracket (boolean일 때만 적용)
+  // ── 3-way 뷰: 'score'(점수판만) | 'standings'(통합순위) | 'bracket'(대진표) ──
+  // 화면 우상단 버튼 / 키보드 1·2·3·B / RTDB scoreboard.tvView 로 전환. 로컬 저장.
+  const BK_VIEWS = ['score', 'standings', 'bracket'];
+  function bkNormView(v){ return BK_VIEWS.includes(v) ? v : null; }
+  let bkView = bkNormView((bkQS.get('view') || bkQS.get('panel') || '').toLowerCase())
+            || bkNormView(localStorage.getItem('tvView'))
+            || 'standings';
+  let bkRemoteView = null;   // RTDB scoreboard.tvView (있을 때만 우선)
   let bkTournament = null;   // 마지막으로 선택된 대회
 
   const bkPanel = document.getElementById('bracketPanel');
   const bkHint  = document.getElementById('bkHint');
+  const bkSwitch = document.getElementById('viewSwitch');
+
+  function bkEffView(){ return bkRemoteView || bkView; }
 
   function bkApply() {
-    const want = (bkRemoteShow !== null) ? bkRemoteShow : bkLocalShow;
-    const on = !!(want && bkTournament);
-    document.body.classList.toggle('bracket-on', on);
-    bkHint.classList.toggle('visible', !on && !!bkTournament && bkRemoteShow === null);
+    const v = bkEffView();
+    const panelOn = v !== 'score' && !!bkTournament;
+    document.body.classList.toggle('bracket-on', panelOn);
+    // 버튼 활성 표시
+    if (bkSwitch) {
+      bkSwitch.querySelectorAll('.vbtn').forEach((b) => {
+        b.classList.toggle('on', b.dataset.v === v);
+      });
+    }
+    bkHint.classList.remove('visible'); // 힌트 대신 버튼으로 안내
+    if (bkTournament) bkRender(bkTournament); // 뷰 바뀌면 즉시 다시 그림
   }
 
-  function bkToggle() {
-    bkLocalShow = !bkLocalShow;
-    localStorage.setItem('tvBracketShow', bkLocalShow ? '1' : '0');
+  function bkSetView(v) {
+    v = bkNormView(v); if (!v) return;
+    bkView = v;
+    localStorage.setItem('tvView', v);
     bkApply();
   }
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'b' || e.key === 'B' || e.key === 'ㅠ') bkToggle();
-  });
-  bkPanel.addEventListener('click', bkToggle);
-  bkHint.addEventListener('click', bkToggle);
+  function bkCycle() { bkSetView(BK_VIEWS[(BK_VIEWS.indexOf(bkEffView()) + 1) % 3]); }
 
-  // RTDB 리모컨: 점수 콘솔에서 scoreboard.showBracket true/false 쓰면 원격 제어
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '1') bkSetView('score');
+    else if (e.key === '2') bkSetView('standings');
+    else if (e.key === '3') bkSetView('bracket');
+    else if (e.key === 'b' || e.key === 'B' || e.key === 'ㅠ') bkCycle();
+  });
+  if (bkSwitch) {
+    bkSwitch.querySelectorAll('.vbtn').forEach((b) => {
+      b.addEventListener('click', (ev) => { ev.stopPropagation(); bkSetView(b.dataset.v); });
+    });
+  }
+
+  // RTDB 리모컨: 콘솔에서 scoreboard.tvView('score'|'standings'|'bracket') 쓰면 원격 제어
+  // (하위호환: 예전 showBracket=true → bracket, false → standings)
   ref.on('value', (snap) => {
     const S = snap.val() || {};
-    bkRemoteShow = (typeof S.showBracket === 'boolean') ? S.showBracket : null;
+    bkRemoteView = bkNormView(S.tvView)
+      || (typeof S.showBracket === 'boolean' ? (S.showBracket ? 'bracket' : 'standings') : null);
     bkApply();
   });
 
@@ -838,18 +897,22 @@
   }
 
   function bkRender(t) {
+    const v = bkEffView();
+    const showStandings = v === 'standings';
+    const showBracket = v === 'bracket';
     document.getElementById('bkTitle').textContent = t.title || t.name || '';
-    document.getElementById('bkStandings').style.display = BK_SHOW_STANDINGS ? '' : 'none';
-    document.getElementById('bkBracketTitle').style.display = BK_SHOW_BRACKET ? '' : 'none';
-    document.getElementById('bkCols').style.display = BK_SHOW_BRACKET ? '' : 'none';
-    if (BK_SHOW_STANDINGS) bkRenderStandings(t);
+    document.getElementById('bkStandings').style.display = showStandings ? '' : 'none';
+    document.getElementById('bkBracketTitle').style.display = showBracket ? '' : 'none';
+    document.getElementById('bkCols').style.display = showBracket ? '' : 'none';
+    if (showStandings) bkRenderStandings(t);
     else document.getElementById('bkSub').textContent = '';
-    if (BK_SHOW_BRACKET) bkRenderBracket(t);
+    if (showBracket) bkRenderBracket(t);
   }
 
   function bkPick(items) {
     if (!Array.isArray(items)) return null;
-    // 순위/대진표 모두 조(groups)가 있어야 표시 가능 (대진표는 조가 없어도 knockout 있으면 OK)
+    // 순위/대진표 모두 조(groups)가 있어야 표시 가능 (대진표는 조가 없어도 knockout 있으면 OK).
+    // 'score' 뷰라도 대회는 잡아둔다(버튼으로 언제든 전환 가능하게).
     const hasDraw = (t) =>
       (t.groups && t.groups.length) ||
       (t.knockoutBracket && (t.knockoutBracket.rounds || []).length);
