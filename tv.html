@@ -619,8 +619,9 @@
   const bkQS   = new URLSearchParams(location.search);
   const BK_API = bkQS.get('api') || 'https://api.padelsociety.co.kr/api';
   const BK_TID = bkQS.get('tid') || null;
-  // 하단 패널 모드: both(순위+대진표·기본) | standings | bracket
-  const BK_PANEL = (bkQS.get('panel') || 'both').toLowerCase();
+  // 하단 패널 모드: standings(통합순위만·기본) | bracket | both
+  // TV엔 대진표를 띄우지 않는다 — 기본 통합순위만. (?panel=both/bracket로만 대진표 노출)
+  const BK_PANEL = (bkQS.get('panel') || 'standings').toLowerCase();
   const BK_SHOW_STANDINGS = BK_PANEL === 'both' || BK_PANEL === 'standings';
   const BK_SHOW_BRACKET   = BK_PANEL === 'both' || BK_PANEL === 'bracket';
 
