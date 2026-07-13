@@ -838,7 +838,8 @@
     const ranked = bkOverallStandings(t).map((s) => s.team.id);
     if (maxT === 7 && ranked.length >= 7) {
       const s = ranked;
-      const slots = [s[0], null, s[3], s[4], s[1], s[6], s[2], s[5]];
+      // 표준 8강 시드 [1,8,4,5,3,6,2,7] → 8강 (1/8, 4/5, 3/6, 2/7)
+      const slots = [s[0], null, s[3], s[4], s[2], s[5], s[1], s[6]];
       const qf = [];
       for (let i = 0; i < 8; i += 2) qf.push({ home: slots[i], away: slots[i + 1], projected: true });
       return [qf, [{ projected: true }, { projected: true }], [{ projected: true }]];
