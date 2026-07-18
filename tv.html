@@ -287,7 +287,9 @@
     display: flex;
     align-items: baseline;
     gap: 16px;
-    padding: 0 6px 10px;
+    /* 우측 여백 — 우상단 고정 전환 메뉴(≈240px) 밑으로 긴 대회 제목이 깔리지 않게 */
+    padding: 0 250px 10px 6px;
+    flex-wrap: wrap;
   }
   .bk-title {
     font-size: clamp(18px, 2vw, 28px);
@@ -391,7 +393,10 @@
     display: flex;
     gap: 4px;
     padding: 4px;
-    background: rgba(0,0,0,0.3);
+    /* 불투명 배경 + 블러 — 아래로 콘텐츠가 지나가도 겹쳐 보이지 않게 */
+    background: rgba(8,8,6,0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(198,168,103,0.28);
     border-radius: 999px;
     z-index: 50;
@@ -767,7 +772,64 @@
     return rows;
   }
 
+  // 셀렉션(개인전) 순위 — tournament-app calcAmericanoStandings 이식.
+  // 이긴 게임(자기 팀 점수 합) 우선, 동점 시 승수 — 앱의 통과자 선정과 동일 기준이라 순위가 일치.
+  function bkSpecialStandings(t) {
+    const sd = t.specialData || {};
+    const rows = [];
+    (sd.groups || []).forEach((g) => {
+      const stats = {};
+      (g.players || []).forEach((p) => { stats[p.id] = { player: p, played: 0, wins: 0, losses: 0, gamesWon: 0 }; });
+      (g.rounds || []).forEach((round) => (round || []).forEach((m) => {
+        if (!m.completed) return;
+        const t1Win = (m.team1Score || 0) > (m.team2Score || 0);
+        const t2Win = (m.team2Score || 0) > (m.team1Score || 0);
+        (m.team1 || []).forEach((pid) => { const s = stats[pid]; if (s) { s.gamesWon += m.team1Score || 0; s.played++; if (t1Win) s.wins++; else if (t2Win) s.losses++; } });
+        (m.team2 || []).forEach((pid) => { const s = stats[pid]; if (s) { s.gamesWon += m.team2Score || 0; s.played++; if (t2Win) s.wins++; else if (t1Win) s.losses++; } });
+      }));
+      Object.values(stats).forEach((s) => rows.push({ ...s, groupName: g.name }));
+    });
+    rows.sort((a, b) => (b.gamesWon !== a.gamesWon) ? b.gamesWon - a.gamesWon : b.wins - a.wins);
+    return rows;
+  }
+
+  // 셀렉션 순위표 — 요청대로 승 / 패 / 이긴 게임만 (개인전이라 득실·진게임 생략).
+  function bkRenderSpecialStandings(t) {
+    const rows = bkSpecialStandings(t);
+    const multiGroup = ((t.specialData || {}).groups || []).length > 1;
+    document.getElementById('bkTitle').textContent = t.title || t.name || '';
+    document.getElementById('bkSub').textContent = '순위 · 승 / 패 / 이긴 게임';
+    const box = document.getElementById('bkStandings');
+    if (!rows.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <table class="bk-table">
+        <thead>
+          <tr>
+            <th class="l">#</th>
+            <th class="l">선수</th>
+            ${multiGroup ? '<th>조</th>' : ''}
+            <th>승</th>
+            <th>패</th>
+            <th>이긴 게임</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((s, i) => `
+            <tr>
+              <td class="rk">${i + 1}</td>
+              <td class="nm l">${s.player.name}</td>
+              ${multiGroup ? `<td class="grp">${s.groupName}</td>` : ''}
+              <td>${s.wins}</td>
+              <td>${s.losses}</td>
+              <td class="gw">${s.gamesWon}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
   function bkRenderStandings(t) {
+    // 대회 타입에 따라 순위표 구성이 다름 — 셀렉션(개인전)은 승/패/이긴게임만, 팀전은 기존 풀 테이블.
+    if (t.specialData && (t.specialData.groups || []).length) { bkRenderSpecialStandings(t); return; }
     const rows = bkOverallStandings(t);
     const multiGroup = (t.groups || []).length > 1;
     const maxT = parseInt(t.maxTeams, 10);
@@ -838,7 +900,8 @@
     const ranked = bkOverallStandings(t).map((s) => s.team.id);
     if (maxT === 7 && ranked.length >= 7) {
       const s = ranked;
-      const slots = [s[0], null, s[3], s[4], s[1], s[6], s[2], s[5]];
+      // 표준 8강 시드 [1,8,4,5,3,6,2,7] → 8강 (1/8, 4/5, 3/6, 2/7)
+      const slots = [s[0], null, s[3], s[4], s[2], s[5], s[1], s[6]];
       const qf = [];
       for (let i = 0; i < 8; i += 2) qf.push({ home: slots[i], away: slots[i + 1], projected: true });
       return [qf, [{ projected: true }, { projected: true }], [{ projected: true }]];
@@ -892,6 +955,19 @@
       }).join('');
       return true;
     }
+    // 셀렉션(개인전) — 라운드(경기) 일정. bkMatchHTML이 team1/team2 페어 이름·점수·승패 스타일까지 처리.
+    const sdG = (t.specialData && t.specialData.groups) || [];
+    if (sdG.length) {
+      if (bkTitle) bkTitle.textContent = '경기 일정';
+      cols.innerHTML = sdG.map((g, gi) => {
+        const ms = (g.rounds || []).flat();
+        return `<div class="bk-col">
+          <div class="bk-round-label">${sdG.length > 1 ? 'GROUP ' + (g.name || (gi + 1)) : 'MATCHES'}</div>
+          <div class="bk-col-inner">${ms.map((m) => bkMatchHTML(t, m)).join('')}</div>
+        </div>`;
+      }).join('');
+      return true;
+    }
     cols.innerHTML = '';
     return false;
   }
@@ -915,7 +991,8 @@
     // 'score' 뷰라도 대회는 잡아둔다(버튼으로 언제든 전환 가능하게).
     const hasDraw = (t) =>
       (t.groups && t.groups.length) ||
-      (t.knockoutBracket && (t.knockoutBracket.rounds || []).length);
+      (t.knockoutBracket && (t.knockoutBracket.rounds || []).length) ||
+      (t.specialData && (t.specialData.groups || []).length); // 셀렉션(5/10/12명 개인전)도 표시 대상
     if (BK_TID) return items.find((t) => t.id === BK_TID && hasDraw(t)) || null;
     const drawable = items.filter(hasDraw);
     // 진행중(라이브) 우선 → 미완료 → 최근 완료
