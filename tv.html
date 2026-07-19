@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ⚠️ TV 브라우저·키오스크가 옛 파일을 붙잡지 않도록 캐시 무효화 (서비스워커 없음) -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>PS Scoreboard – TV</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
@@ -278,17 +282,20 @@
 
   .bracket-panel {
     display: none;
-    width: min(96vw, 1400px);
+    width: min(96vw, 1520px);
     margin-top: 64px; /* star/gold 배너(absolute)와 겹치지 않게 */
   }
   body.bracket-on .bracket-panel { display: block; }
+  /* 대진표 뷰: 점수판 숨기고 전체화면으로 (순위 뷰는 점수판+순위 유지) */
+  body.view-bracket .sb-wrap { display: none; }
+  body.view-bracket .bracket-panel { margin-top: 24px; }
 
   .bk-head {
     display: flex;
     align-items: baseline;
     gap: 16px;
     /* 우측 여백 — 우상단 고정 전환 메뉴(≈240px) 밑으로 긴 대회 제목이 깔리지 않게 */
-    padding: 0 250px 10px 6px;
+    padding: 0 250px 14px 6px;
     flex-wrap: wrap;
   }
   .bk-title {
@@ -300,91 +307,167 @@
   }
   .bk-sub {
     font-size: clamp(12px, 1.2vw, 16px);
-    color: rgba(240,234,210,0.45);
-    letter-spacing: 1px;
+    color: rgba(240,234,210,0.5);
+    letter-spacing: 2px;
   }
+  /* ── 대진표: 라운드 가로 배치 + 엘보 연결선 오버레이 ── */
   .bk-cols {
+    position: relative;
     display: flex;
-    gap: 14px;
+    gap: 26px;
     align-items: stretch;
     overflow-x: auto;
-    padding-bottom: 6px;
+    padding-bottom: 8px;
   }
+  svg.bk-conns { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; overflow: visible; }
   .bk-col {
+    position: relative;
+    z-index: 1;
     flex: 1 1 0;
-    min-width: 200px;
+    min-width: 212px;
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
   .bk-round-label {
     font-size: clamp(11px, 1vw, 14px);
-    font-weight: 700;
-    letter-spacing: 3px;
-    color: rgba(240,234,210,0.5);
+    font-weight: 800;
+    letter-spacing: 4px;
+    color: var(--gold);
     text-align: center;
     text-transform: uppercase;
-    padding-bottom: 2px;
-    border-bottom: 1px solid rgba(245,197,24,0.25);
+    opacity: 0.85;
+    padding-bottom: 6px;
+  }
+  .bk-round-label small {
+    display: block;
+    font-size: clamp(9px, 0.72vw, 11px);
+    letter-spacing: 3px;
+    color: rgba(240,234,210,0.4);
+    font-weight: 600;
+    margin-top: 3px;
   }
   .bk-col-inner {
     flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    gap: 8px;
+    gap: 14px;
   }
   .bk-match {
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    padding: 8px 12px;
+    position: relative;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(9,40,30,0.94), rgba(6,28,21,0.96));
+    border: 1px solid rgba(245,197,24,0.18);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
   }
+  /* 3·4위전 — 결승 칼럼 하단에 표준 배치 */
+  .bk-third { margin-top: 26px; }
+  .bk-third .bk-round-label { padding-bottom: 8px; opacity: 0.7; }
+  .bk-match.done { border-color: rgba(245,197,24,0.34); }
   .bk-match.live {
-    border-color: rgba(245,60,60,0.7);
+    border-color: rgba(255,77,77,0.85);
     animation: liveGlow 1.4s ease-in-out infinite alternate;
   }
   @keyframes liveGlow {
-    0%   { box-shadow: 0 0 4px rgba(245,60,60,0.3); }
-    100% { box-shadow: 0 0 14px rgba(245,60,60,0.8); }
+    0%   { box-shadow: 0 0 0 1px rgba(255,77,77,0.4), 0 0 8px rgba(255,77,77,0.3); }
+    100% { box-shadow: 0 0 0 1px rgba(255,77,77,0.7), 0 0 24px rgba(255,77,77,0.7); }
   }
+  .bk-livebadge {
+    position: absolute;
+    top: -10px; left: 10px; z-index: 3;
+    background: #ff4d4d; color: #fff;
+    font-size: clamp(9px, 0.72vw, 12px); font-weight: 800; letter-spacing: 2px;
+    padding: 2px 7px; border-radius: 4px;
+    display: flex; align-items: center; gap: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .bk-livebadge i { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: bkBlink 0.9s steps(2) infinite; }
+  @keyframes bkBlink { 50% { opacity: 0.2; } }
   .bk-time {
     font-size: clamp(10px, 0.9vw, 13px);
     color: rgba(240,234,210,0.4);
     letter-spacing: 1px;
-    margin-bottom: 3px;
+    padding: 5px 12px 0;
   }
   .bk-team {
+    position: relative;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 9px;
+    padding: 9px 13px;
     font-size: clamp(14px, 1.4vw, 20px);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--cream);
-    line-height: 1.5;
+    line-height: 1.15;
   }
-  .bk-team .nm {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .bk-team + .bk-team { border-top: 1px solid rgba(255,255,255,0.07); }
+  .bk-seed {
+    flex: none;
+    width: 22px; height: 22px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(10px, 0.85vw, 13px); font-weight: 800;
+    color: rgba(240,234,210,0.5);
+    background: rgba(255,255,255,0.06);
   }
-  .bk-team.win { color: var(--gold); font-weight: 800; }
-  .bk-team.lose { color: rgba(240,234,210,0.45); }
-  .bk-team .sc {
-    flex-shrink: 0;
-    font-weight: 800;
-    min-width: 22px;
-    text-align: right;
+  .bk-team .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bk-team .sc { flex: none; font-weight: 800; min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+  .bk-team.win { color: var(--gold); }
+  .bk-team.win .sc { color: var(--gold); }
+  .bk-team.win .bk-seed { background: linear-gradient(180deg, var(--gold), #c99a12); color: #0a2a1f; }
+  .bk-team.win::before {
+    content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 62%; background: var(--gold); box-shadow: 0 0 12px var(--gold);
   }
+  .bk-team.lose { color: rgba(240,234,210,0.42); }
+  .bk-team.lose .sc { color: rgba(240,234,210,0.42); }
   .bk-live-dot {
     display: inline-block;
     width: 8px; height: 8px;
     border-radius: 50%;
-    background: #f53c3c;
+    background: #ff4d4d;
     margin-right: 6px;
     animation: liveGlow 1s ease-in-out infinite alternate;
   }
+  /* ── 챔피언 노드 ── */
+  .bk-champ-col {
+    flex: 0 0 auto;
+    min-width: 236px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center;
+    z-index: 1;
+  }
+  .bk-champ .cup {
+    font-size: clamp(34px, 3.4vw, 52px);
+    filter: drop-shadow(0 4px 16px rgba(245,197,24,0.5));
+    animation: bkFloat 3s ease-in-out infinite;
+  }
+  @keyframes bkFloat { 50% { transform: translateY(-6px); } }
+  .bk-champ .clabel {
+    font-size: clamp(11px, 1vw, 15px); letter-spacing: 6px; font-weight: 800;
+    color: var(--gold); text-transform: uppercase; margin-top: 6px;
+  }
+  .bk-champ .cbox {
+    position: relative; overflow: hidden;
+    margin-top: 12px; padding: 16px 20px; border-radius: 12px; min-width: 200px;
+    background: linear-gradient(180deg, rgba(245,197,24,0.16), rgba(245,197,24,0.04));
+    border: 1px solid rgba(245,197,24,0.55);
+    box-shadow: 0 0 40px rgba(245,197,24,0.28), inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+  .bk-champ .cbox::after {
+    content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-18deg); animation: bkShine 3.5s ease-in-out infinite;
+  }
+  @keyframes bkShine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+  .bk-champ .cbox.pending {
+    border-color: rgba(245,197,24,0.28); background: rgba(245,197,24,0.05); box-shadow: none;
+  }
+  .bk-champ .cbox.pending::after { display: none; }
+  .bk-champ .cname { font-size: clamp(18px, 1.9vw, 28px); font-weight: 900; color: #fff; }
+  .bk-champ .cbox.pending .cname { font-size: clamp(15px, 1.5vw, 22px); color: rgba(240,234,210,0.6); }
+  .bk-champ .cmeta { font-size: clamp(10px, 0.82vw, 13px); letter-spacing: 3px; color: var(--gold); margin-top: 6px; text-transform: uppercase; }
 
   /* ── 뷰 전환 버튼 (우상단) ── */
   .view-switch {
@@ -554,6 +637,9 @@
 
 <div class="conn-dot" id="connDot"></div>
 
+<!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
+<div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b3 · 대진표 리디자인</div>
+
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -684,6 +770,7 @@
     const v = bkEffView();
     const panelOn = v !== 'score' && !!bkTournament;
     document.body.classList.toggle('bracket-on', panelOn);
+    document.body.classList.toggle('view-bracket', v === 'bracket' && panelOn);
     // 버튼 활성 표시
     if (bkSwitch) {
       bkSwitch.querySelectorAll('.vbtn').forEach((b) => {
@@ -872,26 +959,121 @@
   }
 
   const BK_ROUND_LABEL = { 1: 'FINAL', 2: 'SEMIFINAL', 4: 'QUARTERFINAL', 8: 'ROUND OF 16', 16: 'ROUND OF 32' };
+  const BK_ROUND_KO    = { 1: '결승', 2: '4강', 4: '8강', 8: '16강', 16: '32강' };
+
+  // 시드(현재 순위) — 팀전은 통합순위, 셀렉션은 개인순위 기준. 순위 없으면 빈값.
+  function bkSeedOf(t, id) {
+    if (!id) return '';
+    if (!t.__seedMap) {
+      const map = {};
+      bkOverallStandings(t).forEach((s, i) => { if (s.team) map[s.team.id] = i + 1; });
+      if (t.specialData && t.specialData.groups) {
+        bkSpecialStandings(t).forEach((s, i) => { if (s.player) map[s.player.id] = i + 1; });
+      }
+      t.__seedMap = map;
+    }
+    return t.__seedMap[id] || '';
+  }
 
   function bkMatchHTML(t, m) {
     const proj = !!m.projected;   // 예상 대진(점수 없음)
-    const done = !m.projected && !!m.completed;
-    const live = !m.projected && !!m.live && !done;
+    const done = !proj && !!m.completed;
+    const live = !proj && !!m.live && !done;
     const hs = (m.homeScore ?? m.team1Score);
     const as = (m.awayScore ?? m.team2Score);
     const hWin = done && hs > as, aWin = done && as > hs;
+    const hId = m.home != null ? m.home : (m.team1 && m.team1[0]);
+    const aId = m.away != null ? m.away : (m.team2 && m.team2[0]);
     const hName = m.home != null ? bkNameOf(t, m.home)
-      : (m.team1 || []).map((id) => bkNameOf(t, id)).join(' & ') || 'TBD';
+      : (m.team1 || []).map((id) => bkNameOf(t, id)).join(' · ') || 'TBD';
     // 예상 부전승: 상대 슬롯이 비면 BYE 표기
     const aName = (proj && m.home != null && m.away == null) ? '부전승'
       : m.away != null ? bkNameOf(t, m.away)
-      : (m.team2 || []).map((id) => bkNameOf(t, id)).join(' & ') || 'TBD';
+      : (m.team2 || []).map((id) => bkNameOf(t, id)).join(' · ') || 'TBD';
     const sc = (v) => (proj || v == null ? '' : v);
-    return `<div class="bk-match${live ? ' live' : ''}">
-      ${m.matchTime ? `<div class="bk-time">${live ? '<span class="bk-live-dot"></span>' : ''}${m.matchTime}</div>` : (live ? '<div class="bk-time"><span class="bk-live-dot"></span>LIVE</div>' : '')}
-      <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}"><span class="nm">${hName}</span><span class="sc">${sc(hs)}</span></div>
-      <div class="bk-team${aWin ? ' win' : ''}${hWin ? ' lose' : ''}"><span class="nm">${aName}</span><span class="sc">${sc(as)}</span></div>
+    const seedTag = (id) => { const s = bkSeedOf(t, id); return s ? `<span class="bk-seed">${s}</span>` : ''; };
+    const cls = 'bk-match' + (live ? ' live' : done ? ' done' : '');
+    const head = live ? `<div class="bk-livebadge"><i></i>LIVE</div>`
+      : (m.matchTime ? `<div class="bk-time">${m.matchTime}</div>` : '');
+    return `<div class="${cls}" data-done="${done ? 1 : 0}">
+      ${head}
+      <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}">${seedTag(hId)}<span class="nm">${hName}</span><span class="sc">${sc(hs)}</span></div>
+      <div class="bk-team${aWin ? ' win' : ''}${hWin ? ' lose' : ''}">${seedTag(aId)}<span class="nm">${aName}</span><span class="sc">${sc(as)}</span></div>
     </div>`;
+  }
+
+  // 챔피언 노드 — 결승(마지막 라운드 단일 경기) 완료 시 우승자, 아니면 '대기'.
+  function bkChampHTML(t, kb) {
+    const finalRd = kb.rounds[kb.rounds.length - 1];
+    const fm = finalRd && finalRd.length === 1 ? finalRd[0] : null;
+    let name = '', decided = false;
+    if (fm && fm.completed) {
+      const hs = fm.homeScore ?? fm.team1Score, as = fm.awayScore ?? fm.team2Score;
+      const winIds = hs > as ? (fm.home != null ? [fm.home] : (fm.team1 || []))
+                             : (fm.away != null ? [fm.away] : (fm.team2 || []));
+      name = winIds.map((id) => bkNameOf(t, id)).join(' · ');
+      decided = !!name;
+    }
+    return `<div class="bk-col bk-champ-col">
+      <div class="bk-champ">
+        <div class="cup">🏆</div>
+        <div class="clabel">Champion</div>
+        ${decided
+          ? `<div class="cbox"><div class="cname">${name}</div><div class="cmeta">우승</div></div>`
+          : `<div class="cbox pending"><div class="cname">결승 대기</div><div class="cmeta">우승자 확정 시 표시</div></div>`}
+      </div>
+    </div>`;
+  }
+
+  // 라운드 연결선(엘보) — 레이아웃 후 각 경기 위치를 실측해 그림.
+  let bkConnRaf = 0, bkConnResizeBound = false;
+  function bkQueueConnectors() {
+    if (!bkConnResizeBound) { window.addEventListener('resize', bkQueueConnectors); bkConnResizeBound = true; }
+    cancelAnimationFrame(bkConnRaf);
+    bkConnRaf = requestAnimationFrame(() => requestAnimationFrame(bkDrawConnectors));
+    setTimeout(bkDrawConnectors, 450); // 폰트 로드 후 재보정
+  }
+  function bkDrawConnectors() {
+    const cols = document.getElementById('bkCols');
+    const svg = cols && cols.querySelector('svg.bk-conns');
+    if (!svg) return;
+    const kko = Array.from(cols.querySelectorAll('.bk-col.kko'));
+    const champBox = cols.querySelector('.bk-champ-col .cbox');
+    const base = cols.getBoundingClientRect();
+    const sl = cols.scrollLeft, st = cols.scrollTop;
+    const W = cols.scrollWidth, H = cols.scrollHeight;
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const C = (el) => { const r = el.getBoundingClientRect(); return {
+      l: r.left - base.left + sl, r: r.right - base.left + sl, y: r.top - base.top + st + r.height / 2 }; };
+    const GOLD = '#f5c518', DIM = 'rgba(245,197,24,0.28)';
+    const seg = (d, done) => `<path d="${d}" fill="none" stroke="${done ? GOLD : DIM}" stroke-width="${done ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round"${done ? '' : ' stroke-dasharray="2 6"'}/>`;
+    let paths = '';
+    for (let r = 0; r < kko.length - 1; r++) {
+      const kids = Array.from(kko[r].querySelectorAll('.bk-col-inner .bk-match'));
+      const parents = Array.from(kko[r + 1].querySelectorAll('.bk-col-inner .bk-match'));
+      parents.forEach((pEl, k) => {
+        const p = C(pEl);
+        [kids[2 * k], kids[2 * k + 1]].forEach((cEl) => {
+          if (!cEl) return;
+          const c = C(cEl);
+          const midX = (c.r + p.l) / 2;
+          const done = cEl.getAttribute('data-done') === '1';
+          paths += seg(`M ${c.r} ${c.y} H ${midX} V ${p.y} H ${p.l}`, done);
+        });
+      });
+    }
+    if (champBox && kko.length) {
+      const last = Array.from(kko[kko.length - 1].querySelectorAll('.bk-col-inner .bk-match'));
+      const fEl = last.length === 1 ? last[0] : null;
+      if (fEl) {
+        const f = C(fEl), ch = C(champBox);
+        const midX = (f.r + ch.l) / 2;
+        const done = fEl.getAttribute('data-done') === '1';
+        paths += seg(`M ${f.r} ${f.y} H ${midX} V ${ch.y} H ${ch.l}`, done);
+      }
+    }
+    svg.innerHTML = paths;
   }
 
   // 8강 아직 없을 때: 현재 통합순위로 예상 대진 투영 (7팀 스페셜 시드 [1,·,4,5,2,7,3,6], 1위 부전승)
@@ -914,20 +1096,21 @@
     const kb = t.knockoutBracket;
     const bkTitle = document.getElementById('bkBracketTitle');
 
+    const kkoCol = (rd, third) => `
+        <div class="bk-col kko">
+          <div class="bk-round-label">${BK_ROUND_LABEL[rd.length] || 'ROUND'}${BK_ROUND_KO[rd.length] ? `<small>${BK_ROUND_KO[rd.length]}</small>` : ''}</div>
+          <div class="bk-col-inner">${rd.map((m) => bkMatchHTML(t, m)).join('')}</div>
+          ${third ? `<div class="bk-third"><div class="bk-round-label">3RD PLACE<small>3·4위전</small></div>${bkMatchHTML(t, third)}</div>` : ''}
+        </div>`;
+
     if (kb && Array.isArray(kb.rounds) && kb.rounds.length) {
       if (bkTitle) bkTitle.textContent = 'KNOCKOUT';
-      let html = kb.rounds.map((rd) => `
-        <div class="bk-col">
-          <div class="bk-round-label">${BK_ROUND_LABEL[rd.length] || 'ROUND'}</div>
-          <div class="bk-col-inner">${rd.map((m) => bkMatchHTML(t, m)).join('')}</div>
-        </div>`).join('');
-      if (kb.thirdPlaceMatch) {
-        html += `<div class="bk-col">
-          <div class="bk-round-label">3RD PLACE</div>
-          <div class="bk-col-inner">${bkMatchHTML(t, kb.thirdPlaceMatch)}</div>
-        </div>`;
-      }
-      cols.innerHTML = html;
+      const lastIdx = kb.rounds.length - 1;
+      // 3·4위전은 결승 칼럼 하단에 배치(연결선이 가로지르지 않게)
+      let html = kb.rounds.map((rd, ri) => kkoCol(rd, ri === lastIdx ? kb.thirdPlaceMatch : null)).join('');
+      html += bkChampHTML(t, kb);
+      cols.innerHTML = '<svg class="bk-conns"></svg>' + html;
+      bkQueueConnectors();
       return true;
     }
 
@@ -935,11 +1118,8 @@
     const proj = bkProjectedRounds(t);
     if (proj) {
       if (bkTitle) bkTitle.textContent = '예상 대진 · 현재 순위 기준';
-      cols.innerHTML = proj.map((rd) => `
-        <div class="bk-col">
-          <div class="bk-round-label">${BK_ROUND_LABEL[rd.length] || 'ROUND'}</div>
-          <div class="bk-col-inner">${rd.map((m) => bkMatchHTML(t, m)).join('')}</div>
-        </div>`).join('');
+      cols.innerHTML = '<svg class="bk-conns"></svg>' + proj.map((rd) => kkoCol(rd)).join('') + bkChampHTML(t, { rounds: proj });
+      bkQueueConnectors();
       return true;
     }
 
