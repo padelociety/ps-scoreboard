@@ -280,18 +280,18 @@
   body.bracket-on .sb-header { padding: 8px 40px 6px; }
   body.bracket-on .sb-header-cell { font-size: 14px; }
 
-  /* 대진표 뷰 — 점수판을 슬림 바로(세로 절약해 대진표 전체가 화면에 들어오게) */
-  body.view-bracket .sb-title { padding: 5px 40px; }
-  body.view-bracket .sb-title-text { font-size: clamp(15px, 1.7vw, 22px); }
-  body.view-bracket .sb-header { padding: 3px 40px 3px; }
-  body.view-bracket .sb-header-cell { font-size: 11px; }
-  body.view-bracket .sb-row { min-height: 60px; }
-  body.view-bracket .sb-name span { font-size: clamp(20px, 2.4vw, 34px); }
-  body.view-bracket .sb-cell { font-size: clamp(26px, 3.2vw, 48px); }
-  body.view-bracket .sb-cell.set { font-size: clamp(22px, 2.8vw, 40px); }
-  body.view-bracket .sb-cell.set.current { font-size: clamp(26px, 3.2vw, 48px); }
-  body.view-bracket .sb-cell.point { font-size: clamp(24px, 3vw, 44px); }
-  body.view-bracket .bracket-panel { margin-top: 22px; }
+  /* 대진표 뷰 — 점수판은 대진표가 다 보이는 선에서 최대한 크게. */
+  body.view-bracket .sb-title { padding: 8px 40px; }
+  body.view-bracket .sb-title-text { font-size: clamp(18px, 2.1vw, 30px); }
+  body.view-bracket .sb-header { padding: 6px 40px 5px; }
+  body.view-bracket .sb-header-cell { font-size: 13px; }
+  body.view-bracket .sb-row { min-height: 114px; }
+  body.view-bracket .sb-name span { font-size: clamp(34px, 4.3vw, 62px); }
+  body.view-bracket .sb-cell { font-size: clamp(48px, 6vw, 94px); }
+  body.view-bracket .sb-cell.set { font-size: clamp(40px, 5vw, 76px); }
+  body.view-bracket .sb-cell.set.current { font-size: clamp(48px, 6vw, 94px); }
+  body.view-bracket .sb-cell.point { font-size: clamp(44px, 5.4vw, 86px); }
+  body.view-bracket .bracket-panel { margin-top: 18px; }
 
   .bracket-panel {
     display: none;
@@ -648,11 +648,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b4--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b4 · 자동갱신</div>
+<!--TVBUILD:b5--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b5 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b4"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b5"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1048,9 +1048,7 @@
       <div class="bk-champ">
         <div class="cup">🏆</div>
         <div class="clabel">Champion</div>
-        ${decided
-          ? `<div class="cbox"><div class="cname">${name}</div><div class="cmeta">우승</div></div>`
-          : `<div class="cbox pending"><div class="cname">결승 대기</div><div class="cmeta">우승자 확정 시 표시</div></div>`}
+        ${decided ? `<div class="cbox"><div class="cname">${name}</div><div class="cmeta">우승</div></div>` : ''}
       </div>
     </div>`;
   }
