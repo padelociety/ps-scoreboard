@@ -280,15 +280,25 @@
   body.bracket-on .sb-header { padding: 8px 40px 6px; }
   body.bracket-on .sb-header-cell { font-size: 14px; }
 
+  /* 대진표 뷰 — 점수판을 슬림 바로(세로 절약해 대진표 전체가 화면에 들어오게) */
+  body.view-bracket .sb-title { padding: 5px 40px; }
+  body.view-bracket .sb-title-text { font-size: clamp(15px, 1.7vw, 22px); }
+  body.view-bracket .sb-header { padding: 3px 40px 3px; }
+  body.view-bracket .sb-header-cell { font-size: 11px; }
+  body.view-bracket .sb-row { min-height: 60px; }
+  body.view-bracket .sb-name span { font-size: clamp(20px, 2.4vw, 34px); }
+  body.view-bracket .sb-cell { font-size: clamp(26px, 3.2vw, 48px); }
+  body.view-bracket .sb-cell.set { font-size: clamp(22px, 2.8vw, 40px); }
+  body.view-bracket .sb-cell.set.current { font-size: clamp(26px, 3.2vw, 48px); }
+  body.view-bracket .sb-cell.point { font-size: clamp(24px, 3vw, 44px); }
+  body.view-bracket .bracket-panel { margin-top: 22px; }
+
   .bracket-panel {
     display: none;
     width: min(96vw, 1520px);
     margin-top: 64px; /* star/gold 배너(absolute)와 겹치지 않게 */
   }
   body.bracket-on .bracket-panel { display: block; }
-  /* 대진표 뷰: 점수판 숨기고 전체화면으로 (순위 뷰는 점수판+순위 유지) */
-  body.view-bracket .sb-wrap { display: none; }
-  body.view-bracket .bracket-panel { margin-top: 24px; }
 
   .bk-head {
     display: flex;
@@ -638,7 +648,26 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b3 · 대진표 리디자인</div>
+<!--TVBUILD:b4--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b4 · 자동갱신</div>
+<script>
+// 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
+(function () {
+  var BUILD = "b4"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  function check() {
+    fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (html) {
+        if (!html) return;
+        var m = html.match(/TVBUILD:([A-Za-z0-9._]+)/);
+        if (m && m[1] && m[1] !== BUILD) location.reload();
+      })
+      .catch(function () {});
+  }
+  setInterval(check, 120000); // 2분마다 확인
+  // 탭이 다시 보일 때(TV 절전 복귀 등)도 즉시 확인
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) check(); });
+})();
+</script>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -770,6 +799,7 @@
     const v = bkEffView();
     const panelOn = v !== 'score' && !!bkTournament;
     document.body.classList.toggle('bracket-on', panelOn);
+    // 대진표 뷰: 점수판은 유지하되 슬림하게(세로가 길어 둘 다 들어가게)
     document.body.classList.toggle('view-bracket', v === 'bracket' && panelOn);
     // 버튼 활성 표시
     if (bkSwitch) {
