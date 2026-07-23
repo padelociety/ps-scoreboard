@@ -53,17 +53,6 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    transition: opacity .5s ease, transform .5s ease;
-  }
-  /* 경기 시작 전/종료 후 — 오버레이 전체 숨김(리모컨 scoreboard.visible=false).
-     점수판·순위·대진표·뷰버튼·힌트 모두 페이드아웃 → 리그 안 할 땐 화면에 아무것도 안 뜸. */
-  body.sb-off .sb-wrap,
-  body.sb-off .view-switch,
-  body.sb-off .bracket-panel,
-  body.sb-off .bk-hint {
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transition: opacity .5s ease;
   }
 
   /* ── 배너: 카드 아래에 absolute 고정 (카드 안 밀림) ── */
@@ -267,7 +256,6 @@
 
   /* ── 연결 상태 ── */
   .conn-dot {
-    display: none; /* 방송엔 안 보이게 — Firebase 연결 표시(개발용). 태블릿 fb-status로 확인 가능. */
     position: fixed;
     bottom: 20px;
     right: 24px;
@@ -660,11 +648,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b8--><div id="tvBuild" style="display:none;position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b8 · 자동갱신</div>
+<!--TVBUILD:b5--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b5 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b8"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b5"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -719,11 +707,6 @@
   ref.on('value', snap => {
     dot.classList.add('on');
     const S = snap.val();
-    // 표시/숨김 — visible이 명시적 false거나 데이터가 없으면 오버레이 전체 숨김.
-    // (점수판만이 아니라 순위/대진표 패널까지 — 리그 안 할 땐 화면에 아무것도 안 뜨게)
-    // 구버전 호환: visible 필드가 없으면 기존처럼 표시.
-    const show = !!S && S.visible !== false;
-    document.body.classList.toggle('sb-off', !show);
     if (!S) return;
 
     document.getElementById('tvTitle').textContent = S.title || '';
@@ -802,7 +785,7 @@
   function bkNormView(v){ return BK_VIEWS.includes(v) ? v : null; }
   let bkView = bkNormView((bkQS.get('view') || bkQS.get('panel') || '').toLowerCase())
             || bkNormView(localStorage.getItem('tvView'))
-            || 'score'; // 기본은 점수판 — 저장값 없을 때 순위 화면으로 떨어져 뭉개지던 문제 방지
+            || 'score'; // 기본은 점수판(원본은 standings였음 — 700x250 소스에서 순위 화면 뭉개짐 방지)
   let bkRemoteView = null;   // RTDB scoreboard.tvView (있을 때만 우선)
   let bkTournament = null;   // 마지막으로 선택된 대회
 
