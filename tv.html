@@ -660,11 +660,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b7--><div id="tvBuild" style="display:none;position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b7 · 자동갱신</div>
+<!--TVBUILD:b8--><div id="tvBuild" style="display:none;position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b8 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b7"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b8"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -802,7 +802,7 @@
   function bkNormView(v){ return BK_VIEWS.includes(v) ? v : null; }
   let bkView = bkNormView((bkQS.get('view') || bkQS.get('panel') || '').toLowerCase())
             || bkNormView(localStorage.getItem('tvView'))
-            || 'standings';
+            || 'score'; // 기본은 점수판 — 저장값 없을 때 순위 화면으로 떨어져 뭉개지던 문제 방지
   let bkRemoteView = null;   // RTDB scoreboard.tvView (있을 때만 우선)
   let bkTournament = null;   // 마지막으로 선택된 대회
 
