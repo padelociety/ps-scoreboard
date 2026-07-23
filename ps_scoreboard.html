@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS Scoreboard (compact)</title>
+<style>
+  /* 700x250 OBS 브라우저 소스 전용 컴팩트 스코어보드.
+     뷰버튼·순위·대진표 없음. Firebase 'scoreboard' 노드 실시간 반영. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: transparent; overflow: hidden;
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif; }
+
+  :root {
+    --green:   #0C3A2A;   /* 짙은 잉크 그린 */
+    --green2:  #0A2E22;
+    --line:    rgba(230,195,107,0.28);
+    --gold:    #E6C36B;
+    --gold2:   #F5C842;
+    --cream:   #F4EFE2;
+    --dim:     rgba(244,239,226,0.55);
+  }
+
+  .board {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, var(--green) 0%, var(--green2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+
+  /* 타이틀 바 */
+  .title {
+    flex: 0 0 auto; height: 44px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 18px;
+    background: rgba(0,0,0,0.22);
+    border-bottom: 1px solid var(--line);
+  }
+  .title .mark {
+    font-family: 'Bebas Neue', sans-serif; font-weight: 900; letter-spacing: 2px;
+    color: var(--gold2); font-size: 15px; white-space: nowrap;
+  }
+  .title .txt {
+    color: var(--cream); font-size: 15px; font-weight: 700; letter-spacing: 0.3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+  }
+
+  /* 컬럼 헤더 */
+  .head {
+    flex: 0 0 auto; height: 20px;
+    display: grid; grid-template-columns: 1fr 56px 56px 56px 64px;
+    align-items: center;
+    padding: 0 4px 0 18px;
+    background: rgba(0,0,0,0.12);
+    border-bottom: 1px solid var(--line);
+  }
+  .head span { text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--dim); }
+  .head span.name-h { text-align: left; }
+
+  /* 팀 행 */
+  .rows { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .row {
+    flex: 1 1 0;
+    display: grid; grid-template-columns: 1fr 56px 56px 56px 64px;
+    align-items: center;
+    padding: 0 4px 0 18px;
+    position: relative;
+  }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row.serving::before {
+    content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 4px;
+    background: var(--gold2); border-radius: 0 3px 3px 0;
+  }
+  .name {
+    display: flex; align-items: center; gap: 9px; min-width: 0;
+    color: var(--cream); font-size: 23px; font-weight: 800; letter-spacing: 0.2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .serve-dot { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%;
+    background: #2b2b2b; box-shadow: none; transition: background .2s; }
+  .row.serving .serve-dot { background: var(--gold2); box-shadow: 0 0 8px rgba(245,200,66,0.8); }
+
+  .cell {
+    text-align: center; font-variant-numeric: tabular-nums;
+    font-family: 'Bebas Neue', 'Pretendard', sans-serif;
+  }
+  .cell.set { font-size: 34px; font-weight: 800; color: var(--cream); }
+  .cell.set.current { color: var(--gold2); font-size: 40px; }
+  .cell.set.empty { color: rgba(244,239,226,0.18); }
+  .cell.point { font-size: 34px; font-weight: 900; color: var(--gold); }
+
+  #board { transition: opacity .25s ease; }
+</style>
+</head>
+<body>
+<div class="board" id="board">
+  <div class="title">
+    <div class="mark">PS iLEAGUE</div>
+    <div class="txt" id="sbTitle"></div>
+  </div>
+  <div class="head">
+    <span class="name-h">선수</span>
+    <span>SET 1</span><span>SET 2</span><span>SET 3</span><span>POINT</span>
+  </div>
+  <div class="rows">
+    <div class="row" id="rowA">
+      <div class="name"><span class="serve-dot"></span><span id="nameA">Team A</span></div>
+      <div class="cell set" id="a0"></div>
+      <div class="cell set" id="a1"></div>
+      <div class="cell set" id="a2"></div>
+      <div class="cell point" id="pA">0</div>
+    </div>
+    <div class="row" id="rowB">
+      <div class="name"><span class="serve-dot"></span><span id="nameB">Team B</span></div>
+      <div class="cell set" id="b0"></div>
+      <div class="cell set" id="b1"></div>
+      <div class="cell set" id="b2"></div>
+      <div class="cell point" id="pB">0</div>
+    </div>
+  </div>
+</div>
+
+<!-- 자동 업데이트: 배포하면 2분 내 자동 새로고침 (재다운로드 불필요) -->
+<script>
+(function () {
+  var BUILD = "c1"; // ⚠️ 배포마다 아래 SBBUILD 주석과 함께 증가
+  function check() {
+    fetch(location.href.split('?')[0] + '?n=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var m = html.match(/SBBUILD:([A-Za-z0-9._]+)/);
+        if (m && m[1] && m[1] !== BUILD) location.reload();
+      })
+      .catch(function () {});
+  }
+  setInterval(check, 120000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) check(); });
+})();
+</script>
+<!--SBBUILD:c1-->
+
+<!-- Firebase (tv.html과 동일한 프로젝트·노드) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey:            "AIzaSyBkrib1qzN8IE9NcW8tXTfKb4Z6JsOjcvE",
+    authDomain:        "ps-score-868bb.firebaseapp.com",
+    databaseURL:       "https://ps-score-868bb-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "ps-score-868bb",
+    storageBucket:     "ps-score-868bb.firebasestorage.app",
+    messagingSenderId: "48470302084",
+    appId:             "1:48470302084:web:b037acc0b58f7e85d191d1"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var ref = firebase.database().ref('scoreboard');
+
+  var POINTS = ['0', '15', '30', '40', 'AD'];
+
+  function txt(id, v) { document.getElementById(id).textContent = v; }
+
+  function setCell(id, val, cls) {
+    var el = document.getElementById(id);
+    el.textContent = val;
+    el.className = 'cell set ' + cls;
+  }
+
+  ref.on('value', function (snap) {
+    var S = snap.val();
+    if (!S) return;
+    var a = S.a || {}, b = S.b || {};
+
+    txt('sbTitle', S.title || '');
+    txt('nameA', a.name || 'Team A');
+    txt('nameB', b.name || 'Team B');
+
+    document.getElementById('rowA').classList.toggle('serving', !!a.serving);
+    document.getElementById('rowB').classList.toggle('serving', !!b.serving);
+
+    // 세트 셀: 완료 세트는 그 점수, 현재 세트는 현재 게임, 이후는 빈칸 (tv.html과 동일)
+    var setsA = a.sets || [], setsB = b.sets || [];
+    var curSet = setsA.length;
+    for (var i = 0; i < 3; i++) {
+      if (i < curSet) {
+        setCell('a' + i, setsA[i], 'has');
+        setCell('b' + i, setsB[i], 'has');
+      } else if (i === curSet) {
+        setCell('a' + i, (a.game != null ? a.game : 0), 'current');
+        setCell('b' + i, (b.game != null ? b.game : 0), 'current');
+      } else {
+        setCell('a' + i, '', 'empty');
+        setCell('b' + i, '', 'empty');
+      }
+    }
+
+    // 포인트: 타이브레이크(6-6)·슈퍼타이브레이크(2세트째)면 숫자 그대로, 아니면 0/15/30/40/AD
+    var starMode = !!S.starPoint;
+    var isTB = (a.game === 6 && b.game === 6);
+    var isSuperTB = !!S.superTB && curSet === 2;
+    var useRaw = isTB || isSuperTB;
+    var DISP = useRaw ? null : (starMode ? ['0', '15', '30', '40', '⭐'] : POINTS);
+    var pA = useRaw ? (a.point != null ? a.point : 0) : (DISP[a.point] != null ? DISP[a.point] : (a.point != null ? a.point : '0'));
+    var pB = useRaw ? (b.point != null ? b.point : 0) : (DISP[b.point] != null ? DISP[b.point] : (b.point != null ? b.point : '0'));
+    txt('pA', pA);
+    txt('pB', pB);
+  });
+</script>
+</body>
+</html>
