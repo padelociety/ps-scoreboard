@@ -53,6 +53,13 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+    transition: opacity .5s ease, transform .5s ease;
+  }
+  /* 경기 시작 전/종료 후 — 스코어보드 숨김(리모컨 scoreboard.visible=false). 페이드아웃. */
+  .sb-wrap.sb-hidden {
+    opacity: 0;
+    transform: translateY(-14px);
+    pointer-events: none;
   }
 
   /* ── 배너: 카드 아래에 absolute 고정 (카드 안 밀림) ── */
@@ -707,6 +714,11 @@
   ref.on('value', snap => {
     dot.classList.add('on');
     const S = snap.val();
+    // 표시/숨김 — visible이 명시적 false거나 데이터가 없으면 스코어보드 숨김.
+    // (구버전 호환: visible 필드가 없으면 기존처럼 표시)
+    const show = !!S && S.visible !== false;
+    const wrap = document.querySelector('.sb-wrap');
+    if (wrap) wrap.classList.toggle('sb-hidden', !show);
     if (!S) return;
 
     document.getElementById('tvTitle').textContent = S.title || '';

@@ -1,4 +1,4 @@
-const CACHE = 'ps-control-v6';
+const CACHE = 'ps-control-v7';
 const ASSETS = ['/ps-scoreboard/', '/ps-scoreboard/index.html'];
 
 self.addEventListener('install', e => {
