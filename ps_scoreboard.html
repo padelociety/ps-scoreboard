@@ -30,7 +30,7 @@
   .cell { display: flex; align-items: center; justify-content: center; background: var(--green);
     color: var(--num); font-family: 'Bebas Neue', 'Pretendard', sans-serif; font-size: 32px;
     font-weight: 800; font-variant-numeric: tabular-nums; border-left: 1px solid rgba(255,255,255,0.06); }
-  .cell.current { color: var(--gold2); }
+  .cell.current { color: #FFFFFF; }
   .cell.empty { color: rgba(246,241,227,0.16); }
   .cell.pt { color: var(--num); font-weight: 900; }
   .banner { display: none; height: 44px; align-items: center; justify-content: center;
@@ -63,7 +63,7 @@
 <!-- 메인(포인트 없음) · 자동 업데이트(2분) -->
 <script>
 (function () {
-  var BUILD = "c4";
+  var BUILD = "c5";
   function check() {
     fetch(location.href.split('?')[0] + '?n=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -74,7 +74,7 @@
   document.addEventListener("visibilitychange", function () { if (!document.hidden) check(); });
 })();
 </script>
-<!--SBBUILD:c4-->
+<!--SBBUILD:c5-->
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
