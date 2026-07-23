@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PS Scoreboard </title>
+<title>PS Scoreboard (tournament)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; background: transparent; overflow: hidden;
@@ -20,7 +20,7 @@
   .wolf { flex: 0 0 92px; background: var(--green-d); display: flex; align-items: center; justify-content: center; }
   .wolf i { display: block; width: 80px; height: 50px; background: url('data:image/png;base64,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') center/contain no-repeat; }
   .teams { flex: 1 1 auto; min-width: 0; }
-  .row { display: grid; grid-template-columns: 1fr 60px 60px 60px; align-items: stretch; height: 60px; background: var(--cream); }
+  .row { display: grid; grid-template-columns: 1fr 52px 52px 52px 62px; align-items: stretch; height: 60px; background: var(--cream); }
   .row + .row { border-top: 2px solid var(--green); }
   .name { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 10px 0 18px;
     color: var(--ink); font-size: 24px; font-weight: 800; white-space: nowrap; overflow: hidden; }
@@ -49,18 +49,20 @@
       <div class="teams">
         <div class="row" id="rowA">
           <div class="name"><span class="nm" id="nameA">Team A</span><span class="sv"></span></div>
-          <div class="cell" id="a0"></div><div class="cell" id="a1"></div><div class="cell" id="a2"></div>
+          <div class="cell" id="a0"></div><div class="cell" id="a1"></div><div class="cell" id="a2"></div><div class="cell pt" id="pA">0</div>
         </div>
         <div class="row" id="rowB">
           <div class="name"><span class="nm" id="nameB">Team B</span><span class="sv"></span></div>
-          <div class="cell" id="b0"></div><div class="cell" id="b1"></div><div class="cell" id="b2"></div>
+          <div class="cell" id="b0"></div><div class="cell" id="b1"></div><div class="cell" id="b2"></div><div class="cell pt" id="pB">0</div>
         </div>
       </div>
     </div>
   </div>
+  <div class="banner gold" id="goldBanner">👑&nbsp;&nbsp;GOLDEN POINT&nbsp;&nbsp;👑</div>
+  <div class="banner star" id="starBanner">✦&nbsp;&nbsp;STAR POINT&nbsp;&nbsp;✦</div>
 </div>
 
-<!-- 메인(포인트 없음) · 자동 업데이트(2분) -->
+<!-- 대회용(포인트 표시) · 자동 업데이트(2분) -->
 <script>
 (function () {
   var BUILD = "c4";
@@ -107,6 +109,17 @@
       else if (i === curSet) { setCell('a' + i, (a.game != null ? a.game : 0), 'current'); setCell('b' + i, (b.game != null ? b.game : 0), 'current'); }
       else { setCell('a' + i, '', 'empty'); setCell('b' + i, '', 'empty'); }
     }
+    var starMode = !!S.starPoint;
+    var isTB = (a.game === 6 && b.game === 6);
+    var isSuperTB = !!S.superTB && curSet === 2;
+    var useRaw = isTB || isSuperTB;
+    var DISP = useRaw ? null : (starMode ? ['0','15','30','40','⭐'] : POINTS);
+    function pt(x){ return useRaw ? (x!=null?x:0) : (DISP[x]!=null?DISP[x]:(x!=null?x:'0')); }
+    var eA=document.getElementById('pA'); eA.textContent=pt(a.point); eA.className='cell pt';
+    var eB=document.getElementById('pB'); eB.textContent=pt(b.point); eB.className='cell pt';
+    document.getElementById('goldBanner').classList.toggle('show', !!S.goldenPoint);
+    document.getElementById('starBanner').classList.toggle('show', !!S.starPoint);
+
   });
 </script>
 </body>
