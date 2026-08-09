@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PS Scoreboard — OBS Overlay</title>
+
+<!--
+  방송용 오버레이. tv.html(현장 TV·키오스크 전용)과 다른 파일이다.
+  TV용은 배경이 잉크로 꽉 차 있고 뷰 전환 버튼·빌드 표시가 있어 방송에 못 쓴다.
+  여기는 배경이 투명하고, 화면에 나가면 안 되는 UI가 하나도 없다.
+
+  OBS 브라우저 소스 설정
+    URL    : https://padelociety.github.io/ps-scoreboard/obs.html
+    너비   : 1920      높이 : 1080     (캔버스와 동일 — 변환 초기화만 하면 자리가 맞는다)
+    "보이지 않을 때 소스 종료" 체크 해제  (라이브 갱신 유지)
+    사용자 지정 CSS 는 비워둔다 (여기서 이미 투명 처리)
+
+  URL 파라미터
+    ?pos=tl|tr|bl|br   위치 (기본 tl — 좌상단)
+    ?scale=1.2         전체 배율 (기본 1)
+    ?margin=48         화면 가장자리 여백 px (기본 48)
+    ?demo=1            샘플 데이터로 표시 — 경기 없을 때 위치/크기 잡을 때 쓴다
+
+  데이터: Firebase RTDB 'scoreboard' 노드.
+    태블릿 리그앱(ps_court_playus.html)의 pushToFirebase() 가 쓰고 여기서 구독만 한다.
+    { title, a:{name,game,sets[],serving}, b:{...}, visible }
+    경기 종료·이탈 시 앱이 visible=false 로 바꾸면 여기서 페이드아웃된다.
+
+  디자인: DESIGN_SYSTEM.md 다크(잉크) 팔레트 + 승인 목업(design/mockups/mock_tv.html).
+    한글 디스플레이는 마루부리가 원칙이나 웹폰트 배포본이 없어 Noto Serif KR 로 대체한다.
+    PC에 MaruBuri 가 설치돼 있으면 폰트 체인에서 그쪽이 먼저 잡힌다.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    /* DESIGN_SYSTEM.md — 다크(잉크) */
+    --ink1:#0E3038;  --ink2:#071B20;
+    --gold:#C6A867;  --gold-hi:#D9BC7A;
+    --cream:#F2ECDC; --muted:#8AA0A0;
+    --line:rgba(198,168,103,0.22);
+
+    --s: 1;            /* ?scale= 로 덮어씀 */
+    --m: 48px;         /* ?margin= 로 덮어씀 */
+  }
+
+  /* 배경 투명 — 오버레이의 전제. OBS 기본 CSS 없이도 이것만으로 충분하다. */
+  html, body {
+    width:100%; height:100%;
+    background:transparent;
+    overflow:hidden;
+  }
+
+  body {
+    font-family:'Playfair Display','MaruBuri','Noto Serif KR',Georgia,serif;
+    /* 숫자는 라이닝+고정폭. Playfair 기본 올드스타일 숫자는 3·4·7·9 가 베이스라인
+       아래로 떨어져 점수판에서 세로 정렬이 깨진다. */
+    font-variant-numeric: lining-nums tabular-nums;
+    font-feature-settings:'lnum' 1,'tnum' 1;
+    color:var(--cream);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ── 패널 ─────────────────────────────────────────────── */
+  .sb {
+    position:fixed;
+    width:calc(720px * var(--s));
+    transform-origin:top left;
+
+    background:linear-gradient(135deg, rgba(14,48,56,0.94) 0%, rgba(7,27,32,0.94) 100%);
+    border:1px solid var(--line);
+    border-radius:calc(6px * var(--s));      /* 코너는 r4~8 로 절제 */
+    /* 큰 드롭섀도는 금지(DESIGN_SYSTEM §5). 밝은 코트 위에서 패널 경계가 사라지지
+       않을 만큼만 — 장식이 아니라 가독성 용도. */
+    box-shadow:0 calc(4px * var(--s)) calc(18px * var(--s)) rgba(0,0,0,0.32);
+    overflow:hidden;
+
+    opacity:0;
+    transition:opacity .45s ease, transform .45s cubic-bezier(.2,.7,.3,1);
+  }
+  /* 위치 — 들어오는 방향도 모서리에 맞춘다 */
+  .sb.tl { top:var(--m);    left:var(--m);  transform:translateY(calc(-12px * var(--s))); }
+  .sb.tr { top:var(--m);    right:var(--m); transform:translateY(calc(-12px * var(--s))); }
+  .sb.bl { bottom:var(--m); left:var(--m);  transform:translateY(calc(12px * var(--s)));  }
+  .sb.br { bottom:var(--m); right:var(--m); transform:translateY(calc(12px * var(--s)));  }
+  .sb.on { opacity:1; transform:translateY(0); }
+
+  /* ── 헤더 ─────────────────────────────────────────────── */
+  .hd {
+    display:flex; align-items:baseline; gap:calc(14px * var(--s));
+    padding:calc(13px * var(--s)) calc(22px * var(--s)) calc(11px * var(--s));
+    border-bottom:1px solid var(--line);
+  }
+  .kick {
+    font-family:'Inter','Helvetica Neue',sans-serif;
+    font-size:calc(11px * var(--s));
+    font-weight:600;
+    letter-spacing:calc(3.2px * var(--s));
+    text-transform:uppercase;
+    color:var(--gold);
+    white-space:nowrap;
+  }
+  /* LIVE 점 — 은은하게 숨쉬듯. 방송에서 정지화면처럼 보이지 않게 하는 역할. */
+  .kick::before {
+    content:'';
+    display:inline-block; vertical-align:middle;
+    width:calc(6px * var(--s)); height:calc(6px * var(--s));
+    margin-right:calc(8px * var(--s));
+    border-radius:50%;
+    background:var(--gold);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+
+  .ttl {
+    font-size:calc(19px * var(--s));
+    letter-spacing:calc(.3px * var(--s));
+    color:var(--cream);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* ── 점수 행 ──────────────────────────────────────────── */
+  .row {
+    display:grid;
+    grid-template-columns:1fr auto calc(84px * var(--s));
+    align-items:center;
+    gap:calc(16px * var(--s));
+    padding:calc(12px * var(--s)) calc(22px * var(--s));
+  }
+  .row + .row { border-top:1px solid rgba(255,255,255,0.07); }
+
+  .nm {
+    display:flex; align-items:center; gap:calc(11px * var(--s));
+    min-width:0;                         /* 긴 이름이 그리드를 밀지 않게 */
+  }
+  .nm .txt {
+    font-size:calc(29px * var(--s));
+    line-height:1.15;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  /* 서브권 표시 — 리그앱은 현재 항상 false 로 보내지만 스키마에 있어 지원해 둔다 */
+  .dot {
+    flex:none;
+    width:calc(11px * var(--s)); height:calc(11px * var(--s));
+    border-radius:50%;
+    background:var(--gold);
+    box-shadow:0 0 calc(12px * var(--s)) rgba(198,168,103,0.85);
+    opacity:0; transition:opacity .25s;
+  }
+  .row.serving .dot { opacity:1; }
+
+  /* 끝난 세트들 — 뮤트. 고정폭 셀이라 두 행의 숫자가 세로로 맞는다. */
+  .sets { display:flex; gap:calc(4px * var(--s)); }
+  .sets span {
+    width:calc(34px * var(--s));
+    text-align:center;
+    font-size:calc(26px * var(--s));
+    /* 목업은 0.5 지만 파란 코트 위 송출·모바일 시청을 감안해 조금 올렸다 */
+    color:rgba(242,236,220,0.58);
+  }
+
+  /* 현재 세트 게임 수 — 골드, 가장 큼. 여기가 시선이 가야 할 곳. */
+  .game {
+    text-align:center;
+    font-size:calc(42px * var(--s));
+    line-height:1;
+    color:var(--gold-hi);
+    border-left:1px solid var(--line);
+    padding-left:calc(14px * var(--s));
+  }
+  /* 숫자가 바뀔 때만 한 번 튀어오른다 */
+  .game.bump { animation:bump .42s cubic-bezier(.2,.9,.3,1); }
+  @keyframes bump {
+    0%   { transform:scale(1);    color:var(--gold-hi); }
+    35%  { transform:scale(1.22); color:#FFF3D6; }
+    100% { transform:scale(1);    color:var(--gold-hi); }
+  }
+
+  /* 움직임을 줄이도록 설정된 환경에서는 애니메이션을 끈다 */
+  @media (prefers-reduced-motion:reduce) {
+    .sb, .game.bump, .kick::before { transition:none; animation:none; }
+  }
+</style>
+</head>
+
+<body>
+  <div class="sb" id="sb">
+    <div class="hd">
+      <span class="kick">PS · Live</span>
+      <span class="ttl" id="ttl"></span>
+    </div>
+
+    <div class="row" id="rowA">
+      <span class="nm"><span class="txt" id="nameA">Team A</span><span class="dot"></span></span>
+      <span class="sets" id="setsA"></span>
+      <span class="game" id="gameA">0</span>
+    </div>
+
+    <div class="row" id="rowB">
+      <span class="nm"><span class="txt" id="nameB">Team B</span><span class="dot"></span></span>
+      <span class="sets" id="setsB"></span>
+      <span class="game" id="gameB">0</span>
+    </div>
+  </div>
+
+<script type="module">
+// Firebase 는 아래에서 동적 import 한다. 상단 정적 import 로 두면 gstatic 이 막히거나
+// 느릴 때 모듈 자체가 로드에 실패해 스크립트가 통째로 안 돈다 — 데모 모드도 같이 죽고,
+// 방송 중 CDN 장애면 오버레이가 사라진다. 실패해도 페이지는 살아 있어야 한다.
+
+// ── URL 파라미터 ──────────────────────────────────────────
+const QS     = new URLSearchParams(location.search);
+const POS    = ['tl','tr','bl','br'].includes((QS.get('pos')||'').toLowerCase())
+             ? QS.get('pos').toLowerCase() : 'tl';
+const SCALE  = Math.min(3, Math.max(0.4, parseFloat(QS.get('scale') || '1') || 1));
+const MARGIN = Math.min(400, Math.max(0, parseInt(QS.get('margin') ?? '48', 10) || 0));
+const DEMO   = QS.get('demo') === '1';
+
+const sb = document.getElementById('sb');
+sb.classList.add(POS);
+document.documentElement.style.setProperty('--s', SCALE);
+document.documentElement.style.setProperty('--m', MARGIN + 'px');
+
+const el = {
+  ttl:   document.getElementById('ttl'),
+  nameA: document.getElementById('nameA'), nameB: document.getElementById('nameB'),
+  setsA: document.getElementById('setsA'), setsB: document.getElementById('setsB'),
+  gameA: document.getElementById('gameA'), gameB: document.getElementById('gameB'),
+  rowA:  document.getElementById('rowA'),  rowB:  document.getElementById('rowB'),
+};
+
+// ── 렌더 ──────────────────────────────────────────────────
+let prevA = null, prevB = null;
+
+function bump(node) {
+  node.classList.remove('bump');
+  void node.offsetWidth;          // 리플로우 — 같은 애니메이션을 다시 트리거하려면 필요
+  node.classList.add('bump');
+}
+
+function renderSets(node, sets) {
+  const list = Array.isArray(sets) ? sets : [];
+  // 끝난 세트만 그린다. 없으면(1세트 진행 중) 칸 자체가 사라져 패널이 좁아진다.
+  if (list.length === node.childElementCount &&
+      [...node.children].every((c, i) => c.textContent === String(list[i]))) return;
+  node.textContent = '';
+  for (const v of list) {
+    const s = document.createElement('span');
+    s.textContent = v;
+    node.appendChild(s);
+  }
+}
+
+function render(S) {
+  el.ttl.textContent   = S.title || 'PS i-League';
+  el.nameA.textContent = S.a?.name || 'Team A';
+  el.nameB.textContent = S.b?.name || 'Team B';
+
+  renderSets(el.setsA, S.a?.sets);
+  renderSets(el.setsB, S.b?.sets);
+
+  const ga = S.a?.game ?? 0, gb = S.b?.game ?? 0;
+  el.gameA.textContent = ga;
+  el.gameB.textContent = gb;
+  if (prevA !== null && ga !== prevA) bump(el.gameA);
+  if (prevB !== null && gb !== prevB) bump(el.gameB);
+  prevA = ga; prevB = gb;
+
+  el.rowA.classList.toggle('serving', !!S.a?.serving);
+  el.rowB.classList.toggle('serving', !!S.b?.serving);
+}
+
+function show(on) { sb.classList.toggle('on', !!on); }
+
+// ── 데모 모드 — 경기 없이 위치·크기 잡을 때 ─────────────────
+if (DEMO) {
+  render({
+    title: 'PSiL 26S2 · Match 3',
+    a: { name: '강민정 · 신철',   sets: [6, 4], game: 3, serving: true  },
+    b: { name: '성유나 · 허성균', sets: [3, 6], game: 2, serving: false },
+  });
+  show(true);
+} else {
+  // ── Firebase 구독 ───────────────────────────────────────
+  (async () => {
+    let initializeApp, getDatabase, ref, onValue;
+    try {
+      [{ initializeApp }, { getDatabase, ref, onValue }] = await Promise.all([
+        import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"),
+      ]);
+    } catch (e) {
+      // CDN 도달 불가. 패널은 숨긴 채로 두고 페이지는 살려둔다.
+      return;
+    }
+
+    const app = initializeApp({
+      apiKey: "AIzaSyBkrib1qzN8IE9NcW8tXTfKb4Z6JsOjcvE",
+      authDomain: "ps-score-868bb.firebaseapp.com",
+      databaseURL: "https://ps-score-868bb-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "ps-score-868bb",
+      storageBucket: "ps-score-868bb.firebasestorage.app",
+      messagingSenderId: "48470302084",
+      appId: "1:48470302084:web:b037acc0b58f7e85d191d1"
+    });
+
+    onValue(ref(getDatabase(app), 'scoreboard'), snap => {
+      const S = snap.val();
+      if (!S) { show(false); return; }
+      render(S);
+      show(S.visible !== false);      // 앱이 경기 종료 시 false 로 내린다
+    }, () => {
+      // 읽기 실패(권한·네트워크). 마지막 화면을 그대로 둔다 — 방송 중 갑자기
+      // 점수판이 사라지는 것이 잠깐 값이 낡는 것보다 나쁘다.
+    });
+  })();
+}
+</script>
+</body>
+</html>
