@@ -763,6 +763,22 @@
     font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
     padding: 1px 5px; border-radius: 3px;
   }
+  /* ── 조별 순위 (A조 / B조 각각) ──
+   * 넓은 '순위' 뷰에서는 좌우로, 폭이 700px 뿐인 전체 뷰에서는 위아래로 놓는다. */
+  .bk-groups { display: flex; gap: 20px; align-items: flex-start; }
+  .bk-group  { flex: 1 1 0; min-width: 0; }
+  .bk-group-name {
+    font-size: clamp(14px, 1.5vw, 20px); font-weight: 900; letter-spacing: 4px;
+    color: var(--gold); text-transform: uppercase; padding: 0 4px 4px;
+  }
+  body.view-all .bk-groups { flex-direction: column; height: 100%; gap: 6px; }
+  body.view-all .bk-group  { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  body.view-all .bk-group-name { font-size: 17px; letter-spacing: 3px; padding-bottom: 2px; }
+  /* 진출선 — 이 줄 아래로는 녹아웃에 못 간다(각 조 상위 4팀) */
+  .bk-table tr.cut td { border-bottom: 2px dashed rgba(245,197,24,0.55); }
+  /* 시드 뱃지에 'A1' 처럼 조 문자가 들어가므로 폭을 내용에 맞춘다 */
+  .bk-seed { width: auto; min-width: 22px; padding: 0 5px; }
+
   /* 순위표 LIVE 행 — 지금 코트에 있는 팀 */
   .bk-table tr.liverow td { background: rgba(255,77,77,0.10); }
   .bk-table tr.liverow td.rk::before { content: '\25CF'; color: #ff4d4d; margin-right: 5px; font-size: 0.6em; vertical-align: middle; }
@@ -850,11 +866,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b8--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b8 · 자동갱신</div>
+<!--TVBUILD:b9--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b9 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b8"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b9"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1102,6 +1118,18 @@
     return Object.values(stats);
   }
 
+  // 정렬 규칙 (앱 calcStandings 와 동일):
+  //   ① 이긴 매치 수(승) → ② 이긴 게임 합 → ③ 서로 전적(맞대결 게임 득실)
+  // 셋 다 같으면 0 을 돌려 원래 순서를 유지한다(앱도 같다).
+  function bkCmpRows(h2h) {
+    return (a, b) => {
+      if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
+      if ((b.gamesWon || 0) !== (a.gamesWon || 0)) return (b.gamesWon || 0) - (a.gamesWon || 0);
+      const ia = a.team && a.team.id, ib = b.team && b.team.id;
+      return (h2h[ib] && h2h[ib][ia]) || 0;   // 양수면 b 가 맞대결에서 앞섰다는 뜻
+    };
+  }
+
   // 맞대결 게임 득실 — h2h[a][b] = a 가 b 상대로 낸 (딴 게임 - 준 게임) 합.
   // tournament-app.js calcStandings 와 같은 정의(승패 수가 아니라 게임 마진).
   function bkH2HInto(rounds, h2h) {
@@ -1135,15 +1163,22 @@
       });
       return rows;
     }
-    rows.sort((a, b) => {
-      if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
-      if ((b.gamesWon || 0) !== (a.gamesWon || 0)) return (b.gamesWon || 0) - (a.gamesWon || 0);
-      const ia = a.team && a.team.id, ib = b.team && b.team.id;
-      const d = (h2h[ib] && h2h[ib][ia]) || 0;   // 양수면 b 가 맞대결에서 앞섰다는 뜻
-      if (d !== 0) return d;
-      return 0;   // 맞붙은 적 없음(다른 조) → 앱과 같이 원래 순서 유지
-    });
+    rows.sort(bkCmpRows(h2h));
     return rows;
+  }
+
+  // 조별 순위 — 조마다 따로 매긴다. 이게 정본이다.
+  // 앱은 8·10팀 8강을 A1-B4, A3-B2, B1-A4, B3-A2 로 만들고(tournament-app.js advanceToKnockout),
+  // 4·5팀은 단일 조 상위 4로 4강(1-4, 2-3)을 만든다. 어느 쪽도 통합 순위를 쓰지 않는다.
+  // 통합 순위를 쓰는 건 7팀 스페셜뿐이다(rankSpecial7 → 1위 부전승).
+  function bkGroupStandings(t) {
+    return (t.groups || []).map((g) => {
+      const h2h = {};
+      bkH2HInto(g.rounds, h2h);
+      const rows = bkStandingsOf(g.teams, g.rounds);
+      rows.sort(bkCmpRows(h2h));
+      return { name: g.name || '', rows };
+    });
   }
 
   // 셀렉션(개인전) 순위 — tournament-app calcAmericanoStandings 이식.
@@ -1172,6 +1207,7 @@
     const rows = bkSpecialStandings(t);
     const multiGroup = ((t.specialData || {}).groups || []).length > 1;
     document.getElementById('bkTitle').textContent = t.title || t.name || '';
+    bkStandingsLabel = '순위';
     document.getElementById('bkSub').textContent = '순위 · 승 / 패 / 이긴 게임';
     const box = document.getElementById('bkStandings');
     if (!rows.length) { box.innerHTML = ''; return; }
@@ -1201,24 +1237,16 @@
       </table>`;
   }
 
-  function bkRenderStandings(t) {
-    // 대회 타입에 따라 순위표 구성이 다름 — 셀렉션(개인전)은 승/패/이긴게임만, 팀전은 기존 풀 테이블.
-    if (t.specialData && (t.specialData.groups || []).length) { bkRenderSpecialStandings(t); return; }
-    const rows = bkOverallStandings(t);
-    const multiGroup = (t.groups || []).length > 1;
-    const maxT = parseInt(t.maxTeams, 10);
-    const isSpecial7 = maxT === 7;
-    document.getElementById('bkTitle').textContent = t.title || t.name || '';
-    document.getElementById('bkSub').textContent = isSpecial7 ? '통합 순위 · 1~7위' : '순위';
-    const box = document.getElementById('bkStandings');
-    if (!rows.length) { box.innerHTML = ''; return; }
-    box.innerHTML = `
+  // 순위표 한 벌. opt.bye = 1위에 '8강 부전승' (7팀 스페셜),
+  //                opt.cut = 이 등수 아래로 진출선(점선) — 상위 N 이 녹아웃에 간다.
+  function bkStandingsTable(rows, opt) {
+    opt = opt || {};
+    return `
       <table class="bk-table">
         <thead>
           <tr>
             <th class="l">#</th>
             <th class="l">선수 · 팀</th>
-            ${multiGroup ? '<th>조</th>' : ''}
             <th>경기</th>
             <th>승</th>
             <th>이긴 게임</th>
@@ -1229,11 +1257,15 @@
         <tbody>
           ${rows.map((s, i) => {
             const diff = (s.gamesWon || 0) - (s.gamesLost || 0);
+            const cls = [
+              opt.bye && i === 0 ? 'top' : '',
+              opt.cut && i === opt.cut - 1 && rows.length > opt.cut ? 'cut' : '',
+              bkIsOnCourt(s.team && s.team.name) ? 'liverow' : '',
+            ].filter(Boolean).join(' ');
             return `
-            <tr class="${i === 0 && isSpecial7 ? 'top' : ''}${bkIsOnCourt(s.team && s.team.name) ? ' liverow' : ''}">
+            <tr class="${cls}">
               <td class="rk">${i + 1}</td>
-              <td class="nm l">${s.team.name}${i === 0 && isSpecial7 ? '<span class="bk-bye">8강 부전승</span>' : ''}</td>
-              ${multiGroup ? `<td class="grp">${s.groupName}</td>` : ''}
+              <td class="nm l">${s.team.name}${opt.bye && i === 0 ? '<span class="bk-bye">8강 부전승</span>' : ''}</td>
               <td>${s.played}</td>
               <td>${s.wins}</td>
               <td class="gw">${s.gamesWon}</td>
@@ -1245,15 +1277,59 @@
       </table>`;
   }
 
+  // 지금 순위표가 무엇인지 — 전체 뷰 좌측 제목이 이 값을 쓴다('통합 순위'가 아닐 수 있다).
+  let bkStandingsLabel = '순위';
+
+  function bkRenderStandings(t) {
+    // 셀렉션(개인전)은 승/패/이긴게임만 — 별도 렌더.
+    if (t.specialData && (t.specialData.groups || []).length) { bkRenderSpecialStandings(t); return; }
+    const maxT = parseInt(t.maxTeams, 10);
+    const box = document.getElementById('bkStandings');
+    document.getElementById('bkTitle').textContent = t.title || t.name || '';
+
+    // 7팀 스페셜만 통합 순위 — 앱이 통합 1~7위로 8강(1위 부전승)을 만들기 때문.
+    if (maxT === 7) {
+      const rows = bkOverallStandings(t);
+      bkStandingsLabel = '통합 순위';
+      document.getElementById('bkSub').textContent = '통합 순위 · 1~7위';
+      box.innerHTML = rows.length ? bkStandingsTable(rows, { bye: true }) : '';
+      return;
+    }
+
+    // 그 외는 조별로 따로. 8·10팀은 A1-B4, A3-B2, B1-A4, B3-A2 로 붙으므로
+    // 두 조를 섞은 통합 순위는 대진과 아무 상관이 없다.
+    // ⚠️ 예전엔 7팀 전용 통합 순위를 모든 대회에 그려서 A·B조가 한 표에 섞여 나왔다.
+    const gs = bkGroupStandings(t).filter((g) => g.rows.length);
+    if (!gs.length) { box.innerHTML = ''; return; }
+    const multi = gs.length > 1;
+    bkStandingsLabel = multi ? '조별 순위' : '순위';
+    document.getElementById('bkSub').textContent = multi ? '조별 순위 · 각 조 상위 4팀 진출' : '순위';
+    box.innerHTML = `<div class="bk-groups">${gs.map((g) => `
+      <div class="bk-group">
+        ${multi ? `<div class="bk-group-name">${(g.name || '').length <= 2 ? g.name + '조' : g.name}</div>` : ''}
+        ${bkStandingsTable(g.rows, { cut: 4 })}
+      </div>`).join('')}</div>`;
+  }
+
   const BK_ROUND_LABEL = { 1: 'FINAL', 2: 'SEMIFINAL', 4: 'QUARTERFINAL', 8: 'ROUND OF 16', 16: 'ROUND OF 32' };
   const BK_ROUND_KO    = { 1: '결승', 2: '4강', 4: '8강', 8: '16강', 16: '32강' };
 
-  // 시드(현재 순위) — 팀전은 통합순위, 셀렉션은 개인순위 기준. 순위 없으면 빈값.
+  // 대진표 카드에 붙는 시드 표기.
+  // 2개 조 대회는 조내 순위 = 'A1', 'B4' — 앱 대진이 A1-B4, A3-B2, B1-A4, B3-A2 라
+  // 조 문자 없이 숫자만 쓰면 어느 조 몇 등인지 알 수 없다(예전엔 통합 등수를 찍었다).
+  // 7팀 스페셜과 셀렉션(개인전)은 통합/개인 순위 숫자 그대로.
   function bkSeedOf(t, id) {
     if (!id) return '';
     if (!t.__seedMap) {
       const map = {};
-      bkOverallStandings(t).forEach((s, i) => { if (s.team) map[s.team.id] = i + 1; });
+      const gs = bkGroupStandings(t);
+      if (parseInt(t.maxTeams, 10) === 7 || gs.length <= 1) {
+        bkOverallStandings(t).forEach((s, i) => { if (s.team) map[s.team.id] = i + 1; });
+      } else {
+        gs.forEach((g) => g.rows.forEach((s, i) => {
+          if (s.team) map[s.team.id] = String(g.name || '') + (i + 1);
+        }));
+      }
       if (t.specialData && t.specialData.groups) {
         bkSpecialStandings(t).forEach((s, i) => { if (s.player) map[s.player.id] = i + 1; });
       }
@@ -1528,7 +1604,7 @@
     if (all) {
       const d = String(t.date || '').slice(0, 10).split('-');
       const cat = [BK_CAT[t.categoryGender], BK_CAT[t.categoryLevel]].filter(Boolean).join(' ');
-      document.getElementById('bkTitle').textContent = '통합 순위';
+      document.getElementById('bkTitle').textContent = bkStandingsLabel;
       document.getElementById('bkSub').textContent =
         [t.name || t.title || '', cat, d.length === 3 ? d[1] + '/' + d[2] : ''].filter(Boolean).join(' · ');
     }
