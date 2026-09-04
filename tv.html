@@ -850,11 +850,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b7--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b7 · 자동갱신</div>
+<!--TVBUILD:b8--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b8 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b7"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b8"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1521,11 +1521,46 @@
     if (showStandings) bkRenderStandings(t);
     else document.getElementById('bkSub').textContent = '';
     if (showBracket) bkRenderBracket(t);
-    // 전체 뷰에선 대회명이 이미 점수판 타이틀바에 있으니, 좌측 머리는 '통합 순위'로 (중복 방지)
+    // 전체 뷰: 좌측 머리는 '통합 순위' + 어느 대회인지(대회명 · 종별 · 날짜).
+    // 이걸 띄워두는 건 취향이 아니라 안전장치다 — 엉뚱한 대회를 잡으면 화면만 봐도
+    // 바로 드러난다. 종별까지 적는 건 같은 날 '자유 브실골플'과 '혼복 브론즈+'가
+    // 나란히 열려 대회명만으론 구분이 안 되기 때문이다(2026-09-05 실제로 헷갈렸다).
     if (all) {
+      const d = String(t.date || '').slice(0, 10).split('-');
+      const cat = [BK_CAT[t.categoryGender], BK_CAT[t.categoryLevel]].filter(Boolean).join(' ');
       document.getElementById('bkTitle').textContent = '통합 순위';
-      document.getElementById('bkSub').textContent = '';
+      document.getElementById('bkSub').textContent =
+        [t.name || t.title || '', cat, d.length === 3 ? d[1] + '/' + d[2] : ''].filter(Boolean).join(' · ');
     }
+  }
+
+  // 종별 라벨 — tournament-app.js 의 한국어 라벨과 같은 표기.
+  const BK_CAT = {
+    menDoubles: '남복', womenDoubles: '여복', mixedDoubles: '혼복', openDoubles: '자유',
+    beginner: '비기너', beginnerPlus: '비기너+',
+    bronzeMinus: '브론즈-', bronze: '브론즈', bronzePlus: '브론즈+',
+    silverMinus: '실버-', silver: '실버', silverPlus: '실버+',
+    goldMinus: '골드-', gold: '골드', goldPlus: '골드+',
+    platinumMinus: '플레티넘-', platinum: '플레티넘', platinumPlus: '플레티넘+',
+    bronzeToPlatinum: '브실골플',   // 브론즈~플래티넘 전 등급 통합
+  };
+
+  // 오늘 날짜(TV 로컬) "YYYY-MM-DD" — 대회 date 필드와 같은 모양으로 맞춘다.
+  function bkTodayStr() {
+    const d = new Date(), p = (n) => (n < 10 ? '0' : '') + n;
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  // 이 대회에 등록된 팀/선수 이름 전부 — 지금 코트에 있는 두 팀이 이 대회 소속인지 보려고.
+  function bkAllNames(t) {
+    const out = [];
+    (t.registrations || []).forEach((r) => out.push(r.teamName || r.playerName));
+    (t.groups || []).forEach((g) => {
+      (g.teams || []).forEach((x) => out.push(x.name));
+      (g.players || []).forEach((x) => out.push(x.name));
+    });
+    [t.americanoData, t.specialData].forEach((s) => (((s || {}).players) || []).forEach((p) => out.push(p.name)));
+    return out.map((n) => String(n || '').trim()).filter(Boolean);
   }
 
   function bkPick(items) {
@@ -1538,11 +1573,26 @@
       (t.specialData && (t.specialData.groups || []).length); // 셀렉션(5/10/12명 개인전)도 표시 대상
     if (BK_TID) return items.find((t) => t.id === BK_TID && hasDraw(t)) || null;
     const drawable = items.filter(hasDraw);
-    // 진행중(라이브) 우선 → 미완료 → 최근 완료
-    return drawable.find((t) => t.stage !== 'completed' && t.stage !== 'registration')
-        || drawable.find((t) => t.stage !== 'completed')
-        || drawable[drawable.length - 1]
-        || null;
+    if (!drawable.length) return null;
+
+    // ⚠️ 예전엔 '배열에서 처음 만나는 미완료 대회'였다. 진행중 대회가 둘 이상이면
+    //    배열 앞쪽이 이겨서, 내일 대회가 오늘 대회를 가로챘다(2026-09-05 실제 발생).
+    //    이제 점수로 고른다: 진행중(4) + 오늘 날짜(2) + 지금 코트의 두 팀이 이 대회 소속(1).
+    //    date 는 타임존 없는 "YYYY-MM-DD" 평문이라 문자열 그대로 비교한다.
+    const today = bkTodayStr();
+    const scoreOf = (t) => {
+      let s = 0;
+      if (t.stage !== 'completed' && t.stage !== 'registration') s += 4;
+      if (String(t.date || '').slice(0, 10) === today) s += 2;
+      if (bkLiveA && bkLiveB) {
+        const names = bkAllNames(t);
+        if (names.indexOf(bkLiveA) >= 0 && names.indexOf(bkLiveB) >= 0) s += 1;
+      }
+      return s;
+    };
+    let best = drawable[0], bestS = -1;
+    drawable.forEach((t) => { const s = scoreOf(t); if (s >= bestS) { best = t; bestS = s; } }); // 동점이면 뒤(최근 생성) 우선
+    return best;
   }
 
   async function bkPoll() {
