@@ -850,11 +850,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b6--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b6 · 자동갱신</div>
+<!--TVBUILD:b7--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b7 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b6"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b7"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1102,15 +1102,46 @@
     return Object.values(stats);
   }
 
-  // 두 조 통합 순위 — 이긴 게임수 → 득실차 → (최종)승수 (rankSpecial7과 동일)
+  // 맞대결 게임 득실 — h2h[a][b] = a 가 b 상대로 낸 (딴 게임 - 준 게임) 합.
+  // tournament-app.js calcStandings 와 같은 정의(승패 수가 아니라 게임 마진).
+  function bkH2HInto(rounds, h2h) {
+    (rounds || []).forEach((rd) => (rd || []).forEach((m) => {
+      if (!m.completed || m.home == null || m.away == null) return;
+      const d = (m.homeScore || 0) - (m.awayScore || 0);
+      (h2h[m.home] || (h2h[m.home] = {}))[m.away] = ((h2h[m.home] || {})[m.away] || 0) + d;
+      (h2h[m.away] || (h2h[m.away] = {}))[m.home] = ((h2h[m.away] || {})[m.home] || 0) - d;
+    }));
+  }
+
+  // 두 조 통합 순위.
+  // 기본 = 앱 calcStandings 와 동일: ① 이긴 매치 수(승) → ② 이긴 게임 합 → ③ 서로 전적.
+  // 예외 = 7팀 스페셜(maxTeams=7)만 앱 rankSpecial7 과 동일: 이긴 게임 → 득실차 → 승.
+  //   3팀조는 2경기, 4팀조는 3경기라 승수를 1순위로 쓰면 4팀조가 유리해서다.
+  //   이 순위가 앱에서 8강 시드(1위 부전승)를 정하므로 TV 도 같은 규칙을 써야 표와 대진이 안 어긋난다.
+  // ⚠️ 예전엔 7팀 규칙을 모든 대회에 적용해서 승수가 3순위로 밀려 있었다.
   function bkOverallStandings(t) {
     const rows = [];
-    (t.groups || []).forEach((g) => bkStandingsOf(g.teams, g.rounds).forEach((s) => rows.push({ ...s, groupName: g.name })));
+    const h2h = {};
+    (t.groups || []).forEach((g) => {
+      bkH2HInto(g.rounds, h2h);
+      bkStandingsOf(g.teams, g.rounds).forEach((s) => rows.push({ ...s, groupName: g.name }));
+    });
+    if (parseInt(t.maxTeams, 10) === 7) {
+      rows.sort((a, b) => {
+        if ((b.gamesWon || 0) !== (a.gamesWon || 0)) return (b.gamesWon || 0) - (a.gamesWon || 0);
+        const da = (a.gamesWon || 0) - (a.gamesLost || 0), db = (b.gamesWon || 0) - (b.gamesLost || 0);
+        if (db !== da) return db - da;
+        return (b.wins || 0) - (a.wins || 0);
+      });
+      return rows;
+    }
     rows.sort((a, b) => {
+      if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
       if ((b.gamesWon || 0) !== (a.gamesWon || 0)) return (b.gamesWon || 0) - (a.gamesWon || 0);
-      const da = (a.gamesWon || 0) - (a.gamesLost || 0), db = (b.gamesWon || 0) - (b.gamesLost || 0);
-      if (db !== da) return db - da;
-      return (b.wins || 0) - (a.wins || 0);
+      const ia = a.team && a.team.id, ib = b.team && b.team.id;
+      const d = (h2h[ib] && h2h[ib][ia]) || 0;   // 양수면 b 가 맞대결에서 앞섰다는 뜻
+      if (d !== 0) return d;
+      return 0;   // 맞붙은 적 없음(다른 조) → 앱과 같이 원래 순서 유지
     });
     return rows;
   }
