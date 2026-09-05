@@ -408,8 +408,21 @@
   // 그래서 하나를 박아두지 않고 버튼으로 돌려가며 고르게 하고, 고른 건 기억한다.
   let voices = [], voiceIdx = 0;
   // 콜은 영어 원어로 읽는다 — 한국어 TTS 에 '피프틴' 을 적어 넣으니 발음이 어색했다.
-  // 굵고 낮은 남성 영어 목소리를 먼저 집는다(윈도우 Guy/David, macOS Daniel/Alex, Android en-us-x-*).
+  // 기기 기본 음성은 싸구려로 들린다. 고품질 음성(Neural/Natural/Premium/Enhanced, 또는
+  // 네트워크 음성 localService=false)이 있으면 그쪽을 먼저 집고 목록에서도 위로 올린다.
+  const HQ_WORDS = ['neural', 'natural', 'premium', 'enhanced', 'wavenet', 'studio', 'journey', 'polyglot'];
+  // 굵고 낮은 남성 쪽을 선호(윈도우 Guy/David, macOS Daniel/Alex, Android en-us-x-*).
   const VOICE_PREF = ['guy', 'david', 'mark', 'george', 'ryan', 'daniel', 'alex', 'aaron', 'brian', 'male'];
+  const isHQ = (v) => !v.localService || HQ_WORDS.some((w) => (v.name || '').toLowerCase().includes(w));
+  // 점수가 높을수록 목록 위로. 고품질(4) > 영어(2) > 선호 이름(1)
+  function voiceScore(v) {
+    const en = (v.lang || '').toLowerCase().startsWith('en');
+    let s = 0;
+    if (en) s += 2;
+    if (isHQ(v)) s += 4;
+    if (VOICE_PREF.some((p) => (v.name || '').toLowerCase().includes(p))) s += 1;
+    return s;
+  }
   const PITCH_STEPS = [0.7, 0.85, 1];          // 낮음 / 보통 / 높음
   const PITCH_NAME  = ['낮음', '보통', '높음'];
   let pitchIdx = Math.max(0, PITCH_STEPS.indexOf(parseFloat(localStorage.getItem('sbPitch'))));
@@ -419,18 +432,16 @@
     const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
     // 영어를 먼저, 그 다음 나머지 — 기기에 뭐가 있든 다 보여주고 고르게 한다.
     // (영어가 하나도 없으면 목록이 비고, u.voice 를 안 줘서 엔진이 lang='en-US' 로 고른다.)
-    const en = all.filter((v) => (v.lang || '').toLowerCase().startsWith('en'));
-    const rest = all.filter((v) => !(v.lang || '').toLowerCase().startsWith('en'));
-    voices = en.concat(rest);
+    // 고품질 영어 → 일반 영어 → 나머지 순으로 세운다. 같은 점수면 원래 순서 유지.
+    voices = all.map((v, i) => ({ v, i })).sort((x, y) => voiceScore(y.v) - voiceScore(x.v) || x.i - y.i).map((o) => o.v);
     const saved = localStorage.getItem('sbVoiceName');
     let i = voices.findIndex((v) => v.name === saved);
-    if (i < 0) i = voices.findIndex((v) => VOICE_PREF.some((p) => (v.name || '').toLowerCase().includes(p)));
-    if (i < 0 && en.length) i = 0;               // 영어가 있으면 영어 첫 번째
-    voiceIdx = i >= 0 ? i : 0;
-    fillVoiceSelect(en.length);
+    if (i < 0) i = 0;                            // 정렬해 뒀으니 첫 번째가 가장 나은 후보
+    voiceIdx = i;
+    fillVoiceSelect();
     syncVoiceMetaBtns();
   }
-  function fillVoiceSelect(enCount) {
+  function fillVoiceSelect() {
     const sel = document.getElementById('selVoice');
     if (!sel) return;
     if (!voices.length) {
@@ -439,8 +450,9 @@
     }
     sel.innerHTML = voices.map((v, i) => {
       const nm = String(v.name).replace(/^Microsoft\s+/i, '').replace(/\s*\(.*\)$/, '');
-      const mark = i < enCount ? '' : ' ⚠️비영어';
-      return `<option value="${String(v.name).replace(/"/g, '&quot;')}"${i === voiceIdx ? ' selected' : ''}>🎙️ ${nm} · ${v.lang}${mark}</option>`;
+      const en = (v.lang || '').toLowerCase().startsWith('en');
+      const tag = (isHQ(v) ? '⭐고품질 ' : '') + (en ? '' : '⚠️비영어 ');
+      return `<option value="${String(v.name).replace(/"/g, '&quot;')}"${i === voiceIdx ? ' selected' : ''}>${tag}${nm} · ${v.lang}</option>`;
     }).join('');
   }
   window.pickVoiceByName = (name) => {
