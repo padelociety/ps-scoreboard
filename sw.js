@@ -1,4 +1,4 @@
-const CACHE = 'ps-control-v8';   // v8: 콘솔에 '🎨 TV 테마' 버튼 추가 — 미리캐시된 옛 index.html 을 확실히 버리게 한다
+const CACHE = 'ps-control-v9';   // v9: 콘솔 음성 콜 추가 — 미리캐시된 옛 index.html 을 확실히 버리게 한다
 const ASSETS = ['/ps-scoreboard/', '/ps-scoreboard/index.html'];
 
 self.addEventListener('install', e => {

@@ -258,6 +258,7 @@
       <button class="btn-action btn-rp" id="btnSuperTB" onclick="toggleSuperTB()">🏆 슈퍼타이브레이크: OFF</button>
       <button class="btn-action btn-star" id="btnStar" onclick="toggleStar()">⭐ STAR POINT: OFF</button>
       <button class="btn-action btn-gold" id="btnGold" onclick="toggleGold()">👑 GOLDEN POINT: OFF</button>
+      <button class="btn-action btn-rp" id="btnVoice" onclick="toggleVoice()">🔊 음성 콜: ON</button>
       <button class="btn-action btn-rp" id="btnTvTheme" onclick="toggleTvTheme()">🎨 TV 테마: 럭셔리</button>
       <button class="btn-action btn-rs" onclick="resetScore()">🔁 초기화</button>
       <button class="btn-action btn-ra" onclick="resetAll()">⚠️ 전체 초기화</button>
@@ -395,6 +396,72 @@
     }
   });
 
+  /* ══════════════ 음성 콜 (태블릿 스피커 → 블루투스) ══════════════
+   * 버튼을 누른 그 자리에서 말한다 — RTDB 왕복을 기다리지 않는다.
+   * 탭이 곧 사용자 조작이라 브라우저 자동재생 차단에 걸리지 않고,
+   * 태블릿 출력을 그대로 쓰므로 블루투스 스피커에 따로 설정할 게 없다.
+   * (유튜브 중계에는 안 섞인다 — OBS 는 이 태블릿 소리를 받지 않는다.) */
+  let voiceOn = localStorage.getItem('sbVoice') !== '0';
+  let koVoice = null;
+  function pickVoice() {
+    const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+    koVoice = vs.find((v) => v.lang === 'ko-KR') || vs.find((v) => (v.lang || '').startsWith('ko')) || null;
+  }
+  if ('speechSynthesis' in window) {
+    pickVoice();
+    speechSynthesis.onvoiceschanged = pickVoice;   // 크롬은 목소리 목록이 늦게 온다
+  }
+  function say(text) {
+    if (!voiceOn || !text || !('speechSynthesis' in window)) return;
+    try {
+      speechSynthesis.cancel();   // 연타해도 밀리지 않게 이전 발화를 끊는다
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ko-KR'; u.rate = 1.05; u.volume = 1;
+      if (koVoice) u.voice = koVoice;
+      speechSynthesis.speak(u);
+    } catch (_) { /* 음성이 안 되는 기기여도 점수 조작은 계속돼야 한다 */ }
+  }
+  function syncVoiceBtn() {
+    const b = document.getElementById('btnVoice');
+    if (!b) return;
+    b.textContent = `🔊 음성 콜: ${voiceOn ? 'ON' : 'OFF'}`;
+    b.classList.toggle('active', voiceOn);
+  }
+  window.toggleVoice = () => {
+    voiceOn = !voiceOn;
+    localStorage.setItem('sbVoice', voiceOn ? '1' : '0');
+    syncVoiceBtn();
+    if (voiceOn) say('음성 콜 켜짐');
+  };
+
+  // 부를 이름 하나만 — "홍길동 / 김철수" → "홍길동"
+  const shortName = (n) => String(n || '').split(/[\/&·]/)[0].trim() || '팀';
+  const PT_WORD = ['러브', '피프틴', '서티', '포티', '어드밴티지'];
+
+  // 서브 넣는 팀 점수를 먼저 읽는 테니스 관례. 서브권이 안 정해졌으면 A 먼저.
+  function speakPoint() {
+    const aServes = !!S.a.serving || !S.b.serving;
+    const sv = aServes ? S.a : S.b, rc = aServes ? S.b : S.a;
+    if (isSuperTiebreak() || isTiebreak()) { say(`${sv.point || 0} 대 ${rc.point || 0}`); return; }
+    const sp = sv.point || 0, rp = rc.point || 0;
+    if (sp === rp) { say(sp >= 3 ? '듀스' : `${PT_WORD[sp]} 올`); return; }
+    if (sp === 4 || rp === 4) {
+      const who = sp === 4 ? sv : rc;
+      say(S.starPoint ? '스타 포인트' : `어드밴티지 ${shortName(who.name)}`);
+      return;
+    }
+    say(`${PT_WORD[sp]} ${PT_WORD[rp]}`);
+  }
+  function speakGame(t) {
+    const w = t === 'A' ? S.a : S.b;
+    say(`게임 ${shortName(w.name)}. ${S.a.game} 대 ${S.b.game}`);
+  }
+  function speakSet() {
+    const i = (S.a.sets || []).length - 1;
+    if (i < 0) return;
+    say(`세트. ${S.a.sets[i]} 대 ${S.b.sets[i]}`);
+  }
+
   function push() {
     set(sbRef, { ...S, superTB, tvTheme });
     renderPreview();
@@ -404,6 +471,7 @@
 
   function syncInputs() {
     syncTvThemeBtn();
+    syncVoiceBtn();
     document.getElementById('inTitle').value = S.title;
     document.getElementById('inNameA').value = S.a.name;
     document.getElementById('inNameB').value = S.b.name;
@@ -462,6 +530,7 @@
     btn.textContent = `⭐ STAR POINT: ${S.starPoint ? 'ON' : 'OFF'}`;
     btn.classList.toggle('active', !!S.starPoint);
     push();
+    if (S.starPoint) say('스타 포인트');   // 끌 때는 침묵
   };
 
   window.toggleGold = () => {
@@ -470,6 +539,7 @@
     btn.textContent = `👑 GOLDEN POINT: ${S.goldenPoint ? 'ON' : 'OFF'}`;
     btn.classList.toggle('active', !!S.goldenPoint);
     push();
+    if (S.goldenPoint) say('골든 포인트');
   };
 
   window.onTitleChange = () => { S.title = document.getElementById('inTitle').value; push(); };
@@ -502,6 +572,7 @@
       btnG.classList.remove('active');
     }
     push();
+    if (d > 0) speakGame(t);   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
   };
 
   // 타이브레이크 여부 판단
@@ -521,16 +592,17 @@
     // 슈퍼타이브레이크: 1점씩 무제한
     if (isSuperTiebreak()) {
       s.point = Math.max(0, s.point + d);
-      push(); return;
+      push(); speakPoint(); return;
     }
     // 타이브레이크(6-6): 1점씩 무제한
     if (isTiebreak()) {
       s.point = Math.max(0, s.point + d);
-      push(); return;
+      push(); speakPoint(); return;
     }
     // 일반 포인트
     s.point = Math.max(0, Math.min(POINTS.length-1, s.point+d));
     push();
+    speakPoint();   // 점수를 내릴 때(정정)도 읽는다 — 지금 몇 대 몇인지가 콜의 목적이라
   };
   window.setServe = t => {
     if (t === 'A') {
@@ -548,6 +620,7 @@
     S.a.sets.push(S.a.game); S.b.sets.push(S.b.game);
     S.a.game=0; S.b.game=0; S.a.point=0; S.b.point=0;
     push();
+    speakSet();
   };
   window.delSet = i => { S.a.sets.splice(i,1); S.b.sets.splice(i,1); push(); };
   window.resetPoints = () => { S.a.point=0; S.b.point=0; push(); };
