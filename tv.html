@@ -130,6 +130,14 @@
     justify-content: flex-start;
     gap: 24px;
   }
+  /* 경기 라벨(Group A · Match 5)은 오른쪽으로 뗀다 — 한 줄에 다 넣으면 제목 끝이 잘린다 */
+  .sb-title-unit {
+    margin-left: auto; flex: none;
+    font-family: var(--ui);
+    font-size: clamp(12px, 1.15vw, 20px);
+    font-weight: 600; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--gold-hi); white-space: nowrap;
+  }
   .sb-title-text {
     font-size: clamp(28px, 4vw, 52px);
     font-weight: 900;
@@ -525,6 +533,26 @@
 
 
 
+  /* ── 테마 전환 (우상단) — 콘솔의 '🎨 TV 테마' 버튼과 같은 일을 한다 ── */
+  .theme-switch {
+    position: fixed; top: 18px; right: 20px; z-index: 50;
+    display: flex; gap: 4px; padding: 4px;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(var(--gold-rgb),0.28);
+    border-radius: 999px;
+    opacity: 0.35; transition: opacity 0.25s;
+  }
+  .theme-switch:hover { opacity: 1; }
+  .tbtn {
+    font-family: var(--ui);
+    font-size: 14px; font-weight: 700; letter-spacing: 2px;
+    color: rgba(var(--cream-rgb),0.6);
+    background: transparent; border: none; padding: 6px 14px;
+    border-radius: 999px; cursor: pointer; transition: all 0.2s;
+  }
+  .tbtn:hover { color: var(--cream); }
+  .tbtn.on { background: var(--gold-hi); color: var(--dark); }
+
   /* ══════════════ 통합 순위 테이블 ══════════════ */
   .bk-standings { width: 100%; }
   .bk-table {
@@ -703,7 +731,8 @@
   .gs-m .no {
     grid-row: 1 / span 2; align-self: stretch;
     display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px;
-    padding-right: 13px; border-right: 1px solid rgba(var(--gold-rgb),0.22); line-height: 1;
+    /* line-height 1 이면 34px 숫자의 글자상자(40px)가 아래 시각과 겹친다 */
+    padding-right: 13px; border-right: 1px solid rgba(var(--gold-rgb),0.22); line-height: 1.2;
   }
   .gs-m .no b { font-size: clamp(20px, 2vw, 34px); font-weight: 400; color: rgba(var(--cream-rgb),0.5); }
   .gs-m .no i {
@@ -719,11 +748,14 @@
      가운데 번호가 어느 쪽 것인지 헷갈린다. */
   .gs-m .side + .side { border-top: 1px solid rgba(var(--cream-rgb),0.045); }
   .gs-m .tn {
-    font-size: clamp(14px, 1.45vw, 28px); line-height: 1; color: rgba(var(--cream-rgb),0.88);
+    /* line-height 1 은 안 된다 — 한글 글자 상하가 잘린다(27.8px 글자에 32px 필요).
+       마루부리·Noto 한글은 27.8px 글자에 35px 를 쓴다 — 1.3 이 필요하다.
+       점수도 같은 1.3 을 써서 베이스라인이 1px 안쪽으로 맞는다. */
+    font-size: clamp(14px, 1.45vw, 28px); line-height: 1.3; color: rgba(var(--cream-rgb),0.88);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .gs-m .sc {
-    text-align: right; font-size: clamp(16px, 1.7vw, 32px); font-weight: 700; line-height: 1;
+    text-align: right; font-size: clamp(16px, 1.7vw, 32px); font-weight: 700; line-height: 1.3;
     color: rgba(var(--cream-rgb),0.34);
   }
   /* 완료 — 승자 골드 / 패자 dim */
@@ -783,6 +815,7 @@
   <!-- 타이틀 -->
   <div class="sb-title">
     <div class="sb-title-text" id="tvTitle">PS i-League</div>
+    <div class="sb-title-unit" id="tvTitleUnit"></div>
   </div>
 
   <!-- 헤더 -->
@@ -831,7 +864,12 @@
 
 </div>
 
-<!-- 뷰는 '전체' 하나뿐 — 전환 버튼·키 없음. 대회 데이터가 없으면 점수판만 남는다. -->
+<!-- 뷰는 '전체' 하나뿐 — 뷰 전환 버튼·키 없음. 대회 데이터가 없으면 점수판만 남는다.
+     테마만 바꿀 수 있게 우상단에 작게 둔다(키오스크엔 마우스가 없어 사실상 안 보인다). -->
+<div class="theme-switch" id="themeSwitch">
+  <button class="tbtn" data-t="luxury">럭셔리</button>
+  <button class="tbtn" data-t="classic">클래식</button>
+</div>
 
 <!-- ── 하단 패널 (통합순위 / 대진표) ──
      'all' 뷰에서는 .bracket-panel 이 display:contents 로 풀려서
@@ -851,11 +889,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b12--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b12 · 자동갱신</div>
+<!--TVBUILD:b13--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b13 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b12"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b13"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -893,6 +931,30 @@
 
   const POINTS = ['0','15','30','40','AD'];
 
+  // 상단 제목. tournament-app.js buildLiveTitle 형식: "{대회명}: {카테고리}[ Group X] {경기 라벨}".
+  // 700px 칸(전체 뷰)에 한 줄로 다 안 들어가 끝이 '…' 로 잘렸다.
+  // 경기 라벨을 오른쪽 칩으로 떼고, 남은 제목은 칸에 들어갈 때까지 글자를 줄인다.
+  // 형식이 안 맞으면 통째로 제목에 넣는다 — 잘리지만 않으면 된다.
+  const TV_UNIT_RE = /\s+((?:Group\s+\S+\s+)?(?:Final\s+Match\s+\d+|Match\s+\d+|Final|Semi\s+\d+|Quarter\s+\d+|R16\s+\d+|R32\s+\d+|3rd Place))$/i;
+  function tvSetTitle(raw) {
+    const elT = document.getElementById('tvTitle');
+    const elU = document.getElementById('tvTitleUnit');
+    const m = String(raw || '').match(TV_UNIT_RE);
+    elT.textContent = m ? raw.slice(0, m.index) : (raw || '');
+    elU.textContent = m ? m[1].replace(/\s+/g, ' ').replace(/^(Group \S+) /i, '$1 · ') : '';
+    tvFitTitle();
+  }
+  function tvFitTitle() {
+    const el = document.getElementById('tvTitle');
+    if (!el) return;
+    el.style.fontSize = '';                       // 원래 크기부터 다시 잰다
+    const base = parseFloat(getComputedStyle(el).fontSize) || 31;
+    for (let px = base; px >= 16 && el.scrollWidth > el.clientWidth + 1; px -= 1) {
+      el.style.fontSize = px + 'px';
+    }
+  }
+  window.addEventListener('resize', tvFitTitle);
+
   let prevPA = 0, prevPB = 0;
 
   function pop(el) {
@@ -912,7 +974,7 @@
     const S = snap.val();
     if (!S) return;
 
-    document.getElementById('tvTitle').textContent = S.title || '';
+    tvSetTitle(S.title || '');
     document.getElementById('tvNameA').textContent = S.a?.name || '';
     document.getElementById('tvNameB').textContent = S.b?.name || '';
 
@@ -995,20 +1057,26 @@
   const BK_THEMES = ['luxury', 'classic'];
   function bkNormTheme(v) { v = String(v || '').toLowerCase(); return BK_THEMES.includes(v) ? v : null; }
   const bkThemeFixed = bkNormTheme(bkQS.get('theme'));
-  let bkThemeRemote = null;
+  let bkThemeRemote = null, bkThemeRemoteSeen = null;
   let bkThemeLocal = 'luxury';
   try { bkThemeLocal = bkNormTheme(localStorage.getItem('tvTheme')) || 'luxury'; } catch (e) {}
 
   function bkApplyTheme() {
     const t = bkThemeFixed || bkThemeRemote || bkThemeLocal;
     document.body.classList.toggle('theme-classic', t === 'classic');
+    document.querySelectorAll('#themeSwitch .tbtn').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
   }
   function bkSetTheme(t) {
     t = bkNormTheme(t); if (!t) return;
+    // TV 앞에서 누른 게 마지막 선택 — 콘솔이 값을 '바꿀' 때까지 이게 이긴다
+    bkThemeRemote = null;
     bkThemeLocal = t;
     try { localStorage.setItem('tvTheme', t); } catch (e) {}
     bkApplyTheme();
   }
+  document.querySelectorAll('#themeSwitch .tbtn').forEach((b) => {
+    b.addEventListener('click', (ev) => { ev.stopPropagation(); bkSetTheme(b.dataset.t); });
+  });
   bkApplyTheme();   // Firebase 응답 전에 먼저 입혀서 깜빡임을 막는다
 
   // 현장에서 TV 앞에 서서 바꿔야 할 때 — T 키로 토글 (콘솔이 리모컨으로 잡고 있으면 그쪽이 이긴다)
@@ -1030,13 +1098,16 @@
     document.body.classList.toggle('bracket-on', panelOn);
     document.body.classList.toggle('view-all', panelOn);
     if (bkTournament) bkRender(bkTournament);
+    // 전체 뷰로 바뀌면 제목 칸이 700px 로 좁아진다 — 그때 다시 맞춰야 끝이 안 잘린다
+    if (typeof tvFitTitle === 'function') tvFitTitle();
   }
 
   // 뷰가 하나뿐이라 RTDB 의 tvView·showBracket 리모컨은 더 이상 읽지 않는다.
   // (콘솔이 예전 값을 계속 써도 무시된다 — 지울 필요 없음)
   ref.on('value', (snap) => {
     const S = snap.val() || {};
-    bkThemeRemote = bkNormTheme(S.tvTheme);
+    const rv = bkNormTheme(S.tvTheme);
+    if (rv !== bkThemeRemoteSeen) { bkThemeRemoteSeen = rv; bkThemeRemote = rv; }
     bkApplyTheme();
     // 조별 스테이지에서 지금 뛰는 경기를 짚기 위한 팀명·현재 게임스코어
     bkLiveA  = ((S.a && S.a.name) || '').trim();
