@@ -259,6 +259,8 @@
       <button class="btn-action btn-star" id="btnStar" onclick="toggleStar()">⭐ STAR POINT: OFF</button>
       <button class="btn-action btn-gold" id="btnGold" onclick="toggleGold()">👑 GOLDEN POINT: OFF</button>
       <button class="btn-action btn-rp" id="btnVoice" onclick="toggleVoice()">🔊 음성 콜: ON</button>
+      <button class="btn-action btn-rp" id="btnVoiceName" onclick="cycleVoice()">🎙️ 목소리</button>
+      <button class="btn-action btn-rp" id="btnPitch" onclick="cyclePitch()">🎚️ 톤: 낮음</button>
       <button class="btn-action btn-rp" id="btnTvTheme" onclick="toggleTvTheme()">🎨 TV 테마: 럭셔리</button>
       <button class="btn-action btn-rs" onclick="resetScore()">🔁 초기화</button>
       <button class="btn-action btn-ra" onclick="resetAll()">⚠️ 전체 초기화</button>
@@ -402,25 +404,65 @@
    * 태블릿 출력을 그대로 쓰므로 블루투스 스피커에 따로 설정할 게 없다.
    * (유튜브 중계에는 안 섞인다 — OBS 는 이 태블릿 소리를 받지 않는다.) */
   let voiceOn = localStorage.getItem('sbVoice') !== '0';
-  let koVoice = null;
-  function pickVoice() {
-    const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
-    koVoice = vs.find((v) => v.lang === 'ko-KR') || vs.find((v) => (v.lang || '').startsWith('ko')) || null;
+  // 목소리는 기기에 깔린 것 중에서만 고를 수 있다 — 태블릿마다 목록이 다르다.
+  // 그래서 하나를 박아두지 않고 버튼으로 돌려가며 고르게 하고, 고른 건 기억한다.
+  let voices = [], voiceIdx = 0;
+  // 굵고 낮은 쪽을 먼저 집는다. (InJoon = 윈도우 한국어 남성, Android/iOS 는 이름이 제각각이라 열어둔다)
+  const VOICE_PREF = ['injoon', 'male', '남성', 'minsik', 'gwaneung', 'ko-kr-standard-c', 'ko-kr-standard-d'];
+  const PITCH_STEPS = [0.7, 0.85, 1];          // 낮음 / 보통 / 높음
+  const PITCH_NAME  = ['낮음', '보통', '높음'];
+  let pitchIdx = Math.max(0, PITCH_STEPS.indexOf(parseFloat(localStorage.getItem('sbPitch'))));
+  if (pitchIdx < 0) pitchIdx = 0;
+
+  function loadVoices() {
+    const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+    voices = all.filter((v) => (v.lang || '').toLowerCase().startsWith('ko'));
+    if (!voices.length) voices = all;            // 한국어 목소리가 없는 기기 — 있는 걸로라도 읽는다
+    const saved = localStorage.getItem('sbVoiceName');
+    let i = voices.findIndex((v) => v.name === saved);
+    if (i < 0) i = voices.findIndex((v) => VOICE_PREF.some((p) => (v.name || '').toLowerCase().includes(p)));
+    voiceIdx = i >= 0 ? i : 0;
+    syncVoiceMetaBtns();
   }
   if ('speechSynthesis' in window) {
-    pickVoice();
-    speechSynthesis.onvoiceschanged = pickVoice;   // 크롬은 목소리 목록이 늦게 온다
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;   // 크롬은 목소리 목록이 늦게 온다
   }
   function say(text) {
     if (!voiceOn || !text || !('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();   // 연타해도 밀리지 않게 이전 발화를 끊는다
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ko-KR'; u.rate = 1.05; u.volume = 1;
-      if (koVoice) u.voice = koVoice;
+      u.lang = 'ko-KR'; u.rate = 1; u.volume = 1;
+      u.pitch = PITCH_STEPS[pitchIdx];            // 낮출수록 두껍게 들린다
+      if (voices[voiceIdx]) u.voice = voices[voiceIdx];
       speechSynthesis.speak(u);
     } catch (_) { /* 음성이 안 되는 기기여도 점수 조작은 계속돼야 한다 */ }
   }
+  function syncVoiceMetaBtns() {
+    const bv = document.getElementById('btnVoiceName');
+    if (bv) {
+      const v = voices[voiceIdx];
+      const n = v ? String(v.name).replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Korean.*$/i, '') : '기본';
+      bv.textContent = `🎙️ 목소리: ${n}${voices.length > 1 ? ` (${voiceIdx + 1}/${voices.length})` : ''}`;
+    }
+    const bp = document.getElementById('btnPitch');
+    if (bp) bp.textContent = `🎚️ 톤: ${PITCH_NAME[pitchIdx]}`;
+  }
+  window.cycleVoice = () => {
+    if (!voices.length) { loadVoices(); }
+    if (!voices.length) return;
+    voiceIdx = (voiceIdx + 1) % voices.length;
+    localStorage.setItem('sbVoiceName', voices[voiceIdx].name);
+    syncVoiceMetaBtns();
+    say('피프틴 러브');          // 바꾸는 즉시 들어보게
+  };
+  window.cyclePitch = () => {
+    pitchIdx = (pitchIdx + 1) % PITCH_STEPS.length;
+    localStorage.setItem('sbPitch', String(PITCH_STEPS[pitchIdx]));
+    syncVoiceMetaBtns();
+    say('피프틴 러브');
+  };
   function syncVoiceBtn() {
     const b = document.getElementById('btnVoice');
     if (!b) return;
@@ -472,6 +514,7 @@
   function syncInputs() {
     syncTvThemeBtn();
     syncVoiceBtn();
+    syncVoiceMetaBtns();
     document.getElementById('inTitle').value = S.title;
     document.getElementById('inNameA').value = S.a.name;
     document.getElementById('inNameB').value = S.b.name;
