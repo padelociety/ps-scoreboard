@@ -259,7 +259,7 @@
       <button class="btn-action btn-star" id="btnStar" onclick="toggleStar()">⭐ STAR POINT: OFF</button>
       <button class="btn-action btn-gold" id="btnGold" onclick="toggleGold()">👑 GOLDEN POINT: OFF</button>
       <button class="btn-action btn-rp" id="btnVoice" onclick="toggleVoice()">🔊 음성 콜: ON</button>
-      <button class="btn-action btn-rp" id="btnVoiceName" onclick="cycleVoice()">🎙️ 목소리</button>
+      <select class="btn-action btn-rp" id="selVoice" onchange="pickVoiceByName(this.value)"></select>
       <button class="btn-action btn-rp" id="btnPitch" onclick="cyclePitch()">🎚️ 톤: 낮음</button>
       <button class="btn-action btn-rp" id="btnTvTheme" onclick="toggleTvTheme()">🎨 TV 테마: 럭셔리</button>
       <button class="btn-action btn-rs" onclick="resetScore()">🔁 초기화</button>
@@ -417,15 +417,40 @@
 
   function loadVoices() {
     const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
-    voices = all.filter((v) => (v.lang || '').toLowerCase().startsWith('en'));
-    // 영어 목소리가 없으면 목록을 비워 둔다 — 한국어 목소리로 영어를 읽히면 더 뭉개진다.
-    // u.voice 를 안 주면 엔진이 lang='en-US' 를 보고 알아서 고른다.
+    // 영어를 먼저, 그 다음 나머지 — 기기에 뭐가 있든 다 보여주고 고르게 한다.
+    // (영어가 하나도 없으면 목록이 비고, u.voice 를 안 줘서 엔진이 lang='en-US' 로 고른다.)
+    const en = all.filter((v) => (v.lang || '').toLowerCase().startsWith('en'));
+    const rest = all.filter((v) => !(v.lang || '').toLowerCase().startsWith('en'));
+    voices = en.concat(rest);
     const saved = localStorage.getItem('sbVoiceName');
     let i = voices.findIndex((v) => v.name === saved);
     if (i < 0) i = voices.findIndex((v) => VOICE_PREF.some((p) => (v.name || '').toLowerCase().includes(p)));
+    if (i < 0 && en.length) i = 0;               // 영어가 있으면 영어 첫 번째
     voiceIdx = i >= 0 ? i : 0;
+    fillVoiceSelect(en.length);
     syncVoiceMetaBtns();
   }
+  function fillVoiceSelect(enCount) {
+    const sel = document.getElementById('selVoice');
+    if (!sel) return;
+    if (!voices.length) {
+      sel.innerHTML = '<option>🎙️ 목소리 없음 (엔진 자동)</option>';
+      return;
+    }
+    sel.innerHTML = voices.map((v, i) => {
+      const nm = String(v.name).replace(/^Microsoft\s+/i, '').replace(/\s*\(.*\)$/, '');
+      const mark = i < enCount ? '' : ' ⚠️비영어';
+      return `<option value="${String(v.name).replace(/"/g, '&quot;')}"${i === voiceIdx ? ' selected' : ''}>🎙️ ${nm} · ${v.lang}${mark}</option>`;
+    }).join('');
+  }
+  window.pickVoiceByName = (name) => {
+    const i = voices.findIndex((v) => v.name === name);
+    if (i < 0) return;
+    voiceIdx = i;
+    localStorage.setItem('sbVoiceName', name);
+    syncVoiceMetaBtns();
+    say('Fifteen, love. Deuce. Advantage, server.');   // 길게 들려줘야 목소리가 구분된다
+  };
   if ('speechSynthesis' in window) {
     loadVoices();
     speechSynthesis.onvoiceschanged = loadVoices;   // 크롬은 목소리 목록이 늦게 온다
@@ -442,24 +467,11 @@
     } catch (_) { /* 음성이 안 되는 기기여도 점수 조작은 계속돼야 한다 */ }
   }
   function syncVoiceMetaBtns() {
-    const bv = document.getElementById('btnVoiceName');
-    if (bv) {
-      const v = voices[voiceIdx];
-      const n = v ? String(v.name).replace(/^Microsoft\s+/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s*\(.*\)$/, '')
-                  : '기본(영어 목소리 없음)';
-      bv.textContent = `🎙️ 목소리: ${n}${voices.length > 1 ? ` (${voiceIdx + 1}/${voices.length})` : ''}`;
-    }
+    const sel = document.getElementById('selVoice');
+    if (sel && voices[voiceIdx]) sel.value = voices[voiceIdx].name;
     const bp = document.getElementById('btnPitch');
     if (bp) bp.textContent = `🎚️ 톤: ${PITCH_NAME[pitchIdx]}`;
   }
-  window.cycleVoice = () => {
-    if (!voices.length) { loadVoices(); }
-    if (!voices.length) return;
-    voiceIdx = (voiceIdx + 1) % voices.length;
-    localStorage.setItem('sbVoiceName', voices[voiceIdx].name);
-    syncVoiceMetaBtns();
-    say('Fifteen, love');          // 바꾸는 즉시 들어보게
-  };
   window.cyclePitch = () => {
     pitchIdx = (pitchIdx + 1) % PITCH_STEPS.length;
     localStorage.setItem('sbPitch', String(PITCH_STEPS[pitchIdx]));
