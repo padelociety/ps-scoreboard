@@ -9,318 +9,388 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PS Control">
-<meta name="theme-color" content="#104734">
+<meta name="theme-color" content="#071B20">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --green-dark: #1a472a;
-    --green-mid:  #2d6a44;
-    --green-light:#3a8a58;
-    --gold:       #f5c518;
-    --red:        #c0392b;
-    --bg:         #111;
-    --card:       #1c1c1c;
-    --border:     #2a2a2a;
+  /* 콘솔 = TV 와 같은 잉크 톤 (DESIGN_SYSTEM.md §1 다크 · §4-③). 승인 시안: mock-console-a (좌우 분할 · 중앙 레일). */
+  @font-face{font-family:'MaruBuri';src:url('fonts/MaruBuri-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
+  @font-face{font-family:'MaruBuri';src:url('fonts/MaruBuri-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+
+  :root{
+    --ink:#0E3038; --ink2:#071B20; --ink-btn:#153F49; --ink-btn2:#1B4A55;
+    --cream:#F2ECDC; --cream-rgb:242,236,220;
+    --gold:#C6A867; --gold2:#D9BC7A; --gold-rgb:198,168,103;
+    --muted:#8AA0A0; --line:rgba(198,168,103,.22); --line2:rgba(242,236,220,.30);
+    --live:#B3543C; --terra:#C9694F;
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); font-family:'Barlow Condensed','Noto Sans KR',sans-serif; color:#eee; min-height:100vh; }
-
-  /* ── HEADER ── */
-  .header {
-    background:#0d0d0d; border-bottom:1px solid #222;
-    padding:10px 16px;
-    display:flex; align-items:center; justify-content:space-between;
-    position:sticky; top:0; z-index:100;
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--ink2)}
+  body{
+    min-height:100vh; color:var(--cream);
+    background:var(--ink2) radial-gradient(ellipse at 50% 0%, var(--ink) 0%, var(--ink2) 72%) no-repeat;background-size:100% 100vh;
+    font-family:'Inter','MaruBuri',sans-serif; font-size:14px;
+    font-variant-numeric:lining-nums tabular-nums;   /* 모든 숫자 lnum+tnum — 7 이 내려가지 않게 */
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
-  .header-title { font-size:16px; font-weight:800; letter-spacing:1px; color:var(--gold); }
-  .conn-badge {
-    display:flex; align-items:center; gap:6px;
-    font-size:11px; font-weight:700; letter-spacing:1px;
-    color:#555; text-transform:uppercase;
+  button,select,input{font:inherit;color:inherit;font-variant-numeric:inherit}
+  button{background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  button:disabled{opacity:.35;cursor:default}
+  input:focus,select:focus{outline:none;border-color:var(--gold)}
+
+  .serif{font-family:'Playfair Display','MaruBuri',serif}
+  .kr{font-family:'MaruBuri','Playfair Display',serif}
+  .caps{font-family:'Inter','MaruBuri',sans-serif;text-transform:uppercase;letter-spacing:2px;font-weight:600;font-size:11px;line-height:1}
+
+  /* ═══════ 골격: 56 + 124 + 524(flex) + 64 = 768 ═══════ */
+  .console{min-height:100vh;display:flex;flex-direction:column;transition:opacity .2s}
+  .console.locked{opacity:.5;pointer-events:none}
+
+  /* ── 상단 바 56 ── */
+  .top{height:56px;flex:none;display:flex;align-items:center;gap:18px;padding:0 16px;border-bottom:1px solid var(--line)}
+  .top-title{font-size:17px;font-weight:700;color:var(--cream);white-space:nowrap;line-height:1;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .top-match{color:var(--gold);white-space:nowrap}
+  .top-match:empty{display:none}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex:none}
+  .conn{display:flex;align-items:center;gap:8px;color:var(--muted);padding:0 8px}
+  .conn i{width:8px;height:8px;border-radius:50%;background:var(--muted);animation:pulse 1s infinite}
+  .conn i.ok{background:var(--gold);box-shadow:0 0 0 3px rgba(var(--gold-rgb),.18);animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .tbtn{height:40px;padding:0 16px;border-radius:6px;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);color:var(--cream)}
+  .tbtn i{display:none;width:6px;height:6px;border-radius:50%;background:var(--ink2)}
+  .tbtn.on{background:var(--gold);color:var(--ink2);border-color:var(--gold)}
+  .tbtn.on i{display:block}
+
+  /* ── TV 미러 124 ── */
+  .tv{height:124px;flex:none;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .tv-board{height:100px;border:1px solid var(--line);background:rgba(7,27,32,.65);padding:6px 16px 8px;display:grid;grid-template-rows:20px 1fr 1fr;grid-template-columns:1fr 40px 40px 40px 72px 104px;column-gap:8px;align-items:center}
+  .tv-hd{color:var(--muted);font-size:10px}
+  .tv-hd.l{display:flex;gap:14px;align-items:center;min-width:0;white-space:nowrap;overflow:hidden}
+  .tv-hd.l b{color:var(--gold);font-weight:600;flex:none}
+  .tv-hd.l span{overflow:hidden;text-overflow:ellipsis}
+  .tv-hd.c{text-align:center}
+  .tv-hd.set{grid-column:span 3}
+  .tv-name{font-size:19px;font-weight:700;line-height:1;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden;min-width:0}
+  .tv-name span{overflow:hidden;text-overflow:ellipsis}
+  .tv-name i{width:8px;height:8px;border-radius:50%;background:transparent;border:1px solid rgba(var(--gold-rgb),.35);flex:none}
+  .tv-name.serving i{background:var(--gold);border-color:var(--gold)}
+  .tv-cell{text-align:center;line-height:1;height:100%;display:flex;align-items:center;justify-content:center}
+  .tv-set{font-size:22px;color:var(--muted)}
+  .tv-game{font-size:28px;color:var(--cream)}
+  .tv-point{font-size:32px;color:var(--gold2);font-weight:700}
+  .tv-row-b{border-top:1px solid rgba(var(--gold-rgb),.10)}
+  .tv-name.tv-row-b{padding-top:6px}
+  .tv-cell.tv-row-b{padding-top:6px}
+
+  /* ── 본문 524 = 14 + 496 + 14 ── */
+  .body{flex:1;display:grid;grid-template-columns:1fr 160px 1fr;gap:16px;padding:14px 16px;min-height:0;align-content:start}
+
+  /* 팀 패널: 30 + 64 + 120 + 120 + 72 + 60 + 5×6 = 496 */
+  .team{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .t-name{height:30px;display:flex;align-items:center;gap:12px}
+  .t-name .caps{color:var(--muted);flex:none}
+  .t-name b{font-size:24px;font-weight:700;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1em}
+  .t-name i{width:10px;height:10px;border-radius:50%;background:transparent;border:1px solid rgba(var(--gold-rgb),.35);flex:none}
+  .t-name.serving i{background:var(--gold);border-color:var(--gold)}
+
+  .t-game{height:64px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--line)}
+  .chips{display:flex;gap:6px;flex:1;min-width:0;overflow:hidden}
+  .chip{height:36px;display:inline-flex;align-items:stretch;border:1px solid var(--line2);border-radius:4px;overflow:hidden;flex:none}
+  .chip .cl{display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--muted)}
+  .chip .cl b{font-size:20px;color:var(--cream);font-weight:400;line-height:1}
+  .chip .cx{width:36px;border-left:1px solid var(--line2);color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center}
+  .t-game .lbl{color:var(--muted)}
+  .t-game .n{font-size:64px;line-height:1;min-width:1.15ch;text-align:right}
+
+  .t-point{height:120px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--line)}
+  .t-point .lbl{color:var(--gold);flex:1}
+  .t-point .n{font-size:120px;line-height:1;color:var(--gold2);font-weight:700;min-width:2.1ch;text-align:right}
+
+  .btn{border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;line-height:1;color:var(--cream)}
+  .btn .caps{font-size:12px}
+  .btn .sym{font-size:44px;line-height:1;font-weight:400}
+  .btn.gold{background:var(--gold);color:var(--ink2)}
+  .btn.ink{background:var(--ink-btn);border:1px solid rgba(var(--gold-rgb),.16)}
+  .btn.line{border:1px solid var(--line2);background:rgba(var(--cream-rgb),.035)}
+  .btn.tog{border:1px solid var(--line2);background:rgba(var(--cream-rgb),.035);color:var(--muted)}
+  .btn.tog.on{background:var(--gold);color:var(--ink2);border-color:var(--gold)}
+  .btn.tog.on .st{color:var(--ink2)}
+  .btn:active{filter:brightness(1.12)}
+
+  .t-btn-pt{height:120px;display:grid;grid-template-columns:1.6fr 1fr;gap:8px}
+  .t-btn-pt .btn{height:120px}
+  .t-btn-pt .sym{font-size:56px}
+  .t-btn-game{height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .t-btn-game .btn{height:72px;flex-direction:row;gap:12px}
+  .t-btn-game .sym{font-size:32px}
+  .t-serve{height:60px}
+  .t-serve .btn{height:60px;flex-direction:row;gap:12px;width:100%}
+  .t-serve .btn i{display:none;width:8px;height:8px;border-radius:50%;background:currentColor}
+  .t-serve .btn.on i{display:block}
+  .t-serve .btn .caps{font-size:13px;letter-spacing:3px}
+
+  /* 중앙 레일 160 */
+  .rail{display:flex;flex-direction:column;gap:8px}
+  .rail .btn{width:100%}
+  .r-undo{height:120px;border:1.5px solid var(--live);color:var(--terra)}
+  .r-undo .sym{font-size:34px;font-family:'Inter',sans-serif;font-weight:500}
+  .r-save{height:72px}
+  .r-save .caps{font-size:13px;letter-spacing:3px}
+  .r-toggles{margin-top:auto;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+  .r-toggles .btn{height:60px;gap:8px}
+  .r-toggles .st{font-size:10px;letter-spacing:2px;color:var(--muted)}
+
+  /* ── 하단 오늘 경기 64 ── */
+  .today{height:64px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;border-top:1px solid var(--line)}
+  .today .lbl{color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
+  .sel{position:relative;flex:1;min-width:0}
+  .sel select{width:100%;height:48px;appearance:none;-webkit-appearance:none;background:rgba(7,27,32,.65);border:1px solid var(--line2);border-radius:6px;color:var(--cream);padding:0 48px 0 16px;font-family:'Playfair Display','MaruBuri',serif;font-size:17px;line-height:1}
+  .sel::after{content:'';position:absolute;right:18px;top:50%;width:9px;height:9px;border-right:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+
+  /* ═══════ SETTINGS 서랍 — 오른쪽에서 밀려온다 ═══════ */
+  .drawer-bg{position:fixed;inset:0;background:rgba(7,27,32,.6);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(600px,100%);background:var(--ink2);border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s;z-index:51;overflow-y:auto;padding:0 20px 40px;display:flex;flex-direction:column;gap:24px}
+  body.settings-open .drawer-bg{opacity:1;pointer-events:auto}
+  body.settings-open .drawer{transform:none}
+  .s-head{position:sticky;top:0;z-index:1;background:var(--ink2);flex:none;height:56px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--line)}
+  .s-head .caps{color:var(--gold);font-size:12px;letter-spacing:3px}
+  .s-close{margin-left:auto;width:40px;height:40px;border:1px solid var(--line2);border-radius:6px;font-size:16px;color:var(--cream);display:flex;align-items:center;justify-content:center}
+  .s-group{display:flex;flex-direction:column;gap:10px;min-width:0}
+  .s-group>.caps{color:var(--gold);padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .frow{display:flex;align-items:center;gap:12px}
+  .frow label{width:64px;flex:none;color:var(--muted)}
+  .in{flex:1;min-width:0;height:48px;background:rgba(7,27,32,.65);border:1px solid var(--line2);border-radius:6px;color:var(--cream);padding:0 14px;font-family:'Playfair Display','MaruBuri',serif;font-size:16px}
+  .in::placeholder{color:rgba(138,160,160,.6)}
+  .frow .sel select{height:48px;font-size:16px}
+  .seg{flex:1;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line2);border-radius:6px;overflow:hidden;height:48px}
+  .seg button{display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line2);color:var(--muted);font-family:'MaruBuri',serif;font-size:15px}
+  .seg button:first-child{border-left:0}
+  .seg button.on{background:var(--gold);color:var(--ink2);font-weight:700}
+  .danger{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .danger .btn{height:56px;border:1.5px solid var(--live);color:var(--terra);flex-direction:row;gap:10px}
+  .danger .btn .caps{font-size:12px}
+  .danger .btn .kr{font-size:15px}
+  .hint{color:var(--muted);font-size:12px;line-height:1.5}
+  .hint:empty{display:none}
+  .hint.err{color:var(--terra)}
+  details{border:1px solid var(--line);border-radius:6px;background:rgba(7,27,32,.45)}
+  summary{list-style:none;cursor:pointer;min-height:56px;display:flex;align-items:center;gap:14px;padding:0 16px;flex-wrap:wrap}
+  summary::-webkit-details-marker{display:none}
+  summary .caps{color:var(--gold)}
+  summary .sub{color:var(--muted);font-size:12px}
+  summary::after{content:'';margin-left:auto;width:9px;height:9px;border-right:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);transform:rotate(-45deg);flex:none}
+  details[open] summary::after{transform:rotate(45deg)}
+  details[open] summary{border-bottom:1px solid var(--line)}
+  .d-body{padding:16px;display:flex;flex-direction:column;gap:12px}
+  .d-body .frow label{width:56px}
+  .row-btns{display:flex;gap:10px;flex-wrap:wrap}
+  .row-btns .btn{height:48px;flex:1;flex-direction:row;padding:0 14px;font-family:'MaruBuri',serif;font-size:14px;white-space:nowrap}
+
+  /* ═══════ ≤768: 세로 태블릿 — 팀 A / 레일 / 팀 B 위아래 ═══════ */
+  @media (max-width:768px){
+    .top{height:auto;flex-wrap:wrap;padding:10px 16px;row-gap:10px}
+    .top-right{margin-left:0;width:100%}
+    .tv{height:auto}
+    .tv-board{grid-template-columns:1fr 32px 32px 32px 56px 84px}
+    .body{grid-template-columns:1fr;grid-auto-rows:auto}
+    .rail{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .r-undo,.r-save{height:72px}
+    .r-toggles{display:contents}
+    .r-toggles .btn{height:72px}
+    .today{height:auto;flex-wrap:wrap;padding:12px 16px}
+    .today .lbl{max-width:100%}
+    .sel{flex-basis:100%}
   }
-  .conn-dot { width:7px; height:7px; border-radius:50%; background:#333; transition:background .3s; }
-  .conn-dot.live { background:var(--red); animation:pulse 1s infinite; }
-  .conn-dot.ok   { background:#2ecc71; animation:none; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
-
-  /* ── MAIN ── */
-  .cp { padding:12px 14px; max-width:560px; margin:0 auto; }
-
-  /* mini scoreboard preview */
-  .preview {
-    background:var(--green-dark); border-radius:6px; overflow:hidden;
-    margin-bottom:14px; box-shadow:0 3px 16px rgba(0,0,0,.5);
-  }
-  .preview-title {
-    padding:7px 12px; font-size:14px; font-weight:700;
-    border-bottom:1px solid var(--green-mid); color:#fff;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .preview-rows { background:#f0ead2; }
-  .preview-row {
-    display:grid; grid-template-columns:1fr 42px 42px 42px 52px;
-    height:38px; border-bottom:1px solid #ddd5b5; align-items:stretch;
-  }
-  .preview-row:last-child { border-bottom:none; }
-  .preview-name {
-    padding:0 10px; display:flex; align-items:center; gap:6px;
-    font-size:15px; font-weight:700; color:#1a1a1a; overflow:hidden;
-  }
-  .pserve { width:28px; height:28px; margin-top:4px; background: url('data:image/png;base64,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') center/contain no-repeat; opacity:0; flex-shrink:0; }
-  .serving .pserve { opacity:1; }
-  .preview-cell {
-    display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:15px; color:#fff;
-    border-left:1px solid rgba(255,255,255,.12);
-  }
-  .p-game  { background:var(--green-dark); }
-  .p-point { background:var(--green-dark); font-size:13px; }
-  .p-set   { background:var(--green-mid); color:rgba(255,255,255,.3); font-size:13px; }
-  .p-set.has-score  { color:#fff; background:#235438; }
-  .p-set.p-set-cur  { background:var(--green-dark); color:#fff; }
-
-  /* sections */
-  .section { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px; }
-  .sec-label { font-size:10px; font-weight:700; letter-spacing:2px; color:#555; text-transform:uppercase; margin-bottom:10px; }
-
-  input[type=text] {
-    background:#252525; border:1px solid #333; border-radius:6px;
-    color:#eee; font-family:inherit; font-size:15px;
-    padding:8px 12px; width:100%;
-  }
-  input[type=text]:focus { outline:none; border-color:var(--green-light); }
-
-  /* team cards */
-  .teams-grid { display:grid; grid-template-columns:1fr; gap:10px; }
-  .team-card { background:#222; border:1px solid #2e2e2e; border-radius:8px; padding:10px; }
-  .team-label { font-size:11px; font-weight:700; letter-spacing:1px; color:var(--green-light); text-transform:uppercase; margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-  .score-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-  .score-lbl { font-size:11px; color:#666; min-width:40px; }
-  .score-val { font-size:24px; font-weight:800; color:#fff; background:var(--green-dark); border-radius:5px; padding:1px 9px; min-width:52px; text-align:center; }
-
-  .btn-grp { display:flex; gap:4px; }
-  button { font-family:inherit; font-weight:700; border:none; border-radius:5px; cursor:pointer; transition:all .15s; }
-  button:active { transform:scale(.92); }
-  .btn-p { background:var(--green-mid); color:#fff; font-size:19px; padding:4px 10px; }
-  .btn-p:hover { background:var(--green-light); }
-  .btn-m { background:#2e2e2e; color:#888; font-size:17px; padding:4px 8px; }
-  .btn-m:hover { background:#3a3a3a; color:#fff; }
-
-  .btn-serve {
-    width:100%; margin-top:8px; padding:7px; font-size:11px; letter-spacing:1px;
-    background:#252525; color:#666; border:1px solid #333; border-radius:5px;
-  }
-  .btn-serve.active { background:#3a2800; color:var(--gold); border-color:var(--gold); }
-
-  .sets-display { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
-  .set-chip {
-    background:#2a2a2a; border:1px solid #3a3a3a; border-radius:4px;
-    padding:2px 7px; font-size:11px; color:#aaa;
-    display:flex; align-items:center; gap:4px;
-  }
-  .set-chip strong { color:#fff; }
-  .set-chip button { background:none; border:none; color:#444; font-size:10px; padding:0; }
-  .set-chip button:hover { color:var(--red); }
-
-  hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
-
-  .actions { display:flex; gap:8px; flex-wrap:wrap; }
-  .btn-action { padding:10px 16px; font-size:13px; letter-spacing:.5px; }
-  .btn-save { background:var(--green-dark); color:#fff; }
-  .btn-save:hover { background:var(--green-mid); }
-  .btn-rp { background:#252525; color:#aaa; border:1px solid #333; }
-  .btn-rp:hover { background:#333; color:#fff; }
-  .btn-rp.active { background:var(--green-dark); color:#fff; border-color:var(--green-mid); }
-  .btn-star { background:#252525; color:#aaa; border:1px solid #333; }
-  .btn-star:hover { background:#333; color:#fff; }
-  .btn-star.active { background:#3a2800; color:var(--gold); border-color:var(--gold); }
-  .btn-gold { background:#252525; color:#aaa; border:1px solid #333; }
-  .btn-gold:hover { background:#333; color:#fff; }
-  .btn-gold.active { background:#3a1f00; color:#ffb700; border-color:#ffb700; }
-  .btn-rs { background:#1a1a00; color:#ccaa00; border:1px solid #444400; }
-  .btn-rs:hover { background:#2a2a00; }
-  .btn-ra { background:#1a0000; color:var(--red); border:1px solid #400; }
-  .btn-ra:hover { background:#2a0000; }
-
-  /* hint box */
-  .hint-box {
-    background:#0d1a12; border:1px solid #1e3a26; border-radius:8px;
-    padding:12px 14px; font-size:12px; color:#4a7a5a; line-height:1.8;
-  }
-  .hint-box strong { color:#6aaa8a; }
-  .hint-box code { background:#1a2a20; padding:1px 5px; border-radius:3px; color:#8aca9a; font-size:11px; }
-
-  /* name input row */
-  .name-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
-  .name-row label { font-size:12px; color:#777; min-width:44px; flex-shrink:0; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="header-title">🎾 PS SCOREBOARD</div>
-  <div class="conn-badge">
-    <div class="conn-dot" id="connDot"></div>
-    <span id="connText">연결 중...</span>
-  </div>
-</div>
+<div class="console" id="console">
 
-<div class="cp">
-
-  <!-- Preview -->
-  <div class="preview">
-    <div class="preview-title" id="pvTitle">PS i-League</div>
-    <div class="preview-rows">
-      <div class="preview-row" id="pvRowA">
-        <div class="preview-name"><span id="pvNameA">Team A</span><div class="pserve"></div></div>
-        <div class="preview-cell p-set p-set-cur" id="pvSetA1"></div>
-        <div class="preview-cell p-set"            id="pvSetA2"></div>
-        <div class="preview-cell p-set"            id="pvSetA3"></div>
-        <div class="preview-cell p-point"          id="pvPointA">0</div>
-      </div>
-      <div class="preview-row" id="pvRowB">
-        <div class="preview-name"><span id="pvNameB">Team B</span><div class="pserve"></div></div>
-        <div class="preview-cell p-set p-set-cur" id="pvSetB1"></div>
-        <div class="preview-cell p-set"            id="pvSetB2"></div>
-        <div class="preview-cell p-set"            id="pvSetB3"></div>
-        <div class="preview-cell p-point"          id="pvPointB">0</div>
-      </div>
+  <!-- ── 상단 바 ── -->
+  <header class="top">
+    <div class="top-title kr" id="topTitle">PS Scoreboard</div>
+    <div class="top-match caps" id="topMatch"></div>
+    <div class="top-right">
+      <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
+      <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
+      <button class="tbtn caps" onclick="openSettings()">Settings</button>
     </div>
-  </div>
+  </header>
 
-  <!-- Title -->
-  <div class="section">
-    <div class="sec-label">대회명 / 매치</div>
-    <input type="text" id="inTitle" value="PS i-League 26S1" oninput="onTitleChange()">
-  </div>
+  <!-- ── TV 미러 프리뷰 ── -->
+  <section class="tv" aria-label="TV mirror">
+    <div class="tv-board">
+      <div class="tv-hd l caps"><b>TV Mirror</b><span id="pvTitle"></span></div>
+      <div class="tv-hd c set caps">Set</div>
+      <div class="tv-hd c caps">Game</div>
+      <div class="tv-hd c caps">Point</div>
 
-  <!-- Names -->
-  <div class="section">
-    <div class="sec-label">선수 이름</div>
-    <div class="name-row"><label>팀 A</label><input type="text" id="inNameA" value="Team A" oninput="onNameChange()"></div>
-    <div class="name-row"><label>팀 B</label><input type="text" id="inNameB" value="Team B" oninput="onNameChange()"></div>
-  </div>
+      <div class="tv-name kr tv-row-a" id="pvRowA"><span id="pvNameA"></span><i title="serving"></i></div>
+      <div class="tv-cell tv-set serif tv-row-a" id="pvSetA1"></div>
+      <div class="tv-cell tv-set serif tv-row-a" id="pvSetA2"></div>
+      <div class="tv-cell tv-set serif tv-row-a" id="pvSetA3"></div>
+      <div class="tv-cell tv-game serif tv-row-a" id="pvGameA">0</div>
+      <div class="tv-cell tv-point serif tv-row-a" id="pvPointA">0</div>
 
-  <!-- Score -->
-  <div class="section">
-    <div class="sec-label">스코어</div>
-    <div class="teams-grid">
-      <div class="team-card">
-        <div class="team-label" id="cardLabelA">Team A</div>
-        <div class="score-row">
-          <div class="score-lbl">게임</div>
-          <div class="score-val" id="cpGameA">0</div>
-          <div class="btn-grp">
-            <button class="btn-p" onclick="chGame('A',1)">＋</button>
-            <button class="btn-m" onclick="chGame('A',-1)">－</button>
-          </div>
-        </div>
-        <div class="score-row">
-          <div class="score-lbl">포인트</div>
-          <div class="score-val" id="cpPointA">0</div>
-          <div class="btn-grp">
-            <button class="btn-p" onclick="chPoint('A',1)">＋</button>
-            <button class="btn-m" onclick="chPoint('A',-1)">－</button>
-          </div>
-        </div>
-        <button class="btn-serve" id="bServeA" onclick="setServe('A')">🎾 서브권</button>
-        <div class="sets-display" id="cpSetsA"></div>
-      </div>
-      <div class="team-card">
-        <div class="team-label" id="cardLabelB">Team B</div>
-        <div class="score-row">
-          <div class="score-lbl">게임</div>
-          <div class="score-val" id="cpGameB">0</div>
-          <div class="btn-grp">
-            <button class="btn-p" onclick="chGame('B',1)">＋</button>
-            <button class="btn-m" onclick="chGame('B',-1)">－</button>
-          </div>
-        </div>
-        <div class="score-row">
-          <div class="score-lbl">포인트</div>
-          <div class="score-val" id="cpPointB">0</div>
-          <div class="btn-grp">
-            <button class="btn-p" onclick="chPoint('B',1)">＋</button>
-            <button class="btn-m" onclick="chPoint('B',-1)">－</button>
-          </div>
-        </div>
-        <button class="btn-serve" id="bServeB" onclick="setServe('B')">🎾 서브권</button>
-        <div class="sets-display" id="cpSetsB"></div>
-      </div>
+      <div class="tv-name kr tv-row-b" id="pvRowB"><span id="pvNameB"></span><i title="serving"></i></div>
+      <div class="tv-cell tv-set serif tv-row-b" id="pvSetB1"></div>
+      <div class="tv-cell tv-set serif tv-row-b" id="pvSetB2"></div>
+      <div class="tv-cell tv-set serif tv-row-b" id="pvSetB3"></div>
+      <div class="tv-cell tv-game serif tv-row-b" id="pvGameB">0</div>
+      <div class="tv-cell tv-point serif tv-row-b" id="pvPointB">0</div>
     </div>
-    <hr>
-    <div class="actions">
-      <button class="btn-action btn-save" onclick="saveSet()">✅ 세트 저장</button>
-      <button class="btn-action btn-rp" id="btnAutoReset" onclick="toggleAutoReset()">🔄 포인트 자동초기화: OFF</button>
-      <button class="btn-action btn-rp" id="btnAutoServe" onclick="toggleAutoServe()">🔄 서브권 자동교체: OFF</button>
-      <button class="btn-action btn-rp" id="btnSuperTB" onclick="toggleSuperTB()">🏆 슈퍼타이브레이크: OFF</button>
-      <button class="btn-action btn-star" id="btnStar" onclick="toggleStar()">⭐ STAR POINT: OFF</button>
-      <button class="btn-action btn-gold" id="btnGold" onclick="toggleGold()">👑 GOLDEN POINT: OFF</button>
-      <button class="btn-action btn-rp" id="btnVoice" onclick="toggleVoice()">🔊 음성 콜: ON</button>
-      <select class="btn-action btn-rp" id="selVoice" onchange="pickVoiceByName(this.value)"></select>
-      <button class="btn-action btn-rp" id="btnPitch" onclick="cyclePitch()">🎚️ 톤: 낮음</button>
-      <button class="btn-action btn-rp" id="btnTvTheme" onclick="toggleTvTheme()">🎨 TV 테마: 럭셔리</button>
-      <button class="btn-action btn-rs" onclick="resetScore()">🔁 초기화</button>
-      <button class="btn-action btn-ra" onclick="resetAll()">⚠️ 전체 초기화</button>
+  </section>
+
+  <!-- ── 본문: 팀 A | 레일 | 팀 B ── -->
+  <main class="body">
+
+    <!-- 팀 A -->
+    <section class="team" aria-label="Team A">
+      <div class="t-name" id="tnA"><span class="caps">Team A</span><b class="kr" id="cardLabelA"></b><i title="serving"></i></div>
+
+      <div class="t-game">
+        <div class="chips" id="cpSetsA"></div>
+        <span class="lbl caps">Game</span>
+        <span class="n serif" id="cpGameA">0</span>
+      </div>
+
+      <div class="t-point">
+        <span class="lbl caps">Point</span>
+        <span class="n serif" id="cpPointA">0</span>
+      </div>
+
+      <div class="t-btn-pt">
+        <button class="btn gold" onclick="chPoint('A',1)"><span class="sym serif">+</span><span class="caps">Point</span></button>
+        <button class="btn line" onclick="chPoint('A',-1)"><span class="sym serif">−</span><span class="caps">Point</span></button>
+      </div>
+      <div class="t-btn-game">
+        <button class="btn ink" onclick="chGame('A',1)"><span class="sym serif">+</span><span class="caps">Game</span></button>
+        <button class="btn line" onclick="chGame('A',-1)"><span class="sym serif">−</span><span class="caps">Game</span></button>
+      </div>
+      <div class="t-serve">
+        <button class="btn tog" id="bServeA" onclick="setServe('A')"><i></i><span class="caps">Serve</span></button>
+      </div>
+    </section>
+
+    <!-- 중앙 레일 -->
+    <aside class="rail" aria-label="Match controls">
+      <button class="btn r-undo" id="btnUndo" onclick="undo()" disabled><span class="sym">↶</span><span class="caps">Undo</span></button>
+      <button class="btn gold r-save" onclick="saveSet()"><span class="caps">Save Set</span></button>
+      <div class="r-toggles">
+        <button class="btn tog" id="btnStar" onclick="toggleStar()"><span class="caps">Star</span><span class="st caps">Off</span></button>
+        <button class="btn tog" id="btnGold" onclick="toggleGold()"><span class="caps">Golden</span><span class="st caps">Off</span></button>
+        <button class="btn tog" id="btnSuperTB" onclick="toggleSuperTB()"><span class="caps">Super TB</span><span class="st caps">Off</span></button>
+      </div>
+    </aside>
+
+    <!-- 팀 B -->
+    <section class="team" aria-label="Team B">
+      <div class="t-name" id="tnB"><span class="caps">Team B</span><b class="kr" id="cardLabelB"></b><i title="serving"></i></div>
+
+      <div class="t-game">
+        <div class="chips" id="cpSetsB"></div>
+        <span class="lbl caps">Game</span>
+        <span class="n serif" id="cpGameB">0</span>
+      </div>
+
+      <div class="t-point">
+        <span class="lbl caps">Point</span>
+        <span class="n serif" id="cpPointB">0</span>
+      </div>
+
+      <div class="t-btn-pt">
+        <button class="btn gold" onclick="chPoint('B',1)"><span class="sym serif">+</span><span class="caps">Point</span></button>
+        <button class="btn line" onclick="chPoint('B',-1)"><span class="sym serif">−</span><span class="caps">Point</span></button>
+      </div>
+      <div class="t-btn-game">
+        <button class="btn ink" onclick="chGame('B',1)"><span class="sym serif">+</span><span class="caps">Game</span></button>
+        <button class="btn line" onclick="chGame('B',-1)"><span class="sym serif">−</span><span class="caps">Game</span></button>
+      </div>
+      <div class="t-serve">
+        <button class="btn tog" id="bServeB" onclick="setServe('B')"><i></i><span class="caps">Serve</span></button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── 하단: 오늘 경기 선택 ── -->
+  <footer class="today">
+    <span class="lbl caps" id="todayLbl">Today</span>
+    <div class="sel">
+      <select id="selToday" onchange="pickTodayMatch(this.value)" aria-label="오늘 경기 선택">
+        <option value="">대회 목록 불러오는 중</option>
+      </select>
     </div>
+  </footer>
+
+</div><!-- /console -->
+
+<!-- ═══════ SETTINGS 서랍 ═══════ -->
+<div class="drawer-bg" id="drawerBg" onclick="closeSettings()"></div>
+<aside class="drawer" id="drawer" aria-label="Settings">
+  <div class="s-head">
+    <span class="caps">Settings</span>
+    <button class="s-close" onclick="closeSettings()" aria-label="닫기">✕</button>
   </div>
 
-  <!-- ── League 연동 (Playus 백엔드) ── -->
-  <div class="section" id="leagueSection">
-    <div class="sec-label">🏆 리그 연동 (Playus)</div>
+  <div class="s-group">
+    <span class="caps">Match · 수동 입력</span>
+    <div class="frow"><label class="caps">Title</label><input class="in" type="text" id="inTitle" oninput="onTitleChange()" placeholder="대회명 / 매치"></div>
+    <div class="frow"><label class="caps">Team A</label><input class="in" type="text" id="inNameA" oninput="onNameChange()" placeholder="팀 A"></div>
+    <div class="frow"><label class="caps">Team B</label><input class="in" type="text" id="inNameB" oninput="onNameChange()" placeholder="팀 B"></div>
+    <p class="hint">하단 TODAY 에서 경기를 고르면 자동으로 채워진다. 여기는 직접 고칠 때만.</p>
+  </div>
 
-    <!-- 설정 (접기) -->
+  <div class="s-group">
+    <span class="caps">Voice · 음성 콜</span>
+    <div class="frow"><label class="caps">Voice</label>
+      <div class="sel"><select id="selVoice" onchange="pickVoiceByName(this.value)" aria-label="목소리"></select></div>
+    </div>
+    <div class="frow"><label class="caps">Tone</label>
+      <div class="seg" id="btnPitch"><button onclick="cyclePitch(0)">낮음</button><button onclick="cyclePitch(1)">보통</button><button onclick="cyclePitch(2)">높음</button></div>
+    </div>
+    <p class="hint">태블릿 스피커(블루투스)로 나간다. 콜은 심판 영어 그대로 — 서브 넣는 쪽 점수 먼저.</p>
+  </div>
+
+  <div class="s-group">
+    <span class="caps">TV Theme</span>
+    <div class="frow"><label class="caps">Theme</label>
+      <div class="seg" id="btnTvTheme"><button data-t="luxury" onclick="toggleTvTheme('luxury')">럭셔리</button><button data-t="classic" onclick="toggleTvTheme('classic')">클래식</button></div>
+    </div>
+    <p class="hint">TV 와 OBS 오버레이에 바로 반영된다. 콘솔 자체는 항상 잉크 톤.</p>
+  </div>
+
+  <div class="s-group">
+    <span class="caps">Reset · 위험</span>
+    <div class="danger">
+      <button class="btn" onclick="resetScore()"><span class="caps">Reset</span><span class="kr">점수 초기화</span></button>
+      <button class="btn" onclick="resetAll()"><span class="caps">Reset All</span><span class="kr">전체 초기화</span></button>
+    </div>
+    <p class="hint">둘 다 탭 후 확인 창을 거친다. 점수 초기화 = 팀명·세트·게임·포인트·서브권 (대회명 유지). 전체 = 대회명까지.</p>
+  </div>
+
+  <div class="s-group">
     <details id="lgConfigBox">
-      <summary style="cursor:pointer; font-size:12px; color:#888; margin-bottom:10px;">⚙️ 설정 · 운영자 로그인</summary>
-      <div class="name-row"><label>API</label><input type="text" id="lgApiBase" placeholder="비워두면 prod (api.padelsociety.co.kr)"></div>
-      <!-- 운영자 로그인 (어드민 계정) → 토큰 자동 저장 -->
-      <div class="name-row"><label>이메일</label><input type="email" id="lgEmail" placeholder="어드민 이메일"></div>
-      <div class="name-row"><label>비번</label><input type="password" id="lgPassword" placeholder="비밀번호"></div>
-      <div class="actions" style="margin-top:6px;">
-        <button class="btn-action btn-save" onclick="lgLogin()">🔑 로그인</button>
-        <button class="btn-action btn-rp" onclick="lgLogout()">로그아웃</button>
+      <summary><span class="caps">League · i-League 연동</span><span class="sub">로그인 · 유튜브 라이브 · 결과 저장</span></summary>
+      <div class="d-body">
+        <div class="frow"><label class="caps">API</label><input class="in" type="text" id="lgApiBase" placeholder="비워두면 prod (api.padelsociety.co.kr)"></div>
+        <div class="frow"><label class="caps">Email</label><input class="in" type="email" id="lgEmail" placeholder="어드민 이메일"></div>
+        <div class="frow"><label class="caps">PW</label><input class="in" type="password" id="lgPassword" placeholder="비밀번호"></div>
+        <div class="row-btns"><button class="btn gold" onclick="lgLogin()">로그인</button><button class="btn line" onclick="lgLogout()">로그아웃</button></div>
+        <p class="hint" id="lgAuthStatus"></p>
+        <div class="frow"><label class="caps">Token</label><input class="in" type="text" id="lgToken" placeholder="(선택) JWT 직접 입력"></div>
+        <div class="row-btns"><button class="btn line" onclick="lgSaveConfig()">API/토큰 저장</button></div>
+        <div class="frow"><label class="caps">League</label><div class="sel"><select id="lgLeagueSelect" onchange="lgOnLeagueChange()"><option value="">— 리그 불러오는 중 —</option></select></div></div>
+        <div class="frow"><label class="caps">Match</label><div class="sel"><select id="lgMatchSelect" onchange="lgOnMatchChange()"><option value="">— 리그 먼저 선택 —</option></select></div></div>
+        <div class="row-btns"><button class="btn ink" onclick="lgApplyMatch()">선수 이름 불러오기</button><button class="btn line" onclick="lgRefresh()">새로고침</button></div>
+        <div class="frow"><label class="caps">YouTube</label><input class="in" type="text" id="lgYoutube" placeholder="https://youtube.com/live/..."></div>
+        <div class="row-btns"><button class="btn tog" id="lgLiveBtn" onclick="lgToggleLive()">라이브 시작</button><button class="btn gold" onclick="lgPushResult()">리그에 결과 저장</button></div>
+        <p class="hint" id="lgStatus"></p>
       </div>
-      <div id="lgAuthStatus" style="margin-top:8px; font-size:12px; color:#6aaa8a;"></div>
-      <!-- 고급: 토큰 직접 입력 (선택) -->
-      <div class="name-row" style="margin-top:8px;"><label>토큰</label><input type="text" id="lgToken" placeholder="(선택) JWT 직접 입력"></div>
-      <button class="btn-action btn-rp" onclick="lgSaveConfig()" style="margin-top:6px;">API/토큰 저장</button>
     </details>
-
-    <hr>
-
-    <!-- 리그 / 매치 선택 -->
-    <div class="name-row" style="margin-top:10px;">
-      <label>리그</label>
-      <select id="lgLeagueSelect" onchange="lgOnLeagueChange()" style="flex:1; background:#252525; border:1px solid #333; border-radius:6px; color:#eee; font-family:inherit; font-size:14px; padding:8px;">
-        <option value="">— 리그 불러오는 중 —</option>
-      </select>
-    </div>
-    <div class="name-row">
-      <label>매치</label>
-      <select id="lgMatchSelect" onchange="lgOnMatchChange()" style="flex:1; background:#252525; border:1px solid #333; border-radius:6px; color:#eee; font-family:inherit; font-size:14px; padding:8px;">
-        <option value="">— 리그 먼저 선택 —</option>
-      </select>
-    </div>
-    <div class="actions" style="margin-top:8px;">
-      <button class="btn-action btn-save" onclick="lgApplyMatch()">⬇️ 선수 이름 불러오기</button>
-      <button class="btn-action btn-rp" onclick="lgRefresh()">🔄 새로고침</button>
-    </div>
-
-    <hr>
-
-    <!-- 유튜브 / 라이브 -->
-    <div class="name-row"><label>유튜브</label><input type="text" id="lgYoutube" placeholder="https://youtube.com/live/..."></div>
-    <div class="actions" style="margin-top:8px;">
-      <button class="btn-action btn-gold" id="lgLiveBtn" onclick="lgToggleLive()">🔴 라이브 시작</button>
-      <button class="btn-action btn-save" onclick="lgPushResult()">💾 리그에 결과 저장</button>
-    </div>
-
-    <div id="lgStatus" style="margin-top:10px; font-size:12px; color:#6aaa8a; line-height:1.6;"></div>
   </div>
-
-</div>
+</aside>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -341,28 +411,52 @@
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
   const sbRef = ref(db, 'scoreboard');
+  const $ = (id) => document.getElementById(id);
 
   // 연결 상태 표시
-  import { ref as dbRef, onValue as onVal } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-  const connRef = dbRef(db, '.info/connected');
-  onVal(connRef, snap => {
+  onValue(ref(db, '.info/connected'), snap => {
     const ok = snap.val() === true;
-    document.getElementById('connDot').className  = 'conn-dot ' + (ok ? 'ok' : 'live');
-    document.getElementById('connText').textContent = ok ? '연결됨' : '연결 중...';
+    $('connDot').classList.toggle('ok', ok);
+    $('connText').textContent = ok ? 'Connected' : 'Connecting';
   });
 
-  let S = {
-    title: '',
-    a: { name:'', game:0, point:0, sets:[], serving:false },
-    b: { name:'', game:0, point:0, sets:[], serving:false },
+  const blank = () => ({ name:'', game:0, point:0, sets:[], serving:false });
+  let S = { title:'', a: blank(), b: blank() };
+  let superTB = false;
+  // TV 테마 리모컨 — tv.html 이 scoreboard.tvTheme 을 읽어 body.theme-classic 을 켠다.
+  // push() 가 scoreboard 노드를 통째로 set 하므로 superTB 처럼 여기서 들고 있다가 같이 실어 보낸다.
+  let tvTheme = 'luxury';
+
+  // ── UNDO: 상태를 바꾸는 모든 동작은 mutate() 를 거친다 — 바꾸기 전 스냅샷을 쌓고, 실제로 달라졐을 때만 push.
+  // 깊은 복사는 JSON 왕복 — S 는 순수 JSON 이고, 구형 태블릿 브라우저에 structuredClone 이 없을 수 있다.
+  const undoStack = [];
+  const snapshot = () => JSON.stringify({ S, superTB });
+  function syncUndoBtn() { $('btnUndo').disabled = !undoStack.length; }
+  function mutate(fn) {
+    const before = snapshot();
+    fn();
+    if (snapshot() === before) return false;   // 0 에서 − 같은 헛손질은 스택에 안 남긴다
+    undoStack.push(before);
+    if (undoStack.length > 30) undoStack.shift();
+    syncUndoBtn();
+    push();
+    return true;
+  }
+  window.undo = () => {
+    const prev = undoStack.pop();
+    if (!prev) return;
+    ({ S, superTB } = JSON.parse(prev));
+    syncUndoBtn();
+    push();
+    syncInputs();
+    say('Undo');
   };
 
   // Firebase 로딩 전 버튼 비활성화
   function setUILocked(locked) {
-    document.querySelectorAll('button.btn-score, button.btn-action, button.btn-serve, button.btn-star')
-      .forEach(b => b.disabled = locked);
-    const cp = document.querySelector('.cp');
-    if (cp) cp.style.opacity = locked ? '0.5' : '1';
+    document.querySelectorAll('.body button, .today select').forEach(b => b.disabled = locked);
+    $('console').classList.toggle('locked', locked);
+    if (!locked) syncUndoBtn();
   }
   setUILocked(true);
 
@@ -371,17 +465,8 @@
   onValue(sbRef, snap => {
     if (snap.val()) {
       S = snap.val();
-      // superTB 상태 복원
-      if (typeof S.superTB === 'boolean') {
-        superTB = S.superTB;
-        const btnTB = document.getElementById('btnSuperTB');
-        if (btnTB) {
-          btnTB.textContent = `🏆 슈퍼타이브레이크: ${superTB ? 'ON' : 'OFF'}`;
-          btnTB.classList.toggle('active', superTB);
-        }
-      }
-      // TV 테마 상태 복원
-      if (typeof S.tvTheme === 'string') {
+      if (typeof S.superTB === 'boolean') superTB = S.superTB;   // superTB 상태 복원
+      if (typeof S.tvTheme === 'string') {                         // TV 테마 상태 복원
         tvTheme = S.tvTheme === 'classic' ? 'classic' : 'luxury';
         syncTvThemeBtn();
       }
@@ -393,8 +478,11 @@
       renderPreview();
       renderCP();
     } else {
-      // Firebase에 데이터 없을 때도 잠금 해제
+      // Firebase에 데이터 없을 때(첫 실행)도 잠금 해제 + 설정 버튼 상태(테마·톤·음성)는 그려 둔다.
+      // 잠금 해제를 먼저, 동기화는 다음 틱에 — 이 콜백이 모듈 초기화 중에 동기로 오면
+      // 아래쪽에 선언된 let(voiceOn 등)에 걸려 예외가 나고 버튼이 영영 잠긴다.
       setUILocked(false);
+      if (_firstLoad) { _firstLoad = false; setTimeout(syncInputs, 0); }
     }
   });
 
@@ -405,7 +493,7 @@
    * (유튜브 중계에는 안 섞인다 — OBS 는 이 태블릿 소리를 받지 않는다.) */
   let voiceOn = localStorage.getItem('sbVoice') !== '0';
   // 목소리는 기기에 깔린 것 중에서만 고를 수 있다 — 태블릿마다 목록이 다르다.
-  // 그래서 하나를 박아두지 않고 버튼으로 돌려가며 고르게 하고, 고른 건 기억한다.
+  // 그래서 하나를 박아두지 않고 목록에서 고르게 하고, 고른 건 기억한다.
   let voices = [], voiceIdx = 0;
   // 콜은 영어 원어로 읽는다 — 한국어 TTS 에 '피프틴' 을 적어 넣으니 발음이 어색했다.
   // 기기 기본 음성은 싸구려로 들린다. 고품질 음성(Neural/Natural/Premium/Enhanced, 또는
@@ -424,15 +512,12 @@
     return s;
   }
   const PITCH_STEPS = [0.7, 0.85, 1];          // 낮음 / 보통 / 높음
-  const PITCH_NAME  = ['낮음', '보통', '높음'];
   let pitchIdx = Math.max(0, PITCH_STEPS.indexOf(parseFloat(localStorage.getItem('sbPitch'))));
-  if (pitchIdx < 0) pitchIdx = 0;
 
   function loadVoices() {
     const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
-    // 영어를 먼저, 그 다음 나머지 — 기기에 뭐가 있든 다 보여주고 고르게 한다.
-    // (영어가 하나도 없으면 목록이 비고, u.voice 를 안 줘서 엔진이 lang='en-US' 로 고른다.)
     // 고품질 영어 → 일반 영어 → 나머지 순으로 세운다. 같은 점수면 원래 순서 유지.
+    // (영어가 하나도 없으면 목록이 비고, u.voice 를 안 줘서 엔진이 lang='en-US' 로 고른다.)
     voices = all.map((v, i) => ({ v, i })).sort((x, y) => voiceScore(y.v) - voiceScore(x.v) || x.i - y.i).map((o) => o.v);
     const saved = localStorage.getItem('sbVoiceName');
     let i = voices.findIndex((v) => v.name === saved);
@@ -442,18 +527,15 @@
     syncVoiceMetaBtns();
   }
   function fillVoiceSelect() {
-    const sel = document.getElementById('selVoice');
-    if (!sel) return;
-    if (!voices.length) {
-      sel.innerHTML = '<option>🎙️ 목소리 없음 (엔진 자동)</option>';
-      return;
-    }
-    sel.innerHTML = voices.map((v, i) => {
+    const sel = $('selVoice');
+    sel.innerHTML = '';
+    if (!voices.length) { sel.append(new Option('목소리 없음 (엔진 자동)', '')); return; }
+    voices.forEach((v, i) => {
       const nm = String(v.name).replace(/^Microsoft\s+/i, '').replace(/\s*\(.*\)$/, '');
       const en = (v.lang || '').toLowerCase().startsWith('en');
-      const tag = (isHQ(v) ? '⭐고품질 ' : '') + (en ? '' : '⚠️비영어 ');
-      return `<option value="${String(v.name).replace(/"/g, '&quot;')}"${i === voiceIdx ? ' selected' : ''}>${tag}${nm} · ${v.lang}</option>`;
-    }).join('');
+      const tag = (isHQ(v) ? '[고품질] ' : '') + (en ? '' : '[비영어] ');
+      sel.append(new Option(`${tag}${nm} · ${v.lang}`, v.name, false, i === voiceIdx));
+    });
   }
   window.pickVoiceByName = (name) => {
     const i = voices.findIndex((v) => v.name === name);
@@ -479,22 +561,21 @@
     } catch (_) { /* 음성이 안 되는 기기여도 점수 조작은 계속돼야 한다 */ }
   }
   function syncVoiceMetaBtns() {
-    const sel = document.getElementById('selVoice');
-    if (sel && voices[voiceIdx]) sel.value = voices[voiceIdx].name;
-    const bp = document.getElementById('btnPitch');
-    if (bp) bp.textContent = `🎚️ 톤: ${PITCH_NAME[pitchIdx]}`;
+    const sel = $('selVoice');
+    if (voices[voiceIdx]) sel.value = voices[voiceIdx].name;
+    [...$('btnPitch').children].forEach((b, i) => b.classList.toggle('on', i === pitchIdx));
   }
-  window.cyclePitch = () => {
-    pitchIdx = (pitchIdx + 1) % PITCH_STEPS.length;
+  // 톤 세그먼트: 인덱스를 주면 그걸로, 안 주면 다음 단계로.
+  window.cyclePitch = (i) => {
+    pitchIdx = (i ?? pitchIdx + 1) % PITCH_STEPS.length;
     localStorage.setItem('sbPitch', String(PITCH_STEPS[pitchIdx]));
     syncVoiceMetaBtns();
     say('Fifteen, love');
   };
   function syncVoiceBtn() {
-    const b = document.getElementById('btnVoice');
-    if (!b) return;
-    b.textContent = `🔊 음성 콜: ${voiceOn ? 'ON' : 'OFF'}`;
-    b.classList.toggle('active', voiceOn);
+    const b = $('btnVoice');
+    b.classList.toggle('on', voiceOn);
+    b.querySelector('span').textContent = voiceOn ? 'Voice On' : 'Voice Off';
   }
   window.toggleVoice = () => {
     voiceOn = !voiceOn;
@@ -550,107 +631,54 @@
     syncTvThemeBtn();
     syncVoiceBtn();
     syncVoiceMetaBtns();
-    document.getElementById('inTitle').value = S.title;
-    document.getElementById('inNameA').value = S.a.name;
-    document.getElementById('inNameB').value = S.b.name;
-    const btn = document.getElementById('btnStar');
-    btn.textContent = `⭐ STAR POINT: ${S.starPoint ? 'ON' : 'OFF'}`;
-    btn.classList.toggle('active', !!S.starPoint);
-    const btnG = document.getElementById('btnGold');
-    btnG.textContent = `👑 GOLDEN POINT: ${S.goldenPoint ? 'ON' : 'OFF'}`;
-    btnG.classList.toggle('active', !!S.goldenPoint);
+    $('inTitle').value = S.title || '';
+    $('inNameA').value = S.a.name || '';
+    $('inNameB').value = S.b.name || '';
   }
 
   // ── Handlers (global) ──
-  let autoResetPoint = false;
-  let autoServe = false;
-  let superTB = false;
-  // TV 테마 리모컨 — tv.html 이 scoreboard.tvTheme 을 읽어 body.theme-classic 을 켠다.
-  // push() 가 scoreboard 노드를 통째로 set 하므로 superTB 처럼 여기서 들고 있다가 같이 실어 보낸다.
-  let tvTheme = 'luxury';
   function syncTvThemeBtn() {
-    const b = document.getElementById('btnTvTheme');
-    if (!b) return;
-    b.textContent = `🎨 TV 테마: ${tvTheme === 'classic' ? '클래식' : '럭셔리'}`;
-    b.classList.toggle('active', tvTheme === 'classic');
+    [...$('btnTvTheme').children].forEach((b) => b.classList.toggle('on', b.dataset.t === tvTheme));
   }
-
-  window.toggleAutoReset = () => {
-    autoResetPoint = !autoResetPoint;
-    const btn = document.getElementById('btnAutoReset');
-    btn.textContent = `🔄 포인트 자동초기화: ${autoResetPoint ? 'ON' : 'OFF'}`;
-    btn.classList.toggle('active', autoResetPoint);
-  };
-
-  window.toggleAutoServe = () => {
-    autoServe = !autoServe;
-    const btn = document.getElementById('btnAutoServe');
-    btn.textContent = `🔄 서브권 자동교체: ${autoServe ? 'ON' : 'OFF'}`;
-    btn.classList.toggle('active', autoServe);
-  };
-
-  window.toggleSuperTB = () => {
-    superTB = !superTB;
-    const btn = document.getElementById('btnSuperTB');
-    btn.textContent = `🏆 슈퍼타이브레이크: ${superTB ? 'ON' : 'OFF'}`;
-    btn.classList.toggle('active', superTB);
-  };
-
-  window.toggleTvTheme = () => {
-    tvTheme = tvTheme === 'classic' ? 'luxury' : 'classic';
+  // 세그먼트가 테마 이름을 주면 그걸로, 안 주면 반대로.
+  window.toggleTvTheme = (t) => {
+    const next = t || (tvTheme === 'classic' ? 'luxury' : 'classic');
+    if (next === tvTheme) return;
+    tvTheme = next;
     syncTvThemeBtn();
     push();   // 바로 내보낸다 — TV 는 다음 스냅샷에서 즉시 갈아입는다
   };
 
+  window.openSettings  = () => document.body.classList.add('settings-open');
+  window.closeSettings = () => document.body.classList.remove('settings-open');
+
+  window.toggleSuperTB = () => { mutate(() => { superTB = !superTB; }); };
   window.toggleStar = () => {
-    S.starPoint = !S.starPoint;
-    const btn = document.getElementById('btnStar');
-    btn.textContent = `⭐ STAR POINT: ${S.starPoint ? 'ON' : 'OFF'}`;
-    btn.classList.toggle('active', !!S.starPoint);
-    push();
-    if (S.starPoint) say('Star point');   // 끌 때는 침묵
+    if (mutate(() => { S.starPoint = !S.starPoint; }) && S.starPoint) say('Star point');   // 끌 때는 침묵
   };
-
   window.toggleGold = () => {
-    S.goldenPoint = !S.goldenPoint;
-    const btn = document.getElementById('btnGold');
-    btn.textContent = `👑 GOLDEN POINT: ${S.goldenPoint ? 'ON' : 'OFF'}`;
-    btn.classList.toggle('active', !!S.goldenPoint);
-    push();
-    if (S.goldenPoint) say('Golden point');
+    if (mutate(() => { S.goldenPoint = !S.goldenPoint; }) && S.goldenPoint) say('Golden point');
   };
 
-  window.onTitleChange = () => { S.title = document.getElementById('inTitle').value; push(); };
+  window.onTitleChange = () => { S.title = $('inTitle').value; push(); };
   window.onNameChange  = () => {
-    S.a.name = document.getElementById('inNameA').value;
-    S.b.name = document.getElementById('inNameB').value;
+    S.a.name = $('inNameA').value;
+    S.b.name = $('inNameB').value;
     push();
   };
-  window.chGame  = (t,d) => {
-    const s=t==='A'?S.a:S.b;
-    const o=t==='A'?S.b:S.a;
-    s.game = Math.max(0, s.game+d);
-    if (autoResetPoint) { S.a.point=0; S.b.point=0; }
-    // 서브권 자동교체
-    if (autoServe && d > 0) {
-      const wasA = S.a.serving;
-      const wasB = S.b.serving;
-      if (wasA) { S.a.serving=false; S.b.serving=true; }
-      else if (wasB) { S.b.serving=false; S.a.serving=true; }
-    }
-    // 스타포인트/골든포인트 자동 비활성화
-    if (S.starPoint || S.goldenPoint) {
-      S.starPoint = false;
-      S.goldenPoint = false;
-      const btnS = document.getElementById('btnStar');
-      btnS.textContent = '⭐ STAR POINT: OFF';
-      btnS.classList.remove('active');
-      const btnG = document.getElementById('btnGold');
-      btnG.textContent = '👑 GOLDEN POINT: OFF';
-      btnG.classList.remove('active');
-    }
-    push();
-    if (d > 0) speakGame();   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
+  // 게임이 올라가면 포인트는 항상 0, 서브권은 항상 넘어가고, 스타/골든은 꺼진다 (토글이 아니라 규칙).
+  // 내릴 때(정정)는 포인트·서브권을 건드리지 않는다.
+  window.chGame = (t, d) => {
+    const s = t === 'A' ? S.a : S.b;
+    const changed = mutate(() => {
+      s.game = Math.max(0, s.game + d);
+      if (d > 0) {
+        S.a.point = 0; S.b.point = 0;
+        [S.a.serving, S.b.serving] = [!!S.b.serving, !!S.a.serving];
+        S.starPoint = false; S.goldenPoint = false;
+      }
+    });
+    if (changed && d > 0) speakGame();   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
   };
 
   // 타이브레이크 여부 판단
@@ -664,120 +692,190 @@
     return superTB && (S.a.sets||[]).length === 2;
   }
 
-  window.chPoint = (t,d) => {
-    const s=t==='A'?S.a:S.b;
-    const o=t==='A'?S.b:S.a;
-    // 슈퍼타이브레이크: 1점씩 무제한
-    if (isSuperTiebreak()) {
-      s.point = Math.max(0, s.point + d);
-      push(); speakPoint(); return;
-    }
-    // 타이브레이크(6-6): 1점씩 무제한
-    if (isTiebreak()) {
-      s.point = Math.max(0, s.point + d);
-      push(); speakPoint(); return;
-    }
-    // 일반 포인트
-    s.point = Math.max(0, Math.min(POINTS.length-1, s.point+d));
-    push();
-    speakPoint();   // 점수를 내릴 때(정정)도 읽는다 — 지금 몇 대 몇인지가 콜의 목적이라
+  window.chPoint = (t, d) => {
+    const s = t === 'A' ? S.a : S.b;
+    // 타이브레이크(6-6)·슈퍼타이브레이크: 1점씩 무제한. 일반 포인트: 0~AD.
+    const max = (isSuperTiebreak() || isTiebreak()) ? Infinity : POINTS.length - 1;
+    if (mutate(() => { s.point = Math.max(0, Math.min(max, (s.point || 0) + d)); })) speakPoint();   // 내릴 때(정정)도 읽는다 — 지금 몇 대 몇인지가 콜의 목적이라
   };
   window.setServe = t => {
-    if (t === 'A') {
-      S.a.serving = !S.a.serving;
-      if (S.a.serving) S.b.serving = false;
-    } else {
-      S.b.serving = !S.b.serving;
-      if (S.b.serving) S.a.serving = false;
-    }
-    push();
+    mutate(() => {
+      const me = t === 'A' ? S.a : S.b, other = t === 'A' ? S.b : S.a;
+      me.serving = !me.serving;
+      if (me.serving) other.serving = false;
+    });
   };
   window.saveSet = () => {
     if ((S.a.sets||[]).length >= 3) { alert('최대 3세트입니다.'); return; }
-    if (!S.a.sets) S.a.sets = []; if (!S.b.sets) S.b.sets = [];
-    S.a.sets.push(S.a.game); S.b.sets.push(S.b.game);
-    S.a.game=0; S.b.game=0; S.a.point=0; S.b.point=0;
-    push();
-    speakSet();
+    const changed = mutate(() => {
+      S.a.sets = [...(S.a.sets||[]), S.a.game]; S.b.sets = [...(S.b.sets||[]), S.b.game];
+      S.a.game=0; S.b.game=0; S.a.point=0; S.b.point=0;
+    });
+    if (changed) speakSet();
   };
-  window.delSet = i => { S.a.sets.splice(i,1); S.b.sets.splice(i,1); push(); };
-  window.resetPoints = () => { S.a.point=0; S.b.point=0; push(); };
+  window.delSet = i => { mutate(() => { S.a.sets.splice(i,1); S.b.sets.splice(i,1); }); };
   window.resetScore = () => {
     if (!confirm('선수 이름과 스코어를 초기화 하시겠습니까?')) return;
-    S = { title:S.title, a:{name:'',game:0,point:0,sets:[],serving:false}, b:{name:'',game:0,point:0,sets:[],serving:false} };
-    push();
+    mutate(() => { S = { title:S.title, a:blank(), b:blank() }; });
     syncInputs();
   };
-
   window.resetAll = () => {
     if (!confirm('대회명, 선수 이름, 스코어 전체 초기화 하시겠습니까?')) return;
-    S = { title:'', a:{name:'',game:0,point:0,sets:[],serving:false}, b:{name:'',game:0,point:0,sets:[],serving:false} };
-    push();
+    mutate(() => { S = { title:'', a:blank(), b:blank() }; });
     syncInputs();
   };
 
   // ── Render ──
+  // 포인트 표기 하나로: 타이브레이크·슈퍼TB 는 숫자 그대로, AD 는 스타포인트가 켜져 있으면 ★.
+  function fmtPoint(t) {
+    if (isTiebreak() || isSuperTiebreak()) return String(t.point || 0);
+    if (t.point === 4) return S.starPoint ? '★' : 'AD';
+    return POINTS[t.point] ?? String(t.point ?? 0);
+  }
+  function setToggle(id, on) {
+    const b = $(id);
+    b.classList.toggle('on', on);
+    b.querySelector('.st').textContent = on ? 'On' : 'Off';
+  }
   function renderCP() {
-    const pt = t => (isTiebreak() || isSuperTiebreak()) ? t.point : (POINTS[t.point] ?? t.point);
-    document.getElementById('cardLabelA').textContent = S.a.name;
-    document.getElementById('cardLabelB').textContent = S.b.name;
-    document.getElementById('cpGameA').textContent  = S.a.game;
-    document.getElementById('cpGameB').textContent  = S.b.game;
-    document.getElementById('cpPointA').textContent = pt(S.a);
-    document.getElementById('cpPointB').textContent = pt(S.b);
-    document.getElementById('bServeA').classList.toggle('active', !!S.a.serving);
-    document.getElementById('bServeB').classList.toggle('active', !!S.b.serving);
+    $('cardLabelA').textContent = S.a.name || '';
+    $('cardLabelB').textContent = S.b.name || '';
+    $('cpGameA').textContent  = S.a.game ?? 0;
+    $('cpGameB').textContent  = S.b.game ?? 0;
+    $('cpPointA').textContent = fmtPoint(S.a);
+    $('cpPointB').textContent = fmtPoint(S.b);
+    $('bServeA').classList.toggle('on', !!S.a.serving);
+    $('bServeB').classList.toggle('on', !!S.b.serving);
+    $('tnA').classList.toggle('serving', !!S.a.serving);
+    $('tnB').classList.toggle('serving', !!S.b.serving);
+    setToggle('btnStar', !!S.starPoint);
+    setToggle('btnGold', !!S.goldenPoint);
+    setToggle('btnSuperTB', superTB);
     renderChips('A', S.a.sets||[]);
     renderChips('B', S.b.sets||[]);
+    $('topTitle').textContent = S.title || 'PS Scoreboard';
+    tdSync();
   }
 
   function renderChips(t, sets) {
-    const c = document.getElementById('cpSets'+t);
-    c.innerHTML = '';
-    sets.forEach((v,i) => {
-      const d = document.createElement('div');
-      d.className = 'set-chip';
-      d.innerHTML = `S${i+1}:<strong>${v}</strong><button onclick="delSet(${i})">✕</button>`;
-      c.appendChild(d);
-    });
+    $('cpSets'+t).innerHTML = sets.map((v, i) =>
+      `<span class="chip"><span class="cl"><span class="caps">S${i+1}</span><b class="serif">${v}</b></span><button class="cx" onclick="delSet(${i})" aria-label="세트 ${i+1} 삭제">✕</button></span>`
+    ).join('');
   }
 
   function renderPreview() {
-    const POINTS = ['0','15','30','40','AD'];
-    const pt = t => POINTS[t.point] ?? t.point;
-    document.getElementById('pvTitle').textContent  = S.title;
-    document.getElementById('pvNameA').textContent  = S.a.name;
-    document.getElementById('pvNameB').textContent  = S.b.name;
-    document.getElementById('pvPointA').textContent = pt(S.a);
-    document.getElementById('pvPointB').textContent = pt(S.b);
-    document.getElementById('pvRowA').classList.toggle('serving', !!S.a.serving);
-    document.getElementById('pvRowB').classList.toggle('serving', !!S.b.serving);
-
-    const curSet = (S.a.sets||[]).length;
+    $('pvTitle').textContent  = S.title || '';
+    $('pvNameA').textContent  = S.a.name || '';
+    $('pvNameB').textContent  = S.b.name || '';
+    $('pvGameA').textContent  = S.a.game ?? 0;
+    $('pvGameB').textContent  = S.b.game ?? 0;
+    $('pvPointA').textContent = fmtPoint(S.a);
+    $('pvPointB').textContent = fmtPoint(S.b);
+    $('pvRowA').classList.toggle('serving', !!S.a.serving);
+    $('pvRowB').classList.toggle('serving', !!S.b.serving);
+    const n = (S.a.sets||[]).length;
     for (let i=0; i<3; i++) {
-      const ca = document.getElementById(`pvSetA${i+1}`);
-      const cb = document.getElementById(`pvSetB${i+1}`);
-      if (i < curSet) {
-        ca.textContent = S.a.sets[i]; cb.textContent = S.b.sets[i];
-        ca.className = 'preview-cell p-set has-score';
-        cb.className = 'preview-cell p-set has-score';
-      } else if (i === curSet) {
-        ca.textContent = S.a.game ?? 0;
-        cb.textContent = S.b.game ?? 0;
-        ca.className = 'preview-cell p-set has-score p-set-cur';
-        cb.className = 'preview-cell p-set has-score p-set-cur';
-      } else {
-        ca.textContent = ''; cb.textContent = '';
-        ca.className = 'preview-cell p-set';
-        cb.className = 'preview-cell p-set';
-      }
+      $(`pvSetA${i+1}`).textContent = i < n ? S.a.sets[i] : '';
+      $(`pvSetB${i+1}`).textContent = i < n ? (S.b.sets||[])[i] : '';
     }
+  }
+
+  /* ══════════════ 오늘 경기 선택 (토너먼트 스토어, 공개 GET) ══════════════
+   * tv.html 과 같은 규칙으로 대회를 고른다: 진행중(4) + 오늘 날짜(2) + 점수판 두 팀이 소속(1), 동점이면 배열 뒤쪽.
+   * 고른 대회의 groups[].rounds[][] 를 평탄화해 matchTime 순으로 나열. 60초마다 갱신, 선택은 유지. */
+  const TD_API = 'https://api.padelsociety.co.kr/api/tournament-store/tournaments';
+  let tdTournament = null, tdMatches = [], tdKey = null, tdMsg = '대회 목록 불러오는 중';   // tdMsg = 대회가 없을 때 select 한 줄
+  function todayStr() {
+    const d = new Date(), p = (n) => (n < 10 ? '0' : '') + n;
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+  function tdAllNames(t) {
+    const out = [];
+    (t.registrations || []).forEach((r) => out.push(r.teamName || r.playerName));
+    (t.groups || []).forEach((g) => (g.teams || []).forEach((x) => out.push(x.name)));
+    return out.map((n) => String(n || '').trim()).filter(Boolean);
+  }
+  function tdPick(items) {
+    if (!Array.isArray(items)) return null;
+    const today = todayStr();
+    let best = null, bestS = -1;
+    items.forEach((t) => {
+      if (!(t.groups || []).some((g) => (g.rounds || []).some((r) => (r || []).length))) return;   // 경기가 없으면 고를 게 없다
+      let s = 0;
+      if (t.stage !== 'completed' && t.stage !== 'registration') s += 4;
+      if (String(t.date || '').slice(0, 10) === today) s += 2;
+      if (S.a.name && S.b.name) {
+        const names = tdAllNames(t);
+        if (names.includes(S.a.name) && names.includes(S.b.name)) s += 1;
+      }
+      if (s >= bestS) { best = t; bestS = s; }   // 동점이면 뒤(최근 생성) 우선
+    });
+    return best;
+  }
+  function tdListMatches(t) {
+    const nameOf = (id) => {
+      for (const g of (t.groups || [])) { const x = (g.teams || []).find((x) => x.id === id); if (x) return x.name; }
+      return id ? String(id) : 'TBD';
+    };
+    return (t.groups || []).flatMap((g) => (g.rounds || []).flat())
+      .map((m) => ({ time: m.matchTime || '', a: nameOf(m.home), b: nameOf(m.away), done: !!m.completed }))
+      .sort((x, y) => (x.time || '99:99').localeCompare(y.time || '99:99'));
+  }
+  function tdRender() {
+    const sel = $('selToday'), prev = sel.value;
+    $('todayLbl').textContent = tdTournament ? `Today · ${tdTournament.name || ''}` : 'Today';
+    sel.innerHTML = '';
+    sel.append(new Option(tdTournament ? '— 경기 선택 —' : tdMsg, ''));
+    let liveIdx = -1;
+    tdMatches.forEach((m, i) => {
+      const live = !!S.a.name && m.a === S.a.name && m.b === S.b.name;
+      if (live) liveIdx = i;
+      sel.append(new Option(`${m.time}  ${m.a} vs ${m.b}${m.done ? ' ✓' : ''}${live ? ' · LIVE' : ''}`, String(i)));
+    });
+    sel.value = liveIdx >= 0 ? String(liveIdx) : prev;
+    const cur = tdMatches[sel.value];
+    $('topMatch').textContent = cur ? `Match ${Number(sel.value) + 1}${cur.time ? ' · ' + cur.time : ''}` : '';
+  }
+  // 점수판 팀명이 바뀌었을 때만 목록을 다시 그린다 — 매 포인트마다 select 를 갈아엎으면 열려 있던 목록이 닫힌다.
+  function tdSync() {
+    const k = `${S.a.name}|${S.b.name}`;
+    if (k === tdKey) return;
+    tdKey = k;
+    tdRender();
+  }
+  window.pickTodayMatch = (val) => {
+    const m = tdMatches[val];
+    if (!m) return;
+    mutate(() => {
+      S.title = m.time ? `${tdTournament.name} · ${m.time}` : String(tdTournament.name || '');
+      S.a = { ...blank(), name: m.a };
+      S.b = { ...blank(), name: m.b };
+      S.starPoint = false; S.goldenPoint = false;
+    });
+    syncInputs();
+  };
+  async function tdPoll() {
+    try {
+      const res = await fetch(TD_API, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const raw = json && json.data && json.data.data;
+      tdTournament = tdPick(raw ? JSON.parse(raw) : []);
+      tdMatches = tdTournament ? tdListMatches(tdTournament) : [];
+      tdMsg = '오늘 진행중 대회 없음';
+      tdRender();
+    } catch (_) {
+      // 실패해도 점수판 나머지는 정상 — 목록만 한 줄로 알린다. 이미 받은 목록이 있으면 그대로 둔다.
+      if (!tdTournament) { tdMsg = '대회 목록 불러오기 실패'; tdRender(); }
+    }
+    setTimeout(tdPoll, 60000);
   }
 
   // 초기 렌더 (Firebase에 push하지 않음 — 기존 스코어보드 상태 보존)
   // 실제 데이터는 onValue 리스너가 로드해서 다시 렌더함
   renderPreview();
   renderCP();
+  tdPoll();
 
   // ══════════════════════════════════════════════════════════
   // League 연동 (Playus 백엔드) — 명단 fetch + 결과 push + 유튜브/라이브
@@ -796,11 +894,9 @@
     isLive: false,
   };
 
-  const lgStatusEl = () => document.getElementById('lgStatus');
   function lgSetStatus(msg, isError) {
-    const el = lgStatusEl();
-    if (!el) return;
-    el.style.color = isError ? '#c0392b' : '#6aaa8a';
+    const el = $('lgStatus');
+    el.classList.toggle('err', !!isError);
     el.textContent = msg;
   }
 
@@ -850,8 +946,8 @@
   }
 
   window.lgSaveConfig = () => {
-    lg.apiBase = (document.getElementById('lgApiBase').value || '').trim() || LG_DEFAULT_API;
-    lg.token   = (document.getElementById('lgToken').value || '').trim();
+    lg.apiBase = ($('lgApiBase').value || '').trim() || LG_DEFAULT_API;
+    lg.token   = ($('lgToken').value || '').trim();
     localStorage.setItem('lg_api', lg.apiBase);
     localStorage.setItem('lg_token', lg.token);
     lgSetStatus('설정이 저장되었어요.');
@@ -859,8 +955,9 @@
   };
 
   function lgSetAuthStatus(msg, isError) {
-    const el = document.getElementById('lgAuthStatus');
-    if (el) { el.style.color = isError ? '#c0392b' : '#6aaa8a'; el.textContent = msg; }
+    const el = $('lgAuthStatus');
+    el.classList.toggle('err', !!isError);
+    el.textContent = msg;
   }
 
   // MD5 (Joseph Myers, public domain) — 앱과 동일하게 비번 해싱(utf8→md5 hex).
@@ -902,11 +999,11 @@
 
   // 운영자 로그인 → /auth/login → data.token 저장 (raw JWT 복붙 불필요)
   window.lgLogin = async () => {
-    const email = (document.getElementById('lgEmail').value || '').trim();
-    const password = document.getElementById('lgPassword').value || '';
+    const email = ($('lgEmail').value || '').trim();
+    const password = $('lgPassword').value || '';
     if (!email || !password) { lgSetAuthStatus('이메일/비밀번호를 입력하세요.', true); return; }
     // API base 먼저 반영(로그인 대상 서버)
-    lg.apiBase = (document.getElementById('lgApiBase').value || '').trim() || LG_DEFAULT_API;
+    lg.apiBase = ($('lgApiBase').value || '').trim() || LG_DEFAULT_API;
     localStorage.setItem('lg_api', lg.apiBase);
     lgSetAuthStatus('로그인 중...');
     try {
@@ -919,9 +1016,9 @@
       if (!token) throw new Error('응답에 토큰 없음');
       lg.token = token;
       localStorage.setItem('lg_token', token);
-      document.getElementById('lgToken').value = token;
-      document.getElementById('lgPassword').value = '';
-      lgSetAuthStatus(`✅ 로그인됨: ${email}`);
+      $('lgToken').value = token;
+      $('lgPassword').value = '';
+      lgSetAuthStatus(`로그인됨: ${email}`);
       lgSetStatus('로그인 성공 — 라이브 시작/결과 저장 가능');
       lgLoadLeagues();
     } catch (e) {
@@ -932,12 +1029,12 @@
   window.lgLogout = () => {
     lg.token = '';
     localStorage.removeItem('lg_token');
-    document.getElementById('lgToken').value = '';
+    $('lgToken').value = '';
     lgSetAuthStatus('로그아웃됨 (읽기만 가능)');
   };
 
   async function lgLoadLeagues() {
-    const sel = document.getElementById('lgLeagueSelect');
+    const sel = $('lgLeagueSelect');
     try {
       const res = await lgFetch('/league/list');
       lg.leagues = (res && res.data && res.data.items) || [];
@@ -951,13 +1048,13 @@
   }
 
   window.lgOnLeagueChange = async () => {
-    lg.leagueId = document.getElementById('lgLeagueSelect').value;
+    lg.leagueId = $('lgLeagueSelect').value;
     lg.matchId = '';
-    const mSel = document.getElementById('lgMatchSelect');
+    const mSel = $('lgMatchSelect');
     if (!lg.leagueId) { mSel.innerHTML = '<option value="">— 리그 먼저 선택 —</option>'; return; }
     const league = lg.leagues.find(l => l._id === lg.leagueId);
     if (league) {
-      document.getElementById('lgYoutube').value = league.youtubeUrl || '';
+      $('lgYoutube').value = league.youtubeUrl || '';
       lg.isLive = !!league.isLive;
       lgUpdateLiveBtn();
     }
@@ -965,7 +1062,7 @@
   };
 
   async function lgLoadMatches() {
-    const mSel = document.getElementById('lgMatchSelect');
+    const mSel = $('lgMatchSelect');
     try {
       const res = await lgFetch(`/league/${lg.leagueId}/matches`);
       lg.matches = (res && res.data) || [];
@@ -976,7 +1073,7 @@
       mSel.innerHTML = '<option value="">— 매치 선택 —</option>' +
         lg.matches.map(m => {
           const div = m.division ? `[${m.division}] ` : '';
-          const tag = m.status === 'completed' ? ' ✓' : (m.status === 'live' ? ' 🔴' : '');
+          const tag = m.status === 'completed' ? ' ✓' : (m.status === 'live' ? ' · LIVE' : '');
           return `<option value="${m._id}">${div}#${m.matchNumber} ${lgTeamName(m.teamA)} vs ${lgTeamName(m.teamB)}${tag}</option>`;
         }).join('');
     } catch (e) {
@@ -986,40 +1083,36 @@
   }
 
   window.lgOnMatchChange = () => {
-    lg.matchId = document.getElementById('lgMatchSelect').value;
+    lg.matchId = $('lgMatchSelect').value;
   };
 
   window.lgApplyMatch = () => {
     if (!lg.matchId) { lgSetStatus('매치를 먼저 선택해주세요.', true); return; }
     const m = lg.matches.find(x => x._id === lg.matchId);
     if (!m) return;
-    S.a.name = lgTeamName(m.teamA);
-    S.b.name = lgTeamName(m.teamB);
-    document.getElementById('inNameA').value = S.a.name;
-    document.getElementById('inNameB').value = S.b.name;
-    push();
+    mutate(() => { S.a.name = lgTeamName(m.teamA); S.b.name = lgTeamName(m.teamB); });
+    syncInputs();
     lgSetStatus(`선수 이름 적용: ${S.a.name} vs ${S.b.name}`);
   };
 
   window.lgRefresh = async () => {
     await lgLoadLeagues();
     if (lg.leagueId) {
-      document.getElementById('lgLeagueSelect').value = lg.leagueId;
+      $('lgLeagueSelect').value = lg.leagueId;
       await lgLoadMatches();
     }
   };
 
   function lgUpdateLiveBtn() {
-    const btn = document.getElementById('lgLiveBtn');
-    if (!btn) return;
-    btn.textContent = lg.isLive ? '⏹️ 라이브 종료' : '🔴 라이브 시작';
-    btn.classList.toggle('active', lg.isLive);
+    const btn = $('lgLiveBtn');
+    btn.textContent = lg.isLive ? '라이브 종료' : '라이브 시작';
+    btn.classList.toggle('on', lg.isLive);
   }
 
   window.lgToggleLive = async () => {
     if (!lg.leagueId) { lgSetStatus('리그를 먼저 선택해주세요.', true); return; }
     if (!lg.token) { lgSetStatus('운영자 토큰이 필요해요 (설정).', true); return; }
-    const youtubeUrl = (document.getElementById('lgYoutube').value || '').trim();
+    const youtubeUrl = ($('lgYoutube').value || '').trim();
     const next = !lg.isLive;
     try {
       await lgFetch(`/league/${lg.leagueId}/live`, {
@@ -1035,7 +1128,7 @@
       lg.isLive = next;
       lgUpdateLiveBtn();
       if (next) lgMaybeBroadcastLive(); // 시작 즉시 현재 스코어 1회 중계
-      lgSetStatus(next ? '🔴 라이브 시작됨 (앱에 노출)' : '라이브 종료됨');
+      lgSetStatus(next ? '라이브 시작됨 (앱에 노출)' : '라이브 종료됨');
     } catch (e) {
       lgSetStatus('라이브 토글 실패: ' + e.message, true);
     }
@@ -1054,9 +1147,9 @@
         method: 'PATCH',
         body: JSON.stringify({ sets, status: 'completed' }),
       });
-      lgSetStatus(`✅ 결과 저장됨 (${sets.map(s => s.a + '-' + s.b).join(' ')}) — 순위 반영`);
+      lgSetStatus(`결과 저장됨 (${sets.map(s => s.a + '-' + s.b).join(' ')}) — 순위 반영`);
       await lgLoadMatches();
-      if (lg.matchId) document.getElementById('lgMatchSelect').value = lg.matchId;
+      if (lg.matchId) $('lgMatchSelect').value = lg.matchId;
     } catch (e) {
       lgSetStatus('결과 저장 실패: ' + e.message, true);
     }
@@ -1064,9 +1157,9 @@
 
   // 초기화 — 설정 입력칸 채우고 리그 목록 로드
   (function lgInit() {
-    document.getElementById('lgApiBase').value = lg.apiBase === LG_DEFAULT_API ? '' : lg.apiBase;
-    document.getElementById('lgToken').value = lg.token;
-    if (lg.token) lgSetAuthStatus('✅ 토큰 있음 (라이브/결과 가능)');
+    $('lgApiBase').value = lg.apiBase === LG_DEFAULT_API ? '' : lg.apiBase;
+    $('lgToken').value = lg.token;
+    if (lg.token) lgSetAuthStatus('토큰 있음 (라이브/결과 가능)');
     else lgSetAuthStatus('로그인 필요 (읽기는 가능)');
     lgLoadLeagues();
   })();
