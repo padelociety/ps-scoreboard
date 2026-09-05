@@ -407,8 +407,9 @@
   // 목소리는 기기에 깔린 것 중에서만 고를 수 있다 — 태블릿마다 목록이 다르다.
   // 그래서 하나를 박아두지 않고 버튼으로 돌려가며 고르게 하고, 고른 건 기억한다.
   let voices = [], voiceIdx = 0;
-  // 굵고 낮은 쪽을 먼저 집는다. (InJoon = 윈도우 한국어 남성, Android/iOS 는 이름이 제각각이라 열어둔다)
-  const VOICE_PREF = ['injoon', 'male', '남성', 'minsik', 'gwaneung', 'ko-kr-standard-c', 'ko-kr-standard-d'];
+  // 콜은 영어 원어로 읽는다 — 한국어 TTS 에 '피프틴' 을 적어 넣으니 발음이 어색했다.
+  // 굵고 낮은 남성 영어 목소리를 먼저 집는다(윈도우 Guy/David, macOS Daniel/Alex, Android en-us-x-*).
+  const VOICE_PREF = ['guy', 'david', 'mark', 'george', 'ryan', 'daniel', 'alex', 'aaron', 'brian', 'male'];
   const PITCH_STEPS = [0.7, 0.85, 1];          // 낮음 / 보통 / 높음
   const PITCH_NAME  = ['낮음', '보통', '높음'];
   let pitchIdx = Math.max(0, PITCH_STEPS.indexOf(parseFloat(localStorage.getItem('sbPitch'))));
@@ -416,8 +417,9 @@
 
   function loadVoices() {
     const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
-    voices = all.filter((v) => (v.lang || '').toLowerCase().startsWith('ko'));
-    if (!voices.length) voices = all;            // 한국어 목소리가 없는 기기 — 있는 걸로라도 읽는다
+    voices = all.filter((v) => (v.lang || '').toLowerCase().startsWith('en'));
+    // 영어 목소리가 없으면 목록을 비워 둔다 — 한국어 목소리로 영어를 읽히면 더 뭉개진다.
+    // u.voice 를 안 주면 엔진이 lang='en-US' 를 보고 알아서 고른다.
     const saved = localStorage.getItem('sbVoiceName');
     let i = voices.findIndex((v) => v.name === saved);
     if (i < 0) i = voices.findIndex((v) => VOICE_PREF.some((p) => (v.name || '').toLowerCase().includes(p)));
@@ -433,7 +435,7 @@
     try {
       speechSynthesis.cancel();   // 연타해도 밀리지 않게 이전 발화를 끊는다
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ko-KR'; u.rate = 1; u.volume = 1;
+      u.lang = 'en-US'; u.rate = 0.95; u.volume = 1;   // 심판 콜처럼 또박또박
       u.pitch = PITCH_STEPS[pitchIdx];            // 낮출수록 두껍게 들린다
       if (voices[voiceIdx]) u.voice = voices[voiceIdx];
       speechSynthesis.speak(u);
@@ -443,7 +445,8 @@
     const bv = document.getElementById('btnVoiceName');
     if (bv) {
       const v = voices[voiceIdx];
-      const n = v ? String(v.name).replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Korean.*$/i, '') : '기본';
+      const n = v ? String(v.name).replace(/^Microsoft\s+/i, '').replace(/\s*-\s*English.*$/i, '').replace(/\s*\(.*\)$/, '')
+                  : '기본(영어 목소리 없음)';
       bv.textContent = `🎙️ 목소리: ${n}${voices.length > 1 ? ` (${voiceIdx + 1}/${voices.length})` : ''}`;
     }
     const bp = document.getElementById('btnPitch');
@@ -455,13 +458,13 @@
     voiceIdx = (voiceIdx + 1) % voices.length;
     localStorage.setItem('sbVoiceName', voices[voiceIdx].name);
     syncVoiceMetaBtns();
-    say('피프틴 러브');          // 바꾸는 즉시 들어보게
+    say('Fifteen, love');          // 바꾸는 즉시 들어보게
   };
   window.cyclePitch = () => {
     pitchIdx = (pitchIdx + 1) % PITCH_STEPS.length;
     localStorage.setItem('sbPitch', String(PITCH_STEPS[pitchIdx]));
     syncVoiceMetaBtns();
-    say('피프틴 러브');
+    say('Fifteen, love');
   };
   function syncVoiceBtn() {
     const b = document.getElementById('btnVoice');
@@ -473,35 +476,36 @@
     voiceOn = !voiceOn;
     localStorage.setItem('sbVoice', voiceOn ? '1' : '0');
     syncVoiceBtn();
-    if (voiceOn) say('음성 콜 켜짐');
+    if (voiceOn) say('Voice on');
   };
 
-  // 부를 이름 하나만 — "홍길동 / 김철수" → "홍길동"
-  const shortName = (n) => String(n || '').split(/[\/&·]/)[0].trim() || '팀';
-  const PT_WORD = ['러브', '피프틴', '서티', '포티', '어드밴티지'];
+  // 콜 문구는 심판이 쓰는 영어 그대로. 선수 이름은 부르지 않는다 —
+  // 영어 목소리가 한국 이름을 읽으면 오히려 더 뭉개진다. 대신 서브/리시브로 가른다.
+  const PT_WORD = ['love', 'fifteen', 'thirty', 'forty', 'advantage'];
+  const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+  const num = (n) => NUM[n] || String(n);
 
   // 서브 넣는 팀 점수를 먼저 읽는 테니스 관례. 서브권이 안 정해졌으면 A 먼저.
   function speakPoint() {
     const aServes = !!S.a.serving || !S.b.serving;
     const sv = aServes ? S.a : S.b, rc = aServes ? S.b : S.a;
-    if (isSuperTiebreak() || isTiebreak()) { say(`${sv.point || 0} 대 ${rc.point || 0}`); return; }
+    if (isSuperTiebreak() || isTiebreak()) { say(`${num(sv.point || 0)}, ${num(rc.point || 0)}`); return; }
     const sp = sv.point || 0, rp = rc.point || 0;
-    if (sp === rp) { say(sp >= 3 ? '듀스' : `${PT_WORD[sp]} 올`); return; }
+    if (sp === rp) { say(sp >= 3 ? 'Deuce' : `${PT_WORD[sp]} all`); return; }
     if (sp === 4 || rp === 4) {
-      const who = sp === 4 ? sv : rc;
-      say(S.starPoint ? '스타 포인트' : `어드밴티지 ${shortName(who.name)}`);
+      if (S.starPoint) { say('Star point'); return; }
+      say(sp === 4 ? 'Advantage, server' : 'Advantage, receiver');
       return;
     }
-    say(`${PT_WORD[sp]} ${PT_WORD[rp]}`);
+    say(`${PT_WORD[sp]}, ${PT_WORD[rp]}`);
   }
-  function speakGame(t) {
-    const w = t === 'A' ? S.a : S.b;
-    say(`게임 ${shortName(w.name)}. ${S.a.game} 대 ${S.b.game}`);
+  function speakGame() {
+    say(`Game. ${num(S.a.game)}, ${num(S.b.game)}`);
   }
   function speakSet() {
     const i = (S.a.sets || []).length - 1;
     if (i < 0) return;
-    say(`세트. ${S.a.sets[i]} 대 ${S.b.sets[i]}`);
+    say(`Set. ${num(S.a.sets[i])}, ${num(S.b.sets[i])}`);
   }
 
   function push() {
@@ -573,7 +577,7 @@
     btn.textContent = `⭐ STAR POINT: ${S.starPoint ? 'ON' : 'OFF'}`;
     btn.classList.toggle('active', !!S.starPoint);
     push();
-    if (S.starPoint) say('스타 포인트');   // 끌 때는 침묵
+    if (S.starPoint) say('Star point');   // 끌 때는 침묵
   };
 
   window.toggleGold = () => {
@@ -582,7 +586,7 @@
     btn.textContent = `👑 GOLDEN POINT: ${S.goldenPoint ? 'ON' : 'OFF'}`;
     btn.classList.toggle('active', !!S.goldenPoint);
     push();
-    if (S.goldenPoint) say('골든 포인트');
+    if (S.goldenPoint) say('Golden point');
   };
 
   window.onTitleChange = () => { S.title = document.getElementById('inTitle').value; push(); };
@@ -615,7 +619,7 @@
       btnG.classList.remove('active');
     }
     push();
-    if (d > 0) speakGame(t);   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
+    if (d > 0) speakGame();   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
   };
 
   // 타이브레이크 여부 판단
