@@ -549,8 +549,60 @@
     loadVoices();
     speechSynthesis.onvoiceschanged = loadVoices;   // 크롬은 목소리 목록이 늦게 온다
   }
+  /* ── 미리 구운 클립(원어민 신경망 음성) 우선, 없으면 브라우저 TTS ──
+   * 콜 문구는 닫힌 집합이라 voice-gen.py 로 audio/<key>/<slug>.mp3 를 한 번 만들어 둔다.
+   * 기기 TTS 품질·언어팩·와이파이와 무관하게 항상 같은 발음이 지연 없이 난다.
+   * manifest.json 이 안 잡히면(클립 없음) 예전처럼 TTS 로만 간다 — 콜이 끊기는 일은 없다. */
+  const CLIP_BASE = 'audio/';
+  let clipVoice = localStorage.getItem('sbClipVoice') || 'christopher';
+  let clipSet = null;                          // Set<slug> — manifest 에 있는 클립만 신뢰
+  const slug = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const clipUrl = (t) => `${CLIP_BASE}${clipVoice}/${slug(t)}.mp3`;
+  const clipCache = new Map();
+  function loadClipManifest() {
+    clipSet = null;
+    fetch(`${CLIP_BASE}${clipVoice}/manifest.json`, { cache: 'force-cache' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => {
+        if (!m || !Array.isArray(m.phrases)) return;
+        clipSet = new Set(m.phrases.map((p) => slug(p.text)));
+        // 자주 쓰는 것부터 미리 받아 둔다 — 첫 콜이 늦지 않게
+        ['fifteen, love', 'love, fifteen', 'thirty, fifteen', 'fifteen all', 'Deuce', 'Advantage'].forEach((t) => {
+          const a = new Audio(clipUrl(t)); a.preload = 'auto'; clipCache.set(slug(t), a);
+        });
+      })
+      .catch(() => {});
+  }
+  loadClipManifest();
+  let clipPlaying = null;
+  // 한 문장을 클립 1개, 타이브레이크 "x, y" 는 숫자 클립 2개로. 하나라도 없으면 false → TTS 폴백.
+  function playClips(text) {
+    if (!clipSet) return false;
+    let parts = [text];
+    if (!clipSet.has(slug(text))) {
+      const m = /^([a-z]+), ([a-z]+)$/i.exec(text);          // "one, two" (타이브레이크)
+      if (!m || !clipSet.has(slug(m[1])) || !clipSet.has(slug(m[2]))) return false;
+      parts = [m[1], m[2]];
+    }
+    if (clipPlaying) { try { clipPlaying.pause(); } catch (_) {} clipPlaying = null; }
+    const play = (i) => {
+      if (i >= parts.length) return;
+      const k = slug(parts[i]);
+      const a = clipCache.get(k) || new Audio(clipUrl(parts[i]));
+      clipCache.set(k, a);
+      try { a.currentTime = 0; } catch (_) {}
+      clipPlaying = a;
+      a.onended = () => play(i + 1);
+      a.play().catch(() => {});                                // 첫 탭 전 자동재생 차단 등 — 조용히
+    };
+    play(0);
+    return true;
+  }
+
   function say(text) {
-    if (!voiceOn || !text || !('speechSynthesis' in window)) return;
+    if (!voiceOn || !text) return;
+    if (playClips(text)) { try { speechSynthesis.cancel(); } catch (_) {} return; }
+    if (!('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();   // 연타해도 밀리지 않게 이전 발화를 끊는다
       const u = new SpeechSynthesisUtterance(text);

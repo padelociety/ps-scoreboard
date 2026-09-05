@@ -1,4 +1,4 @@
-const CACHE = 'ps-control-v15';  // v10: 음성 목소리·톤 선택 추가 — 미리캐시된 옛 index.html 을 확실히 버리게 한다
+const CACHE = 'ps-control-v16';  // v16: 원어민 클립 음성 — 미리캐시된 옛 index.html 을 확실히 버리게 한다
 const ASSETS = ['/ps-scoreboard/', '/ps-scoreboard/index.html'];
 
 self.addEventListener('install', e => {
