@@ -506,18 +506,25 @@
     if (sp === rp) { say(sp >= 3 ? 'Deuce' : `${PT_WORD[sp]} all`); return; }
     if (sp === 4 || rp === 4) {
       if (S.starPoint) { say('Star point'); return; }
-      say(sp === 4 ? 'Advantage, server' : 'Advantage, receiver');
+      say('Advantage');            // 이름을 못 부르니 'server/receiver' 를 붙이면 어색하다
       return;
     }
     say(`${PT_WORD[sp]}, ${PT_WORD[rp]}`);
   }
+  // 심판은 앞선 쪽을 먼저 말한다 — "three games to two", 동점이면 "two games all".
+  function gamesPhrase(a, b) {
+    if (a === b) return `${num(a)} ${a === 1 ? 'game' : 'games'} all`;
+    const hi = Math.max(a, b), lo = Math.min(a, b);
+    return `${num(hi)} ${hi === 1 ? 'game' : 'games'} to ${num(lo)}`;
+  }
   function speakGame() {
-    say(`Game. ${num(S.a.game)}, ${num(S.b.game)}`);
+    say(`Game. ${gamesPhrase(S.a.game, S.b.game)}.`);
   }
   function speakSet() {
     const i = (S.a.sets || []).length - 1;
     if (i < 0) return;
-    say(`Set. ${num(S.a.sets[i])}, ${num(S.b.sets[i])}`);
+    const n = i + 1, ord = ['first', 'second', 'third'][i] || `${n}th`;
+    say(`Game and ${ord} set. ${gamesPhrase(S.a.sets[i], S.b.sets[i])}.`);
   }
 
   function push() {
