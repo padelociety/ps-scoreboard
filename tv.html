@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>PS Scoreboard – TV</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@400;600;700;800;900&family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
   /* 한글 디스플레이 = 마루부리 (OFL-1.1, fonts/OFL-MaruBuri.txt).
      라틴·숫자는 Playfair Display 가 먼저 잡고, 한글만 여기로 폴백된다. */
@@ -19,24 +19,56 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   /* 럭셔리 잉크 — DESIGN_SYSTEM.md §1 다크(잉크). 전광판이라 페이퍼 대신 잉크 배경.
      --green/--green2/--dark 이름은 기존 규칙들이 계속 참조해서 그대로 두고 값만 잉크로 바꾼다. */
+  /* ══════════ 테마 토큰 ══════════
+   * 기본 = 럭셔리 잉크 (DESIGN_SYSTEM.md §1 다크). body.theme-classic 이 값만 갈아끼운다.
+   * 알파를 섞어 쓰는 색은 --*-rgb 로도 둬서 rgba(var(--gold-rgb), .22) 로 쓴다.
+   * --green/--dark 이름은 예전 규칙들이 참조해서 그대로 두고 값만 테마별로 바꾼다. */
   :root {
-    --ink0:    #123A42;   /* 잉크 그라데이션 최상단 */
-    --green:   #0E3038;   /* 잉크 시작 */
-    --green2:  #123A42;
-    --cream:   #F2ECDC;
-    --gold:    #C6A867;   /* 골드 포일 — 라벨·헤어라인 */
-    --gold-hi: #D9BC7A;   /* 골드 포일 밝은 쪽 — 점수·승자 */
-    --terra:   #B3543C;   /* LIVE·패배 (§3-9) */
-    --muted:   #8AA0A0;
-    --silver:  #d0d8e0;
-    --dark:    #071B20;   /* 잉크 끝 */
+    --ink0:     #123A42;   /* 그라데이션 최상단 */
+    --green:    #0E3038;   /* 바탕 시작 */
+    --green2:   #123A42;
+    --dark:     #071B20;   /* 바탕 끝 · 골드 위 글자색 */
+    --tv-bg:    radial-gradient(120% 100% at 50% 0%, var(--ink0) 0%, var(--green) 42%, var(--dark) 100%);
+
+    --cream:    #F2ECDC;   --cream-rgb: 242,236,220;
+    --gold:     #C6A867;   --gold-rgb:  198,168,103;   /* 라벨·헤어라인 */
+    --gold-hi:  #D9BC7A;                               /* 점수·승자 */
+    --gold-dim: #A88948;                               /* 골드 그라데이션 끝 */
+    --terra:    #B3543C;   --live-rgb:  179,84,60;     /* LIVE·패배 (§3-9) */
+    --muted:    #8AA0A0;
+    --silver:   #d0d8e0;
+    --conn:     #4caf50;
+
     --disp: 'Playfair Display','MaruBuri',Georgia,'Times New Roman',serif;
     --ui:   'Inter','Noto Sans KR',system-ui,sans-serif;
+    --num:  lining-nums tabular-nums;
+  }
+
+  /* ── 클래식: 리디자인 전 전광판 그대로 (딥그린 + 골드 + Barlow Condensed).
+   *    형태(레이아웃·헤어라인·번호 거터)는 공유하고 팔레트와 서체만 바꾼다.
+   *    서브권은 두 테마 다 골드 점 — 예전 라켓 PNG 는 b10 에서 걷어냈다. ── */
+  body.theme-classic {
+    --ink0:     #1a5c44;
+    --green:    #104734;
+    --green2:   #1a5c44;
+    --dark:     #0a0a0a;
+    --tv-bg:    var(--green);
+
+    --cream:    #f0ead2;   --cream-rgb: 240,234,210;
+    --gold:     #f5c518;   --gold-rgb:  245,197,24;
+    --gold-hi:  #f5c518;
+    --gold-dim: #c99a12;
+    --terra:    #ff4d4d;   --live-rgb:  255,77,77;
+    --muted:    rgba(240,234,210,0.5);
+
+    --disp: 'Barlow Condensed','Noto Sans KR',sans-serif;
+    --ui:   'Barlow Condensed','Noto Sans KR',sans-serif;
+    --num:  normal;   /* Barlow 는 기본이 라이닝 숫자 */
   }
 
   html, body {
     width:100%; height:100%;
-    background: radial-gradient(120% 100% at 50% 0%, var(--ink0) 0%, var(--green) 42%, var(--dark) 100%);
+    background: var(--tv-bg);
     overflow: hidden;
   }
 
@@ -47,8 +79,7 @@
     justify-content: center;
     font-family: var(--disp);
     /* Playfair 기본은 올드스타일 숫자 — 점수·순위가 베이스라인 아래로 떨어진다 (§2) */
-    font-variant-numeric: lining-nums tabular-nums;
-    font-feature-settings: 'lnum' 1, 'tnum' 1;
+    font-variant-numeric: var(--num);
     min-height: 100vh;
   }
 
@@ -83,7 +114,7 @@
   /* ── 타이틀 바 ── */
   .sb-title {
     background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(198,168,103,0.3);
+    border: 1px solid rgba(var(--gold-rgb),0.3);
     border-bottom: none;
     border-radius: 12px 12px 0 0;
     padding: 18px 40px;
@@ -140,7 +171,7 @@
     height: clamp(20px, 2vw, 30px);
     border-radius: 50%;
     background: var(--gold-hi);
-    box-shadow: 0 0 clamp(12px, 1.4vw, 22px) rgba(217,188,122,0.85);
+    box-shadow: 0 0 clamp(12px, 1.4vw, 22px) rgba(var(--gold-rgb),0.85);
     opacity: 0;
     transition: opacity 0.3s;
     flex-shrink: 0;
@@ -161,7 +192,7 @@
     font-size: 18px;
     font-weight: 600;
     letter-spacing: 3px;
-    color: rgba(242,236,220,0.4);
+    color: rgba(var(--cream-rgb),0.4);
     text-align: center;
     text-transform: uppercase;
   }
@@ -177,10 +208,10 @@
   }
   .sb-cell.set {
     font-size: clamp(48px, 6vw, 92px);
-    color: rgba(242,236,220,0.5);
+    color: rgba(var(--cream-rgb),0.5);
   }
   .sb-cell.set.has-score {
-    color: rgba(242,236,220,0.85);
+    color: rgba(var(--cream-rgb),0.85);
   }
   .sb-cell.set.current {
     color: var(--cream);
@@ -194,7 +225,7 @@
   /* 구분선 */
   .sb-divider {
     height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(198,168,103,0.4), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--gold-rgb),0.4), transparent);
     border: none;
   }
 
@@ -233,7 +264,7 @@
   .gold-banner {
     display: none;
     background: linear-gradient(90deg, #0a0800 0%, #2a1f00 40%, #2a1f00 60%, #0a0800 100%);
-    border: 1px solid rgba(198,168,103,0.35);
+    border: 1px solid rgba(var(--gold-rgb),0.35);
     border-radius: 0 0 12px 12px;
     padding: 14px 40px;
     text-align: center;
@@ -248,15 +279,15 @@
     animation: goldGlow 1.2s ease-in-out infinite alternate;
   }
   @keyframes goldGlow {
-    0%   { text-shadow: 0 0 8px rgba(198,168,103,0.4); opacity:0.85; }
-    100% { text-shadow: 0 0 24px rgba(198,168,103,1), 0 0 60px rgba(245,150,0,0.5); opacity:1; }
+    0%   { text-shadow: 0 0 8px rgba(var(--gold-rgb),0.4); opacity:0.85; }
+    100% { text-shadow: 0 0 24px rgba(var(--gold-rgb),1), 0 0 60px rgba(245,150,0,0.5); opacity:1; }
   }
   .gold-banner::after {
     content:'';
     position:absolute;
     top:0; left:-100%;
     width:60%; height:100%;
-    background: linear-gradient(90deg, transparent, rgba(198,168,103,0.18), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--gold-rgb),0.18), transparent);
     animation: shimmer 1.8s linear infinite;
   }
 
@@ -283,7 +314,7 @@
     background: #555;
     transition: background 0.4s;
   }
-  .conn-dot.on { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+  .conn-dot.on { background: var(--conn); box-shadow: 0 0 6px var(--conn); }
 
   /* ══════════════ 대진표 패널 (토글: B키 / 패널 클릭 / ?bracket=0) ══════════════ */
   /* 대진표 표시 중엔 점수판을 컴팩트하게 눌러 함께 보이게 한다 */
@@ -323,7 +354,7 @@
   }
   .bk-sub {
     font-size: clamp(12px, 1.2vw, 16px);
-    color: rgba(242,236,220,0.5);
+    color: rgba(var(--cream-rgb),0.5);
     letter-spacing: 2px;
   }
   /* ── 대진표: 라운드 가로 배치 + 엘보 연결선 오버레이 ── */
@@ -359,7 +390,7 @@
     display: block;
     font-size: clamp(9px, 0.72vw, 11px);
     letter-spacing: 3px;
-    color: rgba(242,236,220,0.4);
+    color: rgba(var(--cream-rgb),0.4);
     font-weight: 600;
     margin-top: 3px;
   }
@@ -374,26 +405,26 @@
     position: relative;
     z-index: 1;
     background: linear-gradient(180deg, rgba(18,58,66,0.55), rgba(7,27,32,0.72));
-    border: 1px solid rgba(198,168,103,0.18);
+    border: 1px solid rgba(var(--gold-rgb),0.18);
     border-radius: 10px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
   }
   /* 3·4위전 — 결승 칼럼 하단에 표준 배치 */
   .bk-third { margin-top: 26px; }
   .bk-third .bk-round-label { padding-bottom: 8px; opacity: 0.7; }
-  .bk-match.done { border-color: rgba(198,168,103,0.34); }
+  .bk-match.done { border-color: rgba(var(--gold-rgb),0.34); }
   .bk-match.live {
-    border-color: rgba(179,84,60,0.85);
+    border-color: rgba(var(--live-rgb),0.85);
     animation: liveGlow 1.4s ease-in-out infinite alternate;
   }
   @keyframes liveGlow {
-    0%   { box-shadow: 0 0 0 1px rgba(179,84,60,0.4), 0 0 8px rgba(179,84,60,0.3); }
-    100% { box-shadow: 0 0 0 1px rgba(179,84,60,0.7), 0 0 24px rgba(179,84,60,0.7); }
+    0%   { box-shadow: 0 0 0 1px rgba(var(--live-rgb),0.4), 0 0 8px rgba(var(--live-rgb),0.3); }
+    100% { box-shadow: 0 0 0 1px rgba(var(--live-rgb),0.7), 0 0 24px rgba(var(--live-rgb),0.7); }
   }
   .bk-livebadge {
     position: absolute;
     top: -10px; left: 10px; z-index: 3;
-    background: #B3543C; color: #fff;
+    background: var(--terra); color: #fff;
     font-size: clamp(9px, 0.72vw, 12px); font-weight: 800; letter-spacing: 2px;
     padding: 2px 7px; border-radius: 4px;
     display: flex; align-items: center; gap: 5px;
@@ -403,7 +434,7 @@
   @keyframes bkBlink { 50% { opacity: 0.2; } }
   .bk-time {
     font-size: clamp(10px, 0.9vw, 13px);
-    color: rgba(242,236,220,0.4);
+    color: rgba(var(--cream-rgb),0.4);
     letter-spacing: 1px;
     padding: 5px 12px 0;
   }
@@ -424,25 +455,25 @@
     width: 22px; height: 22px; border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
     font-size: clamp(10px, 0.85vw, 13px); font-weight: 800;
-    color: rgba(242,236,220,0.5);
+    color: rgba(var(--cream-rgb),0.5);
     background: rgba(255,255,255,0.06);
   }
   .bk-team .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bk-team .sc { flex: none; font-weight: 800; min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
   .bk-team.win { color: var(--gold); }
   .bk-team.win .sc { color: var(--gold); }
-  .bk-team.win .bk-seed { background: linear-gradient(180deg, var(--gold), #A88948); color: #071B20; }
+  .bk-team.win .bk-seed { background: linear-gradient(180deg, var(--gold), var(--gold-dim)); color: var(--dark); }
   .bk-team.win::before {
     content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
     width: 3px; height: 62%; background: var(--gold); box-shadow: 0 0 12px var(--gold);
   }
-  .bk-team.lose { color: rgba(242,236,220,0.42); }
-  .bk-team.lose .sc { color: rgba(242,236,220,0.42); }
+  .bk-team.lose { color: rgba(var(--cream-rgb),0.42); }
+  .bk-team.lose .sc { color: rgba(var(--cream-rgb),0.42); }
   .bk-live-dot {
     display: inline-block;
     width: 8px; height: 8px;
     border-radius: 50%;
-    background: #B3543C;
+    background: var(--terra);
     margin-right: 6px;
     animation: liveGlow 1s ease-in-out infinite alternate;
   }
@@ -456,7 +487,7 @@
   }
   .bk-champ .cup {
     font-size: clamp(34px, 3.4vw, 52px);
-    filter: drop-shadow(0 4px 16px rgba(198,168,103,0.5));
+    filter: drop-shadow(0 4px 16px rgba(var(--gold-rgb),0.5));
     animation: bkFloat 3s ease-in-out infinite;
   }
   @keyframes bkFloat { 50% { transform: translateY(-6px); } }
@@ -467,9 +498,9 @@
   .bk-champ .cbox {
     position: relative; overflow: hidden;
     margin-top: 12px; padding: 16px 20px; border-radius: 12px; min-width: 200px;
-    background: linear-gradient(180deg, rgba(198,168,103,0.16), rgba(198,168,103,0.04));
-    border: 1px solid rgba(198,168,103,0.55);
-    box-shadow: 0 0 40px rgba(198,168,103,0.28), inset 0 1px 0 rgba(255,255,255,0.12);
+    background: linear-gradient(180deg, rgba(var(--gold-rgb),0.16), rgba(var(--gold-rgb),0.04));
+    border: 1px solid rgba(var(--gold-rgb),0.55);
+    box-shadow: 0 0 40px rgba(var(--gold-rgb),0.28), inset 0 1px 0 rgba(255,255,255,0.12);
   }
   .bk-champ .cbox::after {
     content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
@@ -478,11 +509,11 @@
   }
   @keyframes bkShine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
   .bk-champ .cbox.pending {
-    border-color: rgba(198,168,103,0.28); background: rgba(198,168,103,0.05); box-shadow: none;
+    border-color: rgba(var(--gold-rgb),0.28); background: rgba(var(--gold-rgb),0.05); box-shadow: none;
   }
   .bk-champ .cbox.pending::after { display: none; }
   .bk-champ .cname { font-size: clamp(18px, 1.9vw, 28px); font-weight: 900; color: #fff; }
-  .bk-champ .cbox.pending .cname { font-size: clamp(15px, 1.5vw, 22px); color: rgba(242,236,220,0.6); }
+  .bk-champ .cbox.pending .cname { font-size: clamp(15px, 1.5vw, 22px); color: rgba(var(--cream-rgb),0.6); }
   .bk-champ .cmeta { font-size: clamp(10px, 0.82vw, 13px); letter-spacing: 3px; color: var(--gold); margin-top: 6px; text-transform: uppercase; }
 
 
@@ -499,10 +530,10 @@
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: rgba(242,236,220,0.5);
+    color: rgba(var(--cream-rgb),0.5);
     padding: 6px 10px;
     text-align: center;
-    border-bottom: 1px solid rgba(198,168,103,0.3);
+    border-bottom: 1px solid rgba(var(--gold-rgb),0.3);
   }
   .bk-table th.l, .bk-table td.l { text-align: left; }
   .bk-table td {
@@ -514,10 +545,10 @@
     line-height: 1.1;
   }
   .bk-table td.nm { font-weight: 800; }
-  .bk-table td.rk { color: rgba(242,236,220,0.7); width: 1%; white-space: nowrap; }
-  .bk-table td.grp { color: rgba(242,236,220,0.4); font-size: clamp(13px, 1.4vw, 22px); }
+  .bk-table td.rk { color: rgba(var(--cream-rgb),0.7); width: 1%; white-space: nowrap; }
+  .bk-table td.grp { color: rgba(var(--cream-rgb),0.4); font-size: clamp(13px, 1.4vw, 22px); }
   .bk-table td.gw { color: var(--gold); }
-  .bk-table tr.top td { background: rgba(198,168,103,0.1); }
+  .bk-table tr.top td { background: rgba(var(--gold-rgb),0.1); }
   .bk-table tr.top td.rk::before { content: '★'; color: var(--gold); margin-right: 6px; font-size: 0.8em; }
   .bk-bye {
     margin-left: 10px;
@@ -567,7 +598,7 @@
   body.view-all .sb-name       { grid-column: 1 / -1; grid-row: 1; }
   body.view-all .sb-name span  { font-size: 42px; }
   body.view-all .serve-icon    { width: 22px; height: 22px;
-                                 box-shadow: 0 0 14px rgba(217,188,122,0.85); }
+                                 box-shadow: 0 0 14px rgba(var(--gold-rgb),0.85); }
   body.view-all .sb-cell       { grid-row: 2; }
   body.view-all .sb-cell.set          { font-size: 76px; }
   body.view-all .sb-cell.set.current  { font-size: 96px; }
@@ -593,7 +624,7 @@
    *    패널 테두리는 #bkRight 한 곳에만 (대진표든 조별이든 같은 상자 안에 담기게). ── */
   body.view-all #bkRight        { padding: 18px;
                                   background: rgba(0,0,0,0.22);
-                                  border: 1px solid rgba(198,168,103,0.22);
+                                  border: 1px solid rgba(var(--gold-rgb),0.22);
                                   border-radius: 14px; }
   body.view-all #bkBracketTitle { margin: 0 0 8px 4px !important;
                                   font-size: clamp(18px, 1.9vw, 26px); letter-spacing: 5px; }
@@ -621,15 +652,15 @@
     flex: 1 1 0; min-width: 0; min-height: 0;
     padding: 14px; display: flex; flex-direction: column;
     background: linear-gradient(180deg, rgba(18,58,66,0.5), rgba(7,27,32,0.7));
-    border: 1px solid rgba(198,168,103,0.18);
+    border: 1px solid rgba(var(--gold-rgb),0.18);
     border-radius: 12px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
   }
-  .gs-col.livecol { border-color: rgba(179,84,60,0.35); }
+  .gs-col.livecol { border-color: rgba(var(--live-rgb),0.35); }
   .gs-col-head {
     flex: none; margin-bottom: 8px; padding: 0 4px 8px;
     display: flex; align-items: center; gap: 12px;
-    border-bottom: 1px solid rgba(198,168,103,0.28);
+    border-bottom: 1px solid rgba(var(--gold-rgb),0.28);
   }
   .gs-col-name  { font-size: clamp(16px, 1.7vw, 24px); font-weight: 900; letter-spacing: 5px;
                   color: var(--gold); text-transform: uppercase; }
@@ -637,10 +668,10 @@
     margin-left: auto; flex: none;
     font-size: clamp(11px, 1.1vw, 15px); font-weight: 700; letter-spacing: 2px;
     padding: 3px 10px; border-radius: 5px;
-    color: rgba(242,236,220,0.6); background: rgba(255,255,255,0.06);
+    color: rgba(var(--cream-rgb),0.6); background: rgba(255,255,255,0.06);
     font-variant-numeric: lining-nums tabular-nums;
   }
-  .gs-col-state.on { color: #fff; background: #B3543C; box-shadow: 0 2px 10px rgba(179,84,60,0.45); }
+  .gs-col-state.on { color: #fff; background: var(--terra); box-shadow: 0 2px 10px rgba(var(--live-rgb),0.45); }
   /* 경기 목록 — 라운드 소제목 없이 번호 순으로 이어진다 */
   /* min-height 는 2줄이 들어가는 최소치. 6팀 조(15경기)까지 스크롤 없이 들어간다.
      overflow:hidden 은 마지막 보루 — TV엔 스크롤바가 없다. */
@@ -654,7 +685,7 @@
     grid-template-rows: 1fr 1fr;
     align-items: center;
     padding: 4px 10px;
-    border-bottom: 1px solid rgba(242,236,220,0.08);
+    border-bottom: 1px solid rgba(var(--cream-rgb),0.08);
   }
   .gs-m:last-child { border-bottom: none; }
   /* 매치번호 = 거터의 맨 숫자 (번호 위 · 시각 아래 · LIVE/NEXT 그 아래).
@@ -662,42 +693,42 @@
   .gs-m .no {
     grid-row: 1 / span 2; align-self: stretch;
     display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px;
-    padding-right: 13px; border-right: 1px solid rgba(198,168,103,0.22); line-height: 1;
+    padding-right: 13px; border-right: 1px solid rgba(var(--gold-rgb),0.22); line-height: 1;
   }
-  .gs-m .no b { font-size: clamp(20px, 2vw, 34px); font-weight: 400; color: rgba(242,236,220,0.5); }
+  .gs-m .no b { font-size: clamp(20px, 2vw, 34px); font-weight: 400; color: rgba(var(--cream-rgb),0.5); }
   .gs-m .no i {
     font-style: normal; font-size: clamp(11px, 1.1vw, 15px); font-weight: 600;
-    letter-spacing: 0.8px; color: rgba(242,236,220,0.32);
+    letter-spacing: 0.8px; color: rgba(var(--cream-rgb),0.32);
   }
   /* 홈·원정을 위아래로 — 조 칼럼이 좁아 한 줄에 두 이름을 넣으면 한글 페어 이름이 잘린다 */
   .gs-m .side {
     display: grid; grid-template-columns: minmax(0, 1fr) 46px;
     align-items: center; gap: 10px; padding-left: 13px; height: 100%;
   }
-  .gs-m .side + .side { border-top: 1px solid rgba(242,236,220,0.06); }
+  .gs-m .side + .side { border-top: 1px solid rgba(var(--cream-rgb),0.06); }
   .gs-m .tn {
-    font-size: clamp(14px, 1.45vw, 28px); color: rgba(242,236,220,0.88);
+    font-size: clamp(14px, 1.45vw, 28px); color: rgba(var(--cream-rgb),0.88);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .gs-m .sc {
     text-align: right; font-size: clamp(16px, 1.7vw, 32px); font-weight: 700; line-height: 1;
-    color: rgba(242,236,220,0.34);
+    color: rgba(var(--cream-rgb),0.34);
   }
   /* 완료 — 승자 골드 / 패자 dim */
   .gs-m.done .tn.w, .gs-m.done .sc.w { color: var(--gold-hi); font-weight: 700; }
-  .gs-m.done .tn.l, .gs-m.done .sc.l { color: rgba(242,236,220,0.34); }
+  .gs-m.done .tn.l, .gs-m.done .sc.l { color: rgba(var(--cream-rgb),0.34); }
   /* 예정 — 전체 dim */
-  .gs-m.soon .tn   { color: rgba(242,236,220,0.34); }
-  .gs-m.soon .no b { color: rgba(242,236,220,0.34); }
+  .gs-m.soon .tn   { color: rgba(var(--cream-rgb),0.34); }
+  .gs-m.soon .no b { color: rgba(var(--cream-rgb),0.34); }
   /* LIVE — 번호만 테라코타 솔리드 + 행 왼쪽 세로 바 (§3-9) */
-  .gs-m.live { background: rgba(179,84,60,0.12); }
+  .gs-m.live { background: rgba(var(--live-rgb),0.12); }
   .gs-m.live::before {
     content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; background: var(--terra);
   }
   .gs-m.live .tn   { color: #fff; font-weight: 700; }
   .gs-m.live .sc   { color: #fff; }
   .gs-m.live .no b { background: var(--terra); color: #fff; border-radius: 2px; padding: 1px 9px; }
-  .gs-m.live .no i { color: rgba(242,236,220,0.6); }
+  .gs-m.live .no i { color: rgba(var(--cream-rgb),0.6); }
   /* 배지는 거터 안 — 점수칸을 건드리지 않는다 */
   .gs-livebadge, .gs-nextbadge {
     margin-top: 5px; font-size: clamp(9px, 0.9vw, 13px); font-weight: 700; letter-spacing: 1.4px;
@@ -705,7 +736,7 @@
   }
   .gs-livebadge { background: var(--terra); color: #fff; display: flex; align-items: center; gap: 4px; }
   .gs-livebadge .dot { width: 5px; height: 5px; border-radius: 50%; background: #fff; animation: bkBlink 0.9s steps(2) infinite; }
-  .gs-nextbadge { border: 1px solid rgba(198,168,103,0.45); color: var(--gold); }
+  .gs-nextbadge { border: 1px solid rgba(var(--gold-rgb),0.45); color: var(--gold); }
   /* ── 조별 순위 (A조 / B조 각각) ──
    * 넓은 '순위' 뷰에서는 좌우로, 폭이 700px 뿐인 전체 뷰에서는 위아래로 놓는다. */
   .bk-groups { display: flex; gap: 20px; align-items: flex-start; }
@@ -718,13 +749,13 @@
   body.view-all .bk-group  { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
   body.view-all .bk-group-name { font-size: 17px; letter-spacing: 3px; padding-bottom: 2px; }
   /* 진출선 — 이 줄 아래로는 녹아웃에 못 간다(각 조 상위 4팀) */
-  .bk-table tr.cut td { border-bottom: 2px dashed rgba(198,168,103,0.55); }
+  .bk-table tr.cut td { border-bottom: 2px dashed rgba(var(--gold-rgb),0.55); }
   /* 시드 뱃지에 'A1' 처럼 조 문자가 들어가므로 폭을 내용에 맞춘다 */
   .bk-seed { width: auto; min-width: 22px; padding: 0 5px; }
 
   /* 순위표 LIVE 행 — 지금 코트에 있는 팀 */
-  .bk-table tr.liverow td { background: rgba(179,84,60,0.10); }
-  .bk-table tr.liverow td.rk::before { content: '\25CF'; color: #B3543C; margin-right: 5px; font-size: 0.6em; vertical-align: middle; }
+  .bk-table tr.liverow td { background: rgba(var(--live-rgb),0.10); }
+  .bk-table tr.liverow td.rk::before { content: '\25CF'; color: var(--terra); margin-right: 5px; font-size: 0.6em; vertical-align: middle; }
 
   /* ── 캡스 라벨·뱃지·표 머리는 산세리프 (§2: PWA/TV 본문 = Inter·system).
      본문 서체가 세리프라 이 목록만 되돌린다. ── */
@@ -808,11 +839,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b10--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b10 · 자동갱신</div>
+<!--TVBUILD:b11--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b11 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b10"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b11"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -945,6 +976,33 @@
   const BK_VIEWS = ['all'];
   function bkNormView(v){ return BK_VIEWS.includes(v) ? v : null; }
   const bkView = 'all';
+
+  // ── 테마: 럭셔리(기본) / 클래식 ──
+  // 우선순위: ?theme= (키오스크 URL 로 못박기) > RTDB scoreboard.tvTheme (콘솔 리모컨)
+  //          > localStorage (T 키로 바꾼 값) > 'luxury'
+  const BK_THEMES = ['luxury', 'classic'];
+  function bkNormTheme(v) { v = String(v || '').toLowerCase(); return BK_THEMES.includes(v) ? v : null; }
+  const bkThemeFixed = bkNormTheme(bkQS.get('theme'));
+  let bkThemeRemote = null;
+  let bkThemeLocal = 'luxury';
+  try { bkThemeLocal = bkNormTheme(localStorage.getItem('tvTheme')) || 'luxury'; } catch (e) {}
+
+  function bkApplyTheme() {
+    const t = bkThemeFixed || bkThemeRemote || bkThemeLocal;
+    document.body.classList.toggle('theme-classic', t === 'classic');
+  }
+  function bkSetTheme(t) {
+    t = bkNormTheme(t); if (!t) return;
+    bkThemeLocal = t;
+    try { localStorage.setItem('tvTheme', t); } catch (e) {}
+    bkApplyTheme();
+  }
+  bkApplyTheme();   // Firebase 응답 전에 먼저 입혀서 깜빡임을 막는다
+
+  // 현장에서 TV 앞에 서서 바꿔야 할 때 — T 키로 토글 (콘솔이 리모컨으로 잡고 있으면 그쪽이 이긴다)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 't' || e.key === 'T' || e.key === 'ㅅ') bkSetTheme(bkThemeLocal === 'classic' ? 'luxury' : 'classic');
+  });
   let bkTournament = null;   // 마지막으로 선택된 대회
   // 지금 코트에서 뛰는 팀 — RTDB 점수판의 팀명·현재 게임스코어.
   // 조별 경기엔 live 플래그가 없어서, 이름이 일치하는 경기를 LIVE 로 물린다.
@@ -966,6 +1024,8 @@
   // (콘솔이 예전 값을 계속 써도 무시된다 — 지울 필요 없음)
   ref.on('value', (snap) => {
     const S = snap.val() || {};
+    bkThemeRemote = bkNormTheme(S.tvTheme);
+    bkApplyTheme();
     // 조별 스테이지에서 지금 뛰는 경기를 짚기 위한 팀명·현재 게임스코어
     bkLiveA  = ((S.a && S.a.name) || '').trim();
     bkLiveB  = ((S.b && S.b.name) || '').trim();
@@ -1310,7 +1370,7 @@
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     const C = (el) => { const r = el.getBoundingClientRect(); return {
       l: r.left - base.left + sl, r: r.right - base.left + sl, y: r.top - base.top + st + r.height / 2 }; };
-    const GOLD = '#C6A867', DIM = 'rgba(198,168,103,0.28)';
+    const GOLD = 'var(--gold)', DIM = 'rgba(var(--gold-rgb),0.28)';
     const seg = (d, done) => `<path d="${d}" fill="none" stroke="${done ? GOLD : DIM}" stroke-width="${done ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round"${done ? '' : ' stroke-dasharray="2 6"'}/>`;
     let paths = '';
     for (let r = 0; r < kko.length - 1; r++) {

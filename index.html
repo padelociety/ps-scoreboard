@@ -258,6 +258,7 @@
       <button class="btn-action btn-rp" id="btnSuperTB" onclick="toggleSuperTB()">🏆 슈퍼타이브레이크: OFF</button>
       <button class="btn-action btn-star" id="btnStar" onclick="toggleStar()">⭐ STAR POINT: OFF</button>
       <button class="btn-action btn-gold" id="btnGold" onclick="toggleGold()">👑 GOLDEN POINT: OFF</button>
+      <button class="btn-action btn-rp" id="btnTvTheme" onclick="toggleTvTheme()">🎨 TV 테마: 럭셔리</button>
       <button class="btn-action btn-rs" onclick="resetScore()">🔁 초기화</button>
       <button class="btn-action btn-ra" onclick="resetAll()">⚠️ 전체 초기화</button>
     </div>
@@ -376,6 +377,11 @@
           btnTB.classList.toggle('active', superTB);
         }
       }
+      // TV 테마 상태 복원
+      if (typeof S.tvTheme === 'string') {
+        tvTheme = S.tvTheme === 'classic' ? 'classic' : 'luxury';
+        syncTvThemeBtn();
+      }
       if (_firstLoad) {
         syncInputs();   // 첫 로드 때만 입력칸 값 동기화 (타이핑 방해 방지)
         setUILocked(false); // Firebase 로딩 완료 → 버튼 활성화
@@ -390,13 +396,14 @@
   });
 
   function push() {
-    set(sbRef, { ...S, superTB });
+    set(sbRef, { ...S, superTB, tvTheme });
     renderPreview();
     renderCP();
     try { lgMaybeBroadcastLive(); } catch (_) {}
   }
 
   function syncInputs() {
+    syncTvThemeBtn();
     document.getElementById('inTitle').value = S.title;
     document.getElementById('inNameA').value = S.a.name;
     document.getElementById('inNameB').value = S.b.name;
@@ -412,6 +419,15 @@
   let autoResetPoint = false;
   let autoServe = false;
   let superTB = false;
+  // TV 테마 리모컨 — tv.html 이 scoreboard.tvTheme 을 읽어 body.theme-classic 을 켠다.
+  // push() 가 scoreboard 노드를 통째로 set 하므로 superTB 처럼 여기서 들고 있다가 같이 실어 보낸다.
+  let tvTheme = 'luxury';
+  function syncTvThemeBtn() {
+    const b = document.getElementById('btnTvTheme');
+    if (!b) return;
+    b.textContent = `🎨 TV 테마: ${tvTheme === 'classic' ? '클래식' : '럭셔리'}`;
+    b.classList.toggle('active', tvTheme === 'classic');
+  }
 
   window.toggleAutoReset = () => {
     autoResetPoint = !autoResetPoint;
@@ -432,6 +448,12 @@
     const btn = document.getElementById('btnSuperTB');
     btn.textContent = `🏆 슈퍼타이브레이크: ${superTB ? 'ON' : 'OFF'}`;
     btn.classList.toggle('active', superTB);
+  };
+
+  window.toggleTvTheme = () => {
+    tvTheme = tvTheme === 'classic' ? 'luxury' : 'classic';
+    syncTvThemeBtn();
+    push();   // 바로 내보낸다 — TV 는 다음 스냅샷에서 즉시 갈아입는다
   };
 
   window.toggleStar = () => {
