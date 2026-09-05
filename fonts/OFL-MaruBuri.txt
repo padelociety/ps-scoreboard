@@ -1,0 +1,5 @@
+MaruBuri (마루 부리) — SIL Open Font License 1.1 (OFL-1.1)
+저작권: NAVER Corporation (마루 부리)
+출처: https://hangeul.naver.com/font  ·  npm: @kfonts/maruburi
+용도: 럭셔리 스킨 한글 디스플레이 세리프 (Playfair Display는 라틴·숫자 전용, 한글은 마루부리로).
+OFL-1.1은 앱/웹 임베딩·재배포 허용 (폰트 자체 판매만 금지). 전문은 SIL OFL 1.1 참조.

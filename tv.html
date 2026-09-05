@@ -8,21 +8,35 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>PS Scoreboard – TV</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* 한글 디스플레이 = 마루부리 (OFL-1.1, fonts/OFL-MaruBuri.txt).
+     라틴·숫자는 Playfair Display 가 먼저 잡고, 한글만 여기로 폴백된다. */
+  @font-face { font-family:'MaruBuri'; font-style:normal; font-weight:400; font-display:swap;
+               src:url('fonts/MaruBuri-Regular.woff2') format('woff2'); }
+  @font-face { font-family:'MaruBuri'; font-style:normal; font-weight:700; font-display:swap;
+               src:url('fonts/MaruBuri-Bold.woff2') format('woff2'); }
   * { margin:0; padding:0; box-sizing:border-box; }
+  /* 럭셔리 잉크 — DESIGN_SYSTEM.md §1 다크(잉크). 전광판이라 페이퍼 대신 잉크 배경.
+     --green/--green2/--dark 이름은 기존 규칙들이 계속 참조해서 그대로 두고 값만 잉크로 바꾼다. */
   :root {
-    --green:   #104734;
-    --green2:  #1a5c44;
-    --cream:   #f0ead2;
-    --gold:    #f5c518;
+    --ink0:    #123A42;   /* 잉크 그라데이션 최상단 */
+    --green:   #0E3038;   /* 잉크 시작 */
+    --green2:  #123A42;
+    --cream:   #F2ECDC;
+    --gold:    #C6A867;   /* 골드 포일 — 라벨·헤어라인 */
+    --gold-hi: #D9BC7A;   /* 골드 포일 밝은 쪽 — 점수·승자 */
+    --terra:   #B3543C;   /* LIVE·패배 (§3-9) */
+    --muted:   #8AA0A0;
     --silver:  #d0d8e0;
-    --dark:    #0a0a0a;
+    --dark:    #071B20;   /* 잉크 끝 */
+    --disp: 'Playfair Display','MaruBuri',Georgia,'Times New Roman',serif;
+    --ui:   'Inter','Noto Sans KR',system-ui,sans-serif;
   }
 
   html, body {
     width:100%; height:100%;
-    background: var(--green);
+    background: radial-gradient(120% 100% at 50% 0%, var(--ink0) 0%, var(--green) 42%, var(--dark) 100%);
     overflow: hidden;
   }
 
@@ -31,7 +45,10 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-family: 'Barlow Condensed', 'Noto Sans KR', sans-serif;
+    font-family: var(--disp);
+    /* Playfair 기본은 올드스타일 숫자 — 점수·순위가 베이스라인 아래로 떨어진다 (§2) */
+    font-variant-numeric: lining-nums tabular-nums;
+    font-feature-settings: 'lnum' 1, 'tnum' 1;
     min-height: 100vh;
   }
 
@@ -66,7 +83,7 @@
   /* ── 타이틀 바 ── */
   .sb-title {
     background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(245,197,24,0.3);
+    border: 1px solid rgba(198,168,103,0.3);
     border-bottom: none;
     border-radius: 12px 12px 0 0;
     padding: 18px 40px;
@@ -116,15 +133,17 @@
     letter-spacing: 1px;
     line-height: 1;
   }
+  /* 서브권 — 골드 점. 예전엔 라켓 PNG(base64 28KB)에 filter 로 색을 입혔는데,
+     잉크 팔레트에선 그 필터가 흰 얼룩으로 뭉개진다. view-all 과 같은 조형으로 통일. */
   .serve-icon {
-    width: clamp(36px, 4vw, 56px);
-    height: clamp(36px, 4vw, 56px);
-    background: url('data:image/png;base64,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') center/contain no-repeat;
+    width: clamp(20px, 2vw, 30px);
+    height: clamp(20px, 2vw, 30px);
+    border-radius: 50%;
+    background: var(--gold-hi);
+    box-shadow: 0 0 clamp(12px, 1.4vw, 22px) rgba(217,188,122,0.85);
     opacity: 0;
     transition: opacity 0.3s;
     flex-shrink: 0;
-    margin-top: 6px;
-    filter: brightness(0) invert(1) sepia(30%) saturate(300%) hue-rotate(340deg) brightness(103%);
   }
   .serving .serve-icon { opacity: 1; }
 
@@ -142,7 +161,7 @@
     font-size: 18px;
     font-weight: 600;
     letter-spacing: 3px;
-    color: rgba(240,234,210,0.4);
+    color: rgba(242,236,220,0.4);
     text-align: center;
     text-transform: uppercase;
   }
@@ -158,10 +177,10 @@
   }
   .sb-cell.set {
     font-size: clamp(48px, 6vw, 92px);
-    color: rgba(240,234,210,0.5);
+    color: rgba(242,236,220,0.5);
   }
   .sb-cell.set.has-score {
-    color: rgba(240,234,210,0.85);
+    color: rgba(242,236,220,0.85);
   }
   .sb-cell.set.current {
     color: var(--cream);
@@ -175,7 +194,7 @@
   /* 구분선 */
   .sb-divider {
     height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(245,197,24,0.4), transparent);
+    background: linear-gradient(90deg, transparent, rgba(198,168,103,0.4), transparent);
     border: none;
   }
 
@@ -214,7 +233,7 @@
   .gold-banner {
     display: none;
     background: linear-gradient(90deg, #0a0800 0%, #2a1f00 40%, #2a1f00 60%, #0a0800 100%);
-    border: 1px solid rgba(245,197,24,0.35);
+    border: 1px solid rgba(198,168,103,0.35);
     border-radius: 0 0 12px 12px;
     padding: 14px 40px;
     text-align: center;
@@ -229,15 +248,15 @@
     animation: goldGlow 1.2s ease-in-out infinite alternate;
   }
   @keyframes goldGlow {
-    0%   { text-shadow: 0 0 8px rgba(245,197,24,0.4); opacity:0.85; }
-    100% { text-shadow: 0 0 24px rgba(245,197,24,1), 0 0 60px rgba(245,150,0,0.5); opacity:1; }
+    0%   { text-shadow: 0 0 8px rgba(198,168,103,0.4); opacity:0.85; }
+    100% { text-shadow: 0 0 24px rgba(198,168,103,1), 0 0 60px rgba(245,150,0,0.5); opacity:1; }
   }
   .gold-banner::after {
     content:'';
     position:absolute;
     top:0; left:-100%;
     width:60%; height:100%;
-    background: linear-gradient(90deg, transparent, rgba(245,197,24,0.18), transparent);
+    background: linear-gradient(90deg, transparent, rgba(198,168,103,0.18), transparent);
     animation: shimmer 1.8s linear infinite;
   }
 
@@ -280,18 +299,6 @@
   body.bracket-on .sb-header { padding: 8px 40px 6px; }
   body.bracket-on .sb-header-cell { font-size: 14px; }
 
-  /* 대진표 뷰 — 점수판은 대진표가 다 보이는 선에서 최대한 크게. */
-  body.view-bracket .sb-title { padding: 8px 40px; }
-  body.view-bracket .sb-title-text { font-size: clamp(18px, 2.1vw, 30px); }
-  body.view-bracket .sb-header { padding: 6px 40px 5px; }
-  body.view-bracket .sb-header-cell { font-size: 13px; }
-  body.view-bracket .sb-row { min-height: 114px; }
-  body.view-bracket .sb-name span { font-size: clamp(34px, 4.3vw, 62px); }
-  body.view-bracket .sb-cell { font-size: clamp(48px, 6vw, 94px); }
-  body.view-bracket .sb-cell.set { font-size: clamp(40px, 5vw, 76px); }
-  body.view-bracket .sb-cell.set.current { font-size: clamp(48px, 6vw, 94px); }
-  body.view-bracket .sb-cell.point { font-size: clamp(44px, 5.4vw, 86px); }
-  body.view-bracket .bracket-panel { margin-top: 18px; }
 
   .bracket-panel {
     display: none;
@@ -304,8 +311,7 @@
     display: flex;
     align-items: baseline;
     gap: 16px;
-    /* 우측 여백 — 우상단 고정 전환 메뉴(≈240px) 밑으로 긴 대회 제목이 깔리지 않게 */
-    padding: 0 250px 14px 6px;
+    padding: 0 6px 14px 6px;
     flex-wrap: wrap;
   }
   .bk-title {
@@ -317,7 +323,7 @@
   }
   .bk-sub {
     font-size: clamp(12px, 1.2vw, 16px);
-    color: rgba(240,234,210,0.5);
+    color: rgba(242,236,220,0.5);
     letter-spacing: 2px;
   }
   /* ── 대진표: 라운드 가로 배치 + 엘보 연결선 오버레이 ── */
@@ -353,7 +359,7 @@
     display: block;
     font-size: clamp(9px, 0.72vw, 11px);
     letter-spacing: 3px;
-    color: rgba(240,234,210,0.4);
+    color: rgba(242,236,220,0.4);
     font-weight: 600;
     margin-top: 3px;
   }
@@ -367,27 +373,27 @@
   .bk-match {
     position: relative;
     z-index: 1;
-    background: linear-gradient(180deg, rgba(9,40,30,0.94), rgba(6,28,21,0.96));
-    border: 1px solid rgba(245,197,24,0.18);
+    background: linear-gradient(180deg, rgba(18,58,66,0.55), rgba(7,27,32,0.72));
+    border: 1px solid rgba(198,168,103,0.18);
     border-radius: 10px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
   }
   /* 3·4위전 — 결승 칼럼 하단에 표준 배치 */
   .bk-third { margin-top: 26px; }
   .bk-third .bk-round-label { padding-bottom: 8px; opacity: 0.7; }
-  .bk-match.done { border-color: rgba(245,197,24,0.34); }
+  .bk-match.done { border-color: rgba(198,168,103,0.34); }
   .bk-match.live {
-    border-color: rgba(255,77,77,0.85);
+    border-color: rgba(179,84,60,0.85);
     animation: liveGlow 1.4s ease-in-out infinite alternate;
   }
   @keyframes liveGlow {
-    0%   { box-shadow: 0 0 0 1px rgba(255,77,77,0.4), 0 0 8px rgba(255,77,77,0.3); }
-    100% { box-shadow: 0 0 0 1px rgba(255,77,77,0.7), 0 0 24px rgba(255,77,77,0.7); }
+    0%   { box-shadow: 0 0 0 1px rgba(179,84,60,0.4), 0 0 8px rgba(179,84,60,0.3); }
+    100% { box-shadow: 0 0 0 1px rgba(179,84,60,0.7), 0 0 24px rgba(179,84,60,0.7); }
   }
   .bk-livebadge {
     position: absolute;
     top: -10px; left: 10px; z-index: 3;
-    background: #ff4d4d; color: #fff;
+    background: #B3543C; color: #fff;
     font-size: clamp(9px, 0.72vw, 12px); font-weight: 800; letter-spacing: 2px;
     padding: 2px 7px; border-radius: 4px;
     display: flex; align-items: center; gap: 5px;
@@ -397,7 +403,7 @@
   @keyframes bkBlink { 50% { opacity: 0.2; } }
   .bk-time {
     font-size: clamp(10px, 0.9vw, 13px);
-    color: rgba(240,234,210,0.4);
+    color: rgba(242,236,220,0.4);
     letter-spacing: 1px;
     padding: 5px 12px 0;
   }
@@ -418,25 +424,25 @@
     width: 22px; height: 22px; border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
     font-size: clamp(10px, 0.85vw, 13px); font-weight: 800;
-    color: rgba(240,234,210,0.5);
+    color: rgba(242,236,220,0.5);
     background: rgba(255,255,255,0.06);
   }
   .bk-team .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bk-team .sc { flex: none; font-weight: 800; min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
   .bk-team.win { color: var(--gold); }
   .bk-team.win .sc { color: var(--gold); }
-  .bk-team.win .bk-seed { background: linear-gradient(180deg, var(--gold), #c99a12); color: #0a2a1f; }
+  .bk-team.win .bk-seed { background: linear-gradient(180deg, var(--gold), #A88948); color: #071B20; }
   .bk-team.win::before {
     content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
     width: 3px; height: 62%; background: var(--gold); box-shadow: 0 0 12px var(--gold);
   }
-  .bk-team.lose { color: rgba(240,234,210,0.42); }
-  .bk-team.lose .sc { color: rgba(240,234,210,0.42); }
+  .bk-team.lose { color: rgba(242,236,220,0.42); }
+  .bk-team.lose .sc { color: rgba(242,236,220,0.42); }
   .bk-live-dot {
     display: inline-block;
     width: 8px; height: 8px;
     border-radius: 50%;
-    background: #ff4d4d;
+    background: #B3543C;
     margin-right: 6px;
     animation: liveGlow 1s ease-in-out infinite alternate;
   }
@@ -450,7 +456,7 @@
   }
   .bk-champ .cup {
     font-size: clamp(34px, 3.4vw, 52px);
-    filter: drop-shadow(0 4px 16px rgba(245,197,24,0.5));
+    filter: drop-shadow(0 4px 16px rgba(198,168,103,0.5));
     animation: bkFloat 3s ease-in-out infinite;
   }
   @keyframes bkFloat { 50% { transform: translateY(-6px); } }
@@ -461,9 +467,9 @@
   .bk-champ .cbox {
     position: relative; overflow: hidden;
     margin-top: 12px; padding: 16px 20px; border-radius: 12px; min-width: 200px;
-    background: linear-gradient(180deg, rgba(245,197,24,0.16), rgba(245,197,24,0.04));
-    border: 1px solid rgba(245,197,24,0.55);
-    box-shadow: 0 0 40px rgba(245,197,24,0.28), inset 0 1px 0 rgba(255,255,255,0.12);
+    background: linear-gradient(180deg, rgba(198,168,103,0.16), rgba(198,168,103,0.04));
+    border: 1px solid rgba(198,168,103,0.55);
+    box-shadow: 0 0 40px rgba(198,168,103,0.28), inset 0 1px 0 rgba(255,255,255,0.12);
   }
   .bk-champ .cbox::after {
     content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
@@ -472,60 +478,14 @@
   }
   @keyframes bkShine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
   .bk-champ .cbox.pending {
-    border-color: rgba(245,197,24,0.28); background: rgba(245,197,24,0.05); box-shadow: none;
+    border-color: rgba(198,168,103,0.28); background: rgba(198,168,103,0.05); box-shadow: none;
   }
   .bk-champ .cbox.pending::after { display: none; }
   .bk-champ .cname { font-size: clamp(18px, 1.9vw, 28px); font-weight: 900; color: #fff; }
-  .bk-champ .cbox.pending .cname { font-size: clamp(15px, 1.5vw, 22px); color: rgba(240,234,210,0.6); }
+  .bk-champ .cbox.pending .cname { font-size: clamp(15px, 1.5vw, 22px); color: rgba(242,236,220,0.6); }
   .bk-champ .cmeta { font-size: clamp(10px, 0.82vw, 13px); letter-spacing: 3px; color: var(--gold); margin-top: 6px; text-transform: uppercase; }
 
-  /* ── 뷰 전환 버튼 (우상단) ── */
-  .view-switch {
-    position: fixed;
-    top: 22px; right: 24px;
-    display: flex;
-    gap: 4px;
-    padding: 4px;
-    /* 불투명 배경 + 블러 — 아래로 콘텐츠가 지나가도 겹쳐 보이지 않게 */
-    background: rgba(8,8,6,0.88);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(198,168,103,0.28);
-    border-radius: 999px;
-    z-index: 50;
-    opacity: 0.55;
-    transition: opacity 0.25s;
-  }
-  .view-switch:hover { opacity: 1; }
-  body.bracket-on .view-switch { opacity: 0.9; }
-  .vbtn {
-    font-family: 'Barlow Condensed','Noto Sans KR',sans-serif;
-    font-size: 15px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-weight: 700;
-    color: rgba(240,234,210,0.6);
-    background: transparent;
-    border: none;
-    padding: 8px 18px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .vbtn:hover { color: var(--cream); }
-  .vbtn.on { background: var(--gold); color: #0a0a0a; }
 
-  /* 숨김 상태 힌트 (데이터가 있을 때만) */
-  .bk-hint {
-    display: none;
-    position: fixed;
-    bottom: 18px;
-    left: 24px;
-    font-size: 13px;
-    letter-spacing: 1px;
-    color: rgba(240,234,210,0.35);
-  }
-  .bk-hint.visible { display: block; }
 
   /* ══════════════ 통합 순위 테이블 ══════════════ */
   .bk-standings { width: 100%; }
@@ -539,10 +499,10 @@
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: rgba(240,234,210,0.5);
+    color: rgba(242,236,220,0.5);
     padding: 6px 10px;
     text-align: center;
-    border-bottom: 1px solid rgba(245,197,24,0.3);
+    border-bottom: 1px solid rgba(198,168,103,0.3);
   }
   .bk-table th.l, .bk-table td.l { text-align: left; }
   .bk-table td {
@@ -554,11 +514,10 @@
     line-height: 1.1;
   }
   .bk-table td.nm { font-weight: 800; }
-  .bk-table td.rk { color: rgba(240,234,210,0.7); width: 1%; white-space: nowrap; }
-  .bk-table td.grp { color: rgba(240,234,210,0.4); font-size: clamp(13px, 1.4vw, 22px); }
+  .bk-table td.rk { color: rgba(242,236,220,0.7); width: 1%; white-space: nowrap; }
+  .bk-table td.grp { color: rgba(242,236,220,0.4); font-size: clamp(13px, 1.4vw, 22px); }
   .bk-table td.gw { color: var(--gold); }
-  .bk-table td.gl { color: rgba(240,234,210,0.45); font-size: clamp(15px, 1.7vw, 26px); }
-  .bk-table tr.top td { background: rgba(245,197,24,0.1); }
+  .bk-table tr.top td { background: rgba(198,168,103,0.1); }
   .bk-table tr.top td.rk::before { content: '★'; color: var(--gold); margin-right: 6px; font-size: 0.8em; }
   .bk-bye {
     margin-left: 10px;
@@ -607,9 +566,8 @@
                                  min-height: 0; height: 194px; padding: 14px 24px; }
   body.view-all .sb-name       { grid-column: 1 / -1; grid-row: 1; }
   body.view-all .sb-name span  { font-size: 42px; }
-  /* 서브권 — 원본 라켓 PNG 는 이 크기에서 뭉개진다. 700px 컬럼에선 골드 점이 더 읽힌다. */
-  body.view-all .serve-icon    { width: 22px; height: 22px; border-radius: 50%;
-                                 background: var(--gold); box-shadow: 0 0 14px var(--gold); }
+  body.view-all .serve-icon    { width: 22px; height: 22px;
+                                 box-shadow: 0 0 14px rgba(217,188,122,0.85); }
   body.view-all .sb-cell       { grid-row: 2; }
   body.view-all .sb-cell.set          { font-size: 76px; }
   body.view-all .sb-cell.set.current  { font-size: 96px; }
@@ -629,23 +587,22 @@
   body.view-all .bk-table td.nm { font-size: 24px; max-width: 300px;
                                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   body.view-all .bk-table td.grp { font-size: 16px; }
-  body.view-all .bk-table td.gl  { font-size: 20px; }
   body.view-all .bk-bye          { font-size: 13px; }
 
   /* ── 우: 대진표/조별 패널이 세로를 꽉 채우되 넘치지 않게.
    *    패널 테두리는 #bkRight 한 곳에만 (대진표든 조별이든 같은 상자 안에 담기게). ── */
   body.view-all #bkRight        { padding: 18px;
                                   background: rgba(0,0,0,0.22);
-                                  border: 1px solid rgba(245,197,24,0.22);
+                                  border: 1px solid rgba(198,168,103,0.22);
                                   border-radius: 14px; }
-  body.view-all #bkBracketTitle { margin: 0 0 8px 4px !important; padding-right: 250px;
+  body.view-all #bkBracketTitle { margin: 0 0 8px 4px !important;
                                   font-size: clamp(18px, 1.9vw, 26px); letter-spacing: 5px; }
   body.view-all .bk-cols        { flex: 1; min-height: 0; height: 100%;
                                   overflow: hidden; align-items: stretch; }
 
   /* ══════════════ 조별 스테이지 (knockout 생성 전) ══════════════
-   * 조 = 칼럼, 라운드 = 소제목, 경기 = 한 줄 [시각 · 홈 · 점수 · 원정].
-   * 높이를 flex 로 나눠 라운드·경기 수가 달라도 스크롤 없이 전부 들어간다. */
+   * 조 = 칼럼, 경기 = 한 칸 [번호·시각 | 홈 / 원정]. 라운드로는 묶지 않는다.
+   * 높이를 flex 로 나눠 경기 수가 달라도 스크롤 없이 전부 들어간다. */
   /* 바깥 테두리는 감싸는 쪽(전체 뷰의 #bkRight)이 갖는다 — 여긴 레이아웃만.
    * 높이는 auto 가 기본: '대진표' 뷰의 하단 패널은 높이가 안 정해져 있어서
    * height:100% 를 걸면 통째로 찌그러진다. 높이가 고정된 전체 뷰에서만 꽉 채운다. */
@@ -656,30 +613,23 @@
   body.view-all .gs-panel { height: 100%; }
 
   /* '대진표' 뷰(하단 패널)도 남는 높이 안에서만 그리게 — 조별 10경기가 화면 밖으로 넘치던 것 */
-  body.view-bracket .bracket-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  body.view-bracket #bkRight       { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  body.view-bracket .bk-cols       { flex: 1 1 auto; min-height: 0; padding-bottom: 0; }
-  body.view-bracket .gs-panel      { height: 100%; }
-  /* 하단 패널은 전체 뷰보다 세로가 짧다 — 경기 행을 더 눌러야 20경기가 다 들어간다 */
-  body.view-bracket .gs-m          { min-height: 34px; }
-  /* 우상단 고정 전환 메뉴(약 240px) 밑으로 제목이 깔리지 않게 */
-  .gs-panel-head { flex: none; display: flex; align-items: baseline; gap: 16px; padding: 0 250px 8px 4px; }
+  .gs-panel-head { flex: none; display: flex; align-items: baseline; gap: 16px; padding: 0 4px 8px; }
   .gs-panel-head .bk-title { font-size: clamp(18px, 1.9vw, 26px); letter-spacing: 5px; }
   /* flex-basis 를 auto 로 — 높이 auto 인 부모(대진표 뷰)에선 내용만큼, 고정 높이(전체 뷰)에선 꽉 차게 */
   .gs-body { flex: 1 1 auto; min-height: 0; margin-top: 8px; display: flex; gap: 24px; }
   .gs-col {
     flex: 1 1 0; min-width: 0; min-height: 0;
     padding: 14px; display: flex; flex-direction: column;
-    background: linear-gradient(180deg, rgba(9,40,30,0.92), rgba(6,28,21,0.94));
-    border: 1px solid rgba(245,197,24,0.18);
+    background: linear-gradient(180deg, rgba(18,58,66,0.5), rgba(7,27,32,0.7));
+    border: 1px solid rgba(198,168,103,0.18);
     border-radius: 12px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
   }
-  .gs-col.livecol { border-color: rgba(255,77,77,0.35); }
+  .gs-col.livecol { border-color: rgba(179,84,60,0.35); }
   .gs-col-head {
     flex: none; margin-bottom: 8px; padding: 0 4px 8px;
     display: flex; align-items: center; gap: 12px;
-    border-bottom: 1px solid rgba(245,197,24,0.28);
+    border-bottom: 1px solid rgba(198,168,103,0.28);
   }
   .gs-col-name  { font-size: clamp(16px, 1.7vw, 24px); font-weight: 900; letter-spacing: 5px;
                   color: var(--gold); text-transform: uppercase; }
@@ -687,82 +637,75 @@
     margin-left: auto; flex: none;
     font-size: clamp(11px, 1.1vw, 15px); font-weight: 700; letter-spacing: 2px;
     padding: 3px 10px; border-radius: 5px;
-    color: rgba(240,234,210,0.6); background: rgba(255,255,255,0.06);
+    color: rgba(242,236,220,0.6); background: rgba(255,255,255,0.06);
     font-variant-numeric: lining-nums tabular-nums;
   }
-  .gs-col-state.on { color: #fff; background: #ff4d4d; box-shadow: 0 2px 10px rgba(255,77,77,0.45); }
-  .gs-rounds { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
-  .gs-round  { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
-  .gs-round-label {
-    flex: none; height: 26px;
-    display: flex; align-items: center; gap: 10px;
-    font-size: clamp(10px, 1vw, 14px); font-weight: 800; letter-spacing: 4px;
-    color: var(--gold); opacity: 0.85; text-transform: uppercase;
-  }
-  .gs-round-label::after {
-    content: ''; flex: 1; height: 1px;
-    background: linear-gradient(90deg, rgba(245,197,24,0.32), transparent);
-  }
+  .gs-col-state.on { color: #fff; background: #B3543C; box-shadow: 0 2px 10px rgba(179,84,60,0.45); }
+  /* 경기 목록 — 라운드 소제목 없이 번호 순으로 이어진다 */
+  /* min-height 는 2줄이 들어가는 최소치. 6팀 조(15경기)까지 스크롤 없이 들어간다.
+     overflow:hidden 은 마지막 보루 — TV엔 스크롤바가 없다. */
+  .gs-list { flex: 1 1 auto; min-height: 0; overflow: hidden;
+             display: flex; flex-direction: column; gap: 6px; }
   .gs-m {
-    flex: 1 1 auto; min-height: 40px;   /* 전체 뷰에선 flex-grow 로 63px 안팎까지 커진다 */
-    display: flex; align-items: center; padding: 0 12px;
-    background: rgba(255,255,255,0.035);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 8px;
+    position: relative;
+    flex: 1 1 auto; min-height: 44px; max-height: 150px;
+    display: grid;
+    grid-template-columns: 66px minmax(0, 1fr);
+    grid-template-rows: 1fr 1fr;
+    align-items: center;
+    padding: 4px 10px;
+    border-bottom: 1px solid rgba(242,236,220,0.08);
   }
-  .gs-m .tm {
-    flex: none; width: 58px;
-    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-    font-size: clamp(13px, 1.35vw, 19px); font-weight: 700; letter-spacing: 0.5px;
-    color: rgba(240,234,210,0.55);
-    font-variant-numeric: lining-nums tabular-nums;
+  .gs-m:last-child { border-bottom: none; }
+  /* 매치번호 = 거터의 맨 숫자 (번호 위 · 시각 아래 · LIVE/NEXT 그 아래).
+     시드 칩(.bk-seed)으로 오독되지 않게 배경·테두리 없이 세로 헤어라인으로만 나눈다. */
+  .gs-m .no {
+    grid-row: 1 / span 2; align-self: stretch;
+    display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px;
+    padding-right: 13px; border-right: 1px solid rgba(198,168,103,0.22); line-height: 1;
   }
+  .gs-m .no b { font-size: clamp(20px, 2vw, 34px); font-weight: 400; color: rgba(242,236,220,0.5); }
+  .gs-m .no i {
+    font-style: normal; font-size: clamp(11px, 1.1vw, 15px); font-weight: 600;
+    letter-spacing: 0.8px; color: rgba(242,236,220,0.32);
+  }
+  /* 홈·원정을 위아래로 — 조 칼럼이 좁아 한 줄에 두 이름을 넣으면 한글 페어 이름이 잘린다 */
+  .gs-m .side {
+    display: grid; grid-template-columns: minmax(0, 1fr) 46px;
+    align-items: center; gap: 10px; padding-left: 13px; height: 100%;
+  }
+  .gs-m .side + .side { border-top: 1px solid rgba(242,236,220,0.06); }
   .gs-m .tn {
-    flex: 1; min-width: 0;
-    font-size: clamp(13px, 1.35vw, 19px); font-weight: 700; color: var(--cream);
+    font-size: clamp(14px, 1.45vw, 28px); color: rgba(242,236,220,0.88);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .gs-m .tn.h { text-align: right; padding-right: 10px; }
-  .gs-m .tn.a { text-align: left;  padding-left: 10px; }
   .gs-m .sc {
-    flex: none; width: 70px; text-align: center;
-    font-size: clamp(16px, 1.7vw, 24px); font-weight: 900; line-height: 1;
-    color: rgba(240,234,210,0.5);
-    font-variant-numeric: lining-nums tabular-nums;
+    text-align: right; font-size: clamp(16px, 1.7vw, 32px); font-weight: 700; line-height: 1;
+    color: rgba(242,236,220,0.34);
   }
-  .gs-m .sc .sep { color: rgba(240,234,210,0.3); margin: 0 4px; font-weight: 700; }
   /* 완료 — 승자 골드 / 패자 dim */
-  .gs-m.done { border-color: rgba(245,197,24,0.2); }
-  .gs-m.done .tn.w, .gs-m.done .sc .w { color: var(--gold); }
-  .gs-m.done .tn.l, .gs-m.done .sc .l { color: rgba(240,234,210,0.42); }
+  .gs-m.done .tn.w, .gs-m.done .sc.w { color: var(--gold-hi); font-weight: 700; }
+  .gs-m.done .tn.l, .gs-m.done .sc.l { color: rgba(242,236,220,0.34); }
   /* 예정 — 전체 dim */
-  .gs-m.soon { background: rgba(255,255,255,0.015); border-color: rgba(255,255,255,0.05); }
-  .gs-m.soon .tn { color: rgba(240,234,210,0.34); font-weight: 600; }
-  .gs-m.soon .tm { color: rgba(240,234,210,0.3); }
-  .gs-m.soon .sc { color: rgba(240,234,210,0.22); }
-  /* LIVE — 점수판·순위표와 같은 빨강으로 물린다 */
-  .gs-m.live {
-    background: rgba(255,77,77,0.10);
-    border-color: rgba(255,77,77,0.85);
-    animation: liveGlow 1.4s ease-in-out infinite alternate;
+  .gs-m.soon .tn   { color: rgba(242,236,220,0.34); }
+  .gs-m.soon .no b { color: rgba(242,236,220,0.34); }
+  /* LIVE — 번호만 테라코타 솔리드 + 행 왼쪽 세로 바 (§3-9) */
+  .gs-m.live { background: rgba(179,84,60,0.12); }
+  .gs-m.live::before {
+    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; background: var(--terra);
   }
-  .gs-m.live .tm { color: rgba(255,255,255,0.75); }
-  .gs-m.live .tn { color: #fff; font-weight: 800; }
-  .gs-m.live .sc { color: #ff4d4d; }
-  .gs-m.live .sc .sep { color: rgba(255,77,77,0.55); }
-  .gs-livebadge {
-    display: flex; align-items: center; gap: 4px;
-    background: #ff4d4d; color: #fff;
-    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
-    padding: 1px 5px; border-radius: 3px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  .gs-m.live .tn   { color: #fff; font-weight: 700; }
+  .gs-m.live .sc   { color: #fff; }
+  .gs-m.live .no b { background: var(--terra); color: #fff; border-radius: 2px; padding: 1px 9px; }
+  .gs-m.live .no i { color: rgba(242,236,220,0.6); }
+  /* 배지는 거터 안 — 점수칸을 건드리지 않는다 */
+  .gs-livebadge, .gs-nextbadge {
+    margin-top: 5px; font-size: clamp(9px, 0.9vw, 13px); font-weight: 700; letter-spacing: 1.4px;
+    padding: 1px 6px; border-radius: 2px;
   }
-  .gs-livebadge i { width: 5px; height: 5px; border-radius: 50%; background: #fff; animation: bkBlink 0.9s steps(2) infinite; }
-  .gs-nextbadge {
-    background: var(--gold); color: #0a2a1f;
-    font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
-    padding: 1px 5px; border-radius: 3px;
-  }
+  .gs-livebadge { background: var(--terra); color: #fff; display: flex; align-items: center; gap: 4px; }
+  .gs-livebadge .dot { width: 5px; height: 5px; border-radius: 50%; background: #fff; animation: bkBlink 0.9s steps(2) infinite; }
+  .gs-nextbadge { border: 1px solid rgba(198,168,103,0.45); color: var(--gold); }
   /* ── 조별 순위 (A조 / B조 각각) ──
    * 넓은 '순위' 뷰에서는 좌우로, 폭이 700px 뿐인 전체 뷰에서는 위아래로 놓는다. */
   .bk-groups { display: flex; gap: 20px; align-items: flex-start; }
@@ -775,13 +718,19 @@
   body.view-all .bk-group  { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
   body.view-all .bk-group-name { font-size: 17px; letter-spacing: 3px; padding-bottom: 2px; }
   /* 진출선 — 이 줄 아래로는 녹아웃에 못 간다(각 조 상위 4팀) */
-  .bk-table tr.cut td { border-bottom: 2px dashed rgba(245,197,24,0.55); }
+  .bk-table tr.cut td { border-bottom: 2px dashed rgba(198,168,103,0.55); }
   /* 시드 뱃지에 'A1' 처럼 조 문자가 들어가므로 폭을 내용에 맞춘다 */
   .bk-seed { width: auto; min-width: 22px; padding: 0 5px; }
 
   /* 순위표 LIVE 행 — 지금 코트에 있는 팀 */
-  .bk-table tr.liverow td { background: rgba(255,77,77,0.10); }
-  .bk-table tr.liverow td.rk::before { content: '\25CF'; color: #ff4d4d; margin-right: 5px; font-size: 0.6em; vertical-align: middle; }
+  .bk-table tr.liverow td { background: rgba(179,84,60,0.10); }
+  .bk-table tr.liverow td.rk::before { content: '\25CF'; color: #B3543C; margin-right: 5px; font-size: 0.6em; vertical-align: middle; }
+
+  /* ── 캡스 라벨·뱃지·표 머리는 산세리프 (§2: PWA/TV 본문 = Inter·system).
+     본문 서체가 세리프라 이 목록만 되돌린다. ── */
+  .sb-header-cell, .bk-title, .bk-sub, .bk-table th, .bk-group-name,
+  .gs-col-name, .gs-col-state, .gs-livebadge, .gs-nextbadge,
+  .bk-livebadge, .bk-champ .clabel, .bk-champ .cmeta, .bk-seed, .bk-bye,
 </style>
 </head>
 <body>
@@ -839,13 +788,7 @@
 
 </div>
 
-<!-- ── 뷰 전환 버튼 (점수판만 / 순위 / 대진표 / 전체) ── -->
-<div class="view-switch" id="viewSwitch">
-  <button class="vbtn" data-v="score">점수판</button>
-  <button class="vbtn" data-v="standings">순위</button>
-  <button class="vbtn" data-v="bracket">대진표</button>
-  <button class="vbtn" data-v="all">전체</button>
-</div>
+<!-- 뷰는 '전체' 하나뿐 — 전환 버튼·키 없음. 대회 데이터가 없으면 점수판만 남는다. -->
 
 <!-- ── 하단 패널 (통합순위 / 대진표) ──
      'all' 뷰에서는 .bracket-panel 이 display:contents 로 풀려서
@@ -861,16 +804,15 @@
     <div class="bk-cols" id="bkCols" style="display:none"></div>
   </div>
 </div>
-<div class="bk-hint" id="bkHint">순위/대진표: B 키 또는 화면 클릭</div>
 
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b9--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'Barlow Condensed',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b9 · 자동갱신</div>
+<!--TVBUILD:b10--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b10 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b9"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b10"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -997,70 +939,33 @@
   const BK_API = bkQS.get('api') || 'https://api.padelsociety.co.kr/api';
   const BK_TID = bkQS.get('tid') || null;
 
-  // ── 4-way 뷰: 'score'(점수판만) | 'standings'(통합순위) | 'bracket'(대진표) | 'all'(셋 다) ──
-  // 화면 우상단 버튼 / 키보드 1·2·3·4·B / RTDB scoreboard.tvView 로 전환. 로컬 저장.
-  const BK_VIEWS = ['score', 'standings', 'bracket', 'all'];
+  // ── 뷰는 '전체' 하나뿐: 점수판 + 조별 순위 + 조별 스테이지를 한 화면에.
+  // 대회 데이터가 없으면(bkTournament == null) 자동으로 점수판만 남는다(bkApply).
+  // 전환 버튼·키(1·2·3·4·B)·?view=·localStorage 는 없앴다.
+  const BK_VIEWS = ['all'];
   function bkNormView(v){ return BK_VIEWS.includes(v) ? v : null; }
-  let bkView = bkNormView((bkQS.get('view') || bkQS.get('panel') || '').toLowerCase())
-            || bkNormView(localStorage.getItem('tvView'))
-            || 'score'; // 기본은 점수판(원본은 standings였음 — 700x250 소스에서 순위 화면 뭉개짐 방지)
-  let bkRemoteView = null;   // RTDB scoreboard.tvView (있을 때만 우선)
+  const bkView = 'all';
   let bkTournament = null;   // 마지막으로 선택된 대회
   // 지금 코트에서 뛰는 팀 — RTDB 점수판의 팀명·현재 게임스코어.
   // 조별 경기엔 live 플래그가 없어서, 이름이 일치하는 경기를 LIVE 로 물린다.
   let bkLiveA = '', bkLiveB = '', bkLiveGA = 0, bkLiveGB = 0;
 
   const bkPanel = document.getElementById('bracketPanel');
-  const bkHint  = document.getElementById('bkHint');
-  const bkSwitch = document.getElementById('viewSwitch');
 
-  function bkEffView(){ return bkRemoteView || bkView; }
+  function bkEffView(){ return bkView; }
 
   function bkApply() {
-    const v = bkEffView();
-    const panelOn = v !== 'score' && !!bkTournament;
+    // 대회를 못 잡으면 점수판만 (조별 순위·스테이지를 그릴 데이터가 없다)
+    const panelOn = !!bkTournament;
     document.body.classList.toggle('bracket-on', panelOn);
-    // 대진표 뷰: 점수판은 유지하되 슬림하게(세로가 길어 둘 다 들어가게)
-    document.body.classList.toggle('view-bracket', v === 'bracket' && panelOn);
-    // 전체 뷰: 좌(점수판+순위) / 우(대진표 or 조별) 2단 그리드
-    document.body.classList.toggle('view-all', v === 'all' && panelOn);
-    // 버튼 활성 표시
-    if (bkSwitch) {
-      bkSwitch.querySelectorAll('.vbtn').forEach((b) => {
-        b.classList.toggle('on', b.dataset.v === v);
-      });
-    }
-    bkHint.classList.remove('visible'); // 힌트 대신 버튼으로 안내
-    if (bkTournament) bkRender(bkTournament); // 뷰 바뀌면 즉시 다시 그림
+    document.body.classList.toggle('view-all', panelOn);
+    if (bkTournament) bkRender(bkTournament);
   }
 
-  function bkSetView(v) {
-    v = bkNormView(v); if (!v) return;
-    bkView = v;
-    localStorage.setItem('tvView', v);
-    bkApply();
-  }
-  function bkCycle() { bkSetView(BK_VIEWS[(BK_VIEWS.indexOf(bkEffView()) + 1) % BK_VIEWS.length]); }
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === '1') bkSetView('score');
-    else if (e.key === '2') bkSetView('standings');
-    else if (e.key === '3') bkSetView('bracket');
-    else if (e.key === '4') bkSetView('all');
-    else if (e.key === 'b' || e.key === 'B' || e.key === 'ㅠ') bkCycle();
-  });
-  if (bkSwitch) {
-    bkSwitch.querySelectorAll('.vbtn').forEach((b) => {
-      b.addEventListener('click', (ev) => { ev.stopPropagation(); bkSetView(b.dataset.v); });
-    });
-  }
-
-  // RTDB 리모컨: 콘솔에서 scoreboard.tvView('score'|'standings'|'bracket'|'all') 쓰면 원격 제어
-  // (하위호환: 예전 showBracket=true → bracket, false → standings)
+  // 뷰가 하나뿐이라 RTDB 의 tvView·showBracket 리모컨은 더 이상 읽지 않는다.
+  // (콘솔이 예전 값을 계속 써도 무시된다 — 지울 필요 없음)
   ref.on('value', (snap) => {
     const S = snap.val() || {};
-    bkRemoteView = bkNormView(S.tvView)
-      || (typeof S.showBracket === 'boolean' ? (S.showBracket ? 'bracket' : 'standings') : null);
     // 조별 스테이지에서 지금 뛰는 경기를 짚기 위한 팀명·현재 게임스코어
     bkLiveA  = ((S.a && S.a.name) || '').trim();
     bkLiveB  = ((S.b && S.b.name) || '').trim();
@@ -1251,7 +1156,6 @@
             <th>승</th>
             <th>이긴 게임</th>
             <th>득실</th>
-            <th>진 게임</th>
           </tr>
         </thead>
         <tbody>
@@ -1270,7 +1174,6 @@
               <td>${s.wins}</td>
               <td class="gw">${s.gamesWon}</td>
               <td class="gw">${diff > 0 ? '+' + diff : diff}</td>
-              <td class="gl">${s.gamesLost}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1407,7 +1310,7 @@
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     const C = (el) => { const r = el.getBoundingClientRect(); return {
       l: r.left - base.left + sl, r: r.right - base.left + sl, y: r.top - base.top + st + r.height / 2 }; };
-    const GOLD = '#f5c518', DIM = 'rgba(245,197,24,0.28)';
+    const GOLD = '#C6A867', DIM = 'rgba(198,168,103,0.28)';
     const seg = (d, done) => `<path d="${d}" fill="none" stroke="${done ? GOLD : DIM}" stroke-width="${done ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round"${done ? '' : ' stroke-dasharray="2 6"'}/>`;
     let paths = '';
     for (let r = 0; r < kko.length - 1; r++) {
@@ -1453,7 +1356,7 @@
   }
 
   /* ══════════════ 조별 스테이지 (knockout 생성 전) ══════════════
-   * 조 = 칼럼, 라운드 = 소제목, 경기 = 한 줄 [시각 · 홈 · 점수 · 원정].
+   * 조 = 칼럼, 경기 = 한 칸 [번호·시각 | 홈 / 원정]. 라운드로는 묶지 않는다.
    * 조별 경기 객체엔 live 플래그가 없어서(필드: id/home/away/homeScore/awayScore/completed/court/matchTime)
    * RTDB 점수판의 팀명과 일치하는 미완료 경기를 LIVE 로 본다. 이름이 안 맞으면 강조만 빠진다.  */
   function bkPairName(t, m, side) {
@@ -1469,7 +1372,7 @@
     return (h === bkLiveA && a === bkLiveB) || (h === bkLiveB && a === bkLiveA);
   }
 
-  function bkGroupRowHTML(t, m, isNext) {
+  function bkGroupRowHTML(t, m, no, isNext) {
     const live = bkIsLiveMatch(t, m);
     const done = !!m.completed;
     const hName = bkPairName(t, m, 'h'), aName = bkPairName(t, m, 'a');
@@ -1479,18 +1382,18 @@
     const as = live ? (flip ? bkLiveGA : bkLiveGB) : (m.awayScore != null ? m.awayScore : m.team2Score);
     const hW = done && hs > as, aW = done && as > hs;
     const cls = done ? 'done' : live ? 'live' : 'soon';
-    const badge = live ? '<span class="gs-livebadge"><i></i>LIVE</span>'
+    const badge = live ? '<span class="gs-livebadge"><span class="dot"></span>LIVE</span>'
                 : isNext ? '<span class="gs-nextbadge">NEXT</span>' : '';
-    const score = (done || live)
-      ? `<span class="${hW ? 'w' : done ? 'l' : ''}">${hs != null ? hs : 0}</span>` +
-        `<span class="sep">:</span>` +
-        `<span class="${aW ? 'w' : done ? 'l' : ''}">${as != null ? as : 0}</span>`
-      : '–';
+    // 점수는 끝났거나 뛰는 중일 때만. 예정 경기는 '–'.
+    const sc = (v) => ((done || live) ? (v != null ? v : 0) : '–');
+    const side = (name, v, win, lose) => {
+      const k = win ? 'w' : lose ? 'l' : '';
+      return `<div class="side"><span class="tn ${k}">${name}</span><span class="sc ${k}">${sc(v)}</span></div>`;
+    };
     return `<div class="gs-m ${cls}">
-      <div class="tm">${m.matchTime || '--:--'}${badge}</div>
-      <div class="tn h ${hW ? 'w' : aW ? 'l' : ''}">${hName}</div>
-      <div class="sc">${score}</div>
-      <div class="tn a ${aW ? 'w' : hW ? 'l' : ''}">${aName}</div>
+      <div class="no"><b>${no}</b><i>${m.matchTime || '--:--'}</i>${badge}</div>
+      ${side(hName, hs, hW, aW)}
+      ${side(aName, as, aW, hW)}
     </div>`;
   }
 
@@ -1502,11 +1405,11 @@
 
     // NEXT = 아직 안 끝났고 LIVE 도 아닌 경기 중 matchTime 이 가장 이른 것 (대회 전체 기준, 1개만)
     let nextKey = null, nextTime = null;
-    groups.forEach((g, gi) => g.rounds.forEach((rd, ri) => (rd || []).forEach((m, mi) => {
+    groups.forEach((g, gi) => g.rounds.flat().forEach((m, i) => {
       if (m.completed || bkIsLiveMatch(t, m)) return;
       const tm = m.matchTime || '99:99';
-      if (nextTime === null || tm < nextTime) { nextTime = tm; nextKey = gi + '.' + ri + '.' + mi; }
-    })));
+      if (nextTime === null || tm < nextTime) { nextTime = tm; nextKey = gi + '.' + i; }
+    }));
 
     const all   = groups.reduce((a, g) => a.concat(g.rounds.flat()), []);
     const doneN = all.filter((m) => m.completed).length;
@@ -1522,11 +1425,8 @@
           <div class="gs-col-name">${label}</div>
           <div class="gs-col-state${gLive ? ' on' : ''}">${state} ${gDone}/${ms.length}</div>
         </div>
-        <div class="gs-rounds">${g.rounds.map((rd, ri) => `
-          <div class="gs-round">
-            <div class="gs-round-label">R${ri + 1}</div>
-            ${(rd || []).map((m, mi) => bkGroupRowHTML(t, m, nextKey === gi + '.' + ri + '.' + mi)).join('')}
-          </div>`).join('')}</div>
+        <div class="gs-list">${ms.map((m, i) =>
+          bkGroupRowHTML(t, m, i + 1, nextKey === gi + '.' + i)).join('')}</div>
       </div>`;
     }).join('');
 
