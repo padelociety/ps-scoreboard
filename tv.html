@@ -47,24 +47,31 @@
   /* ── 클래식: 리디자인 전 전광판 그대로 (딥그린 + 골드 + Barlow Condensed).
    *    형태(레이아웃·헤어라인·번호 거터)는 공유하고 팔레트와 서체만 바꾼다.
    *    서브권은 두 테마 다 골드 점 — 예전 라켓 PNG 는 b10 에서 걷어냈다. ── */
+  /* ── 클래식: 회원 앱 '클래식' 스킨(다크)의 색 그대로.
+   *    background #0F1B2D · cardBg #1B2A41 · primary #4CBEAA · accent #34B39F · red #E53E3E
+   *    형태(2단 레이아웃·헤어라인·번호 거터·홈/원정 스택)는 럭셔리와 공유하고 색·서체만 바뀐다.
+   *    서체는 예전 전광판 그대로 Barlow Condensed(+한글 Noto Sans KR).
+   *    앱과 똑같이 AstaSans 를 쓰려면 폰트 파일을 이 공개 repo 에 같이 올려야 한다 — 라이선스 확인 후. ── */
   body.theme-classic {
-    --ink0:     #1a5c44;
-    --green:    #104734;
-    --green2:   #1a5c44;
-    --dark:     #0a0a0a;
-    --tv-bg:    var(--green);
+    --ink0:     #1B2A41;   /* cardBg */
+    --green:    #0F1B2D;   /* background */
+    --green2:   #1B2A41;
+    --dark:     #0A1220;
+    --tv-bg:    var(--green);   /* 클래식 앱은 평면 배경 */
 
-    --cream:    #f0ead2;   --cream-rgb: 240,234,210;
-    --gold:     #f5c518;   --gold-rgb:  245,197,24;
-    --gold-hi:  #f5c518;
-    --gold-dim: #c99a12;
-    --terra:    #ff4d4d;   --live-rgb:  255,77,77;
-    --muted:    rgba(240,234,210,0.5);
+    --cream:    #E8F0F7;   --cream-rgb: 232,240,247;   /* 다크 위 본문 */
+    --gold:     #34B39F;   --gold-rgb:  52,179,159;    /* accent — 라벨·헤어라인 */
+    --gold-hi:  #4CBEAA;                               /* primary — 점수·승자 */
+    --gold-dim: #2E9E8F;
+    --terra:    #E53E3E;   --live-rgb:  229,62,62;     /* red — LIVE·패배 */
+    --muted:    #7A95A5;                               /* secondary */
+    --conn:     #4CBEAA;
 
     --disp: 'Barlow Condensed','Noto Sans KR',sans-serif;
     --ui:   'Barlow Condensed','Noto Sans KR',sans-serif;
-    --num:  normal;   /* Barlow 는 기본이 라이닝 숫자 */
+    --num:  normal;
   }
+
 
   html, body {
     width:100%; height:100%;
@@ -675,8 +682,10 @@
   /* 경기 목록 — 라운드 소제목 없이 번호 순으로 이어진다 */
   /* min-height 는 2줄이 들어가는 최소치. 6팀 조(15경기)까지 스크롤 없이 들어간다.
      overflow:hidden 은 마지막 보루 — TV엔 스크롤바가 없다. */
+  /* 행 사이 간격을 없애고 구분선으로만 나눈다 — 번호 거터의 세로선이 끊기지 않고 이어져
+     '표의 한 열' 로 읽힌다. 예전엔 gap 6px 때문에 세로선이 토막나 보였다. */
   .gs-list { flex: 1 1 auto; min-height: 0; overflow: hidden;
-             display: flex; flex-direction: column; gap: 6px; }
+             display: flex; flex-direction: column; }
   .gs-m {
     position: relative;
     flex: 1 1 auto; min-height: 44px; max-height: 150px;
@@ -684,8 +693,9 @@
     grid-template-columns: 66px minmax(0, 1fr);
     grid-template-rows: 1fr 1fr;
     align-items: center;
-    padding: 4px 10px;
-    border-bottom: 1px solid rgba(var(--cream-rgb),0.08);
+    /* 세로 패딩 0 — .no 의 세로 헤어라인이 행 위아래 끝까지 닿아야 열처럼 보인다 */
+    padding: 0 10px;
+    border-bottom: 1px solid rgba(var(--cream-rgb),0.16);
   }
   .gs-m:last-child { border-bottom: none; }
   /* 매치번호 = 거터의 맨 숫자 (번호 위 · 시각 아래 · LIVE/NEXT 그 아래).
@@ -705,9 +715,11 @@
     display: grid; grid-template-columns: minmax(0, 1fr) 46px;
     align-items: center; gap: 10px; padding-left: 13px; height: 100%;
   }
-  .gs-m .side + .side { border-top: 1px solid rgba(var(--cream-rgb),0.06); }
+  /* 홈/원정 사이는 경기 구분선보다 훨씬 옅게 — 안 그러면 두 줄이 별개 경기처럼 보이고
+     가운데 번호가 어느 쪽 것인지 헷갈린다. */
+  .gs-m .side + .side { border-top: 1px solid rgba(var(--cream-rgb),0.045); }
   .gs-m .tn {
-    font-size: clamp(14px, 1.45vw, 28px); color: rgba(var(--cream-rgb),0.88);
+    font-size: clamp(14px, 1.45vw, 28px); line-height: 1; color: rgba(var(--cream-rgb),0.88);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .gs-m .sc {
@@ -723,7 +735,7 @@
   /* LIVE — 번호만 테라코타 솔리드 + 행 왼쪽 세로 바 (§3-9) */
   .gs-m.live { background: rgba(var(--live-rgb),0.12); }
   .gs-m.live::before {
-    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; background: var(--terra);
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--terra);
   }
   .gs-m.live .tn   { color: #fff; font-weight: 700; }
   .gs-m.live .sc   { color: #fff; }
@@ -839,11 +851,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b11--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b11 · 자동갱신</div>
+<!--TVBUILD:b12--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b12 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b11"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b12"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
