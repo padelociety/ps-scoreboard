@@ -485,6 +485,10 @@
   }
   .bk-team.lose { color: rgba(var(--cream-rgb),0.42); }
   .bk-team.lose .sc { color: rgba(var(--cream-rgb),0.42); }
+  /* 앞 라운드를 이기고 올라온 이름 — 아직 안 치른 경기라 점수·시각이 없다.
+     골드로 '이긴 팀' 임을 읽히게 하되, 완료 경기의 굵은 발광 막대(.win::before)는 붙이지 않는다. */
+  .bk-team.adv { color: rgba(var(--gold-rgb),0.88); }
+  .bk-team.adv .bk-seed { background: rgba(var(--gold-rgb),0.18); color: rgba(var(--gold-rgb),0.8); }
   .bk-live-dot {
     display: inline-block;
     width: 8px; height: 8px;
@@ -890,11 +894,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b14--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b14 · 자동갱신</div>
+<!--TVBUILD:b15--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b15 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b14"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b15"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1394,10 +1398,14 @@
     const hWin = done && hs > as, aWin = done && as > hs;
     const hId = m.home != null ? m.home : (m.team1 && m.team1[0]);
     const aId = m.away != null ? m.away : (m.team2 && m.team2[0]);
-    const hName = m.home != null ? bkNameOf(t, m.home)
+    const byeH = (proj || done) && m.away != null && m.home == null && !m.advH && !m.advA;
+    const hName = byeH ? '부전승'
+      : m.home != null ? bkNameOf(t, m.home)
       : (m.team1 || []).map((id) => bkNameOf(t, id)).join(' · ') || 'TBD';
-    // 예상 부전승: 상대 슬롯이 비면 BYE 표기
-    const aName = (proj && m.home != null && m.away == null) ? '부전승'
+    // 부전승 = 상대 슬롯이 비어 있고 그 상태로 '확정' 된 칸(예상 대진 또는 자동 완료된 실제 부전승).
+    // 승자가 올라와 한쪽만 찬 칸은 아직 상대 미정이므로 TBD 로 둔다.
+    const byeA = (proj || done) && m.home != null && m.away == null && !m.advH && !m.advA;
+    const aName = byeA ? '부전승'
       : m.away != null ? bkNameOf(t, m.away)
       : (m.team2 || []).map((id) => bkNameOf(t, id)).join(' · ') || 'TBD';
     const sc = (v) => (proj || v == null ? '' : v);
@@ -1407,8 +1415,8 @@
       : (m.matchTime ? `<div class="bk-time">${m.matchTime}</div>` : '');
     return `<div class="${cls}" data-done="${done ? 1 : 0}">
       ${head}
-      <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}">${seedTag(hId)}<span class="nm">${hName}</span><span class="sc">${sc(hs)}</span></div>
-      <div class="bk-team${aWin ? ' win' : ''}${hWin ? ' lose' : ''}">${seedTag(aId)}<span class="nm">${aName}</span><span class="sc">${sc(as)}</span></div>
+      <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}${m.advH ? ' adv' : ''}">${seedTag(hId)}<span class="nm">${hName}</span><span class="sc">${sc(hs)}</span></div>
+      <div class="bk-team${aWin ? ' win' : ''}${hWin ? ' lose' : ''}${m.advA ? ' adv' : ''}">${seedTag(aId)}<span class="nm">${aName}</span><span class="sc">${sc(as)}</span></div>
     </div>`;
   }
 
@@ -1496,6 +1504,40 @@
     while (size > 1 && guard-- > 0) {
       size = Math.ceil(size / 2);
       out.push(Array.from({ length: size }, () => ({ projected: true })));
+    }
+    return out;
+  }
+
+  // 다음 라운드 빈 칸에 '이긴 팀' 을 미리 올려놓는다.
+  // 앱 advanceKnockout 이 완료된 경기를 순서대로 짝지으므로(i → i>>1, 짝수=홈/홀수=원정)
+  // 같은 자리 규칙으로 투영하면 실제로 생성될 대진과 일치한다.
+  // ⚠️ 이미 값이 있는 칸은 절대 덮지 않는다 — 관리자가 손으로 고친 대진이 있을 수 있다.
+  function bkWinnerOf(m) {
+    if (!m || !m.completed) return null;
+    const hs = m.homeScore ?? m.team1Score, as = m.awayScore ?? m.team2Score;
+    if (hs == null || as == null || hs === as) return null;   // 무승부·미입력은 진출자 없음
+    const home = hs > as;
+    const id = home ? m.home : m.away, arr = home ? m.team1 : m.team2;
+    if (id != null) return { id };
+    if (arr && arr.length) return { arr };
+    return null;
+  }
+
+  function bkAdvanceWinners(rounds) {
+    const out = rounds.map((rd) => rd.map((m) => Object.assign({}, m)));
+    for (let r = 0; r + 1 < out.length; r++) {
+      const next = out[r + 1];
+      out[r].forEach((m, i) => {
+        const dst = next[i >> 1];
+        if (!dst) return;
+        const h = (i % 2 === 0);
+        const idKey = h ? 'home' : 'away', arrKey = h ? 'team1' : 'team2';
+        if (dst[idKey] != null || (dst[arrKey] && dst[arrKey].length)) return;   // 실제 대진 보존
+        const w = bkWinnerOf(m);
+        if (!w) return;
+        if (w.id != null) dst[idKey] = w.id; else dst[arrKey] = w.arr;
+        dst[h ? 'advH' : 'advA'] = true;
+      });
     }
     return out;
   }
@@ -1613,7 +1655,8 @@
 
     if (kb && Array.isArray(kb.rounds) && kb.rounds.length) {
       if (bkTitle) bkTitle.textContent = 'KNOCKOUT';
-      const full = bkPadRounds(kb.rounds);   // 아직 없는 라운드는 빈 슬롯으로 채운다
+      // 빈 라운드로 뼈대를 세우고 → 이긴 팀을 다음 칸에 미리 올린다
+      const full = bkAdvanceWinners(bkPadRounds(kb.rounds));
       const lastIdx = full.length - 1;
       // 3·4위전은 결승 칼럼 하단에 배치(연결선이 가로지르지 않게)
       let html = full.map((rd, ri) => kkoCol(rd, ri === lastIdx ? kb.thirdPlaceMatch : null)).join('');
