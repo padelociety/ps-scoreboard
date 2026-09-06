@@ -1,10 +1,28 @@
 {
   "voices": [
-    { "key": "christopher", "label": "Christopher · 미국 남", "voice": "en-US-ChristopherNeural", "gender": "m" },
-    { "key": "guy",         "label": "Guy · 미국 남",         "voice": "en-US-GuyNeural",         "gender": "m" },
-    { "key": "ryan",        "label": "Ryan · 영국 남",        "voice": "en-GB-RyanNeural",        "gender": "m" },
-    { "key": "aria",        "label": "Aria · 미국 여",        "voice": "en-US-AriaNeural",        "gender": "f" },
-    { "key": "jenny",       "label": "Jenny · 미국 여",       "voice": "en-US-JennyNeural",       "gender": "f" },
-    { "key": "sonia",       "label": "Sonia · 영국 여",       "voice": "en-GB-SoniaNeural",       "gender": "f" }
+    {
+      "key": "christopher",
+      "label": "Christopher · 미국 남",
+      "voice": "en-US-ChristopherNeural",
+      "gender": "m"
+    },
+    {
+      "key": "guy",
+      "label": "Guy · 미국 남",
+      "voice": "en-US-GuyNeural",
+      "gender": "m"
+    },
+    {
+      "key": "aria",
+      "label": "Aria · 미국 여",
+      "voice": "en-US-AriaNeural",
+      "gender": "f"
+    },
+    {
+      "key": "jenny",
+      "label": "Jenny · 미국 여",
+      "voice": "en-US-JennyNeural",
+      "gender": "f"
+    }
   ]
 }
