@@ -228,7 +228,7 @@
     appId:             "1:48470302084:web:b037acc0b58f7e85d191d1"
   };
 
-  const POINTS = ['0','15','30','40','⭐'];
+  const POINTS = ['0','15','30','40','AD'];
 
   let prevPointA = 0;
   let prevPointB = 0;
@@ -244,11 +244,15 @@
     document.getElementById('sbNameA').textContent  = S.a.name || '';
     document.getElementById('sbNameB').textContent  = S.b.name || '';
 
-    // 스타포인트 모드면 포인트 표시를 ⭐로
+    // 타이브레이크(6-6)·슈퍼TB(3세트)는 숫자 그대로, 아니면 15/30/40 매핑 (스타포인트 모드면 AD 대신 ⭐) — tv.html 과 동일 규칙
     const starMode = !!S.starPoint;
-    const DISP = starMode ? ['0','15','30','40','⭐'] : ['0','15','30','40','AD'];
-    const ptA = DISP[S.a.point] ?? S.a.point;
-    const ptB = DISP[S.b.point] ?? S.b.point;
+    const sets = (S.a.sets || []).length;
+    const isTB = S.a.game === 6 && S.b.game === 6;
+    const isSuperTB = !!S.superTB && sets === 2;
+    const useRaw = isTB || isSuperTB;
+    const DISP = useRaw ? null : (starMode ? ['0','15','30','40','⭐'] : POINTS);
+    const ptA = useRaw ? (S.a.point ?? 0) : (DISP[S.a.point] ?? S.a.point ?? '0');
+    const ptB = useRaw ? (S.b.point ?? 0) : (DISP[S.b.point] ?? S.b.point ?? '0');
     const elPA = document.getElementById('sbPointA');
     const elPB = document.getElementById('sbPointB');
 
