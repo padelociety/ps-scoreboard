@@ -462,7 +462,8 @@
     font-size: clamp(14px, 1.4vw, 20px);
     font-weight: 700;
     color: var(--cream);
-    line-height: 1.15;
+    /* 한글은 20px 글자에 25px 를 쓴다 — 1.15(23px)면 overflow:hidden 인 .nm 이 위아래를 잘라낸다 */
+    line-height: 1.3;
   }
   .bk-team + .bk-team { border-top: 1px solid rgba(255,255,255,0.07); }
   .bk-seed {
@@ -889,11 +890,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b13--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b13 · 자동갱신</div>
+<!--TVBUILD:b14--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b14 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b13"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b14"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1483,6 +1484,22 @@
     svg.innerHTML = paths;
   }
 
+  // 녹아웃 트리는 처음부터 결승까지 전부 그린다.
+  // 예전엔 만들어진 라운드만 그려서, 8강만 있을 땐 한 칸 + 우승 노드뿐이었고
+  // 4강이 생겨야 비로소 '트리' 처럼 보였다. 아직 없는 라운드는 빈 슬롯(projected)으로
+  // 채워 8강→4강→결승→우승 뼈대와 연결선이 처음부터 보이게 한다.
+  // 홀수 경기(부전승 포함)도 올림으로 접어 1경기까지 내려간다.
+  function bkPadRounds(rounds) {
+    const out = rounds.slice();
+    let size = (out[out.length - 1] || []).length;
+    let guard = 8;   // 8강이면 3칸이면 끝난다 — 데이터가 이상해도 무한루프 금지
+    while (size > 1 && guard-- > 0) {
+      size = Math.ceil(size / 2);
+      out.push(Array.from({ length: size }, () => ({ projected: true })));
+    }
+    return out;
+  }
+
   // 8강 아직 없을 때: 현재 통합순위로 예상 대진 투영 (7팀 스페셜 시드 [1,·,4,5,2,7,3,6], 1위 부전승)
   function bkProjectedRounds(t) {
     const maxT = parseInt(t.maxTeams, 10);
@@ -1596,9 +1613,11 @@
 
     if (kb && Array.isArray(kb.rounds) && kb.rounds.length) {
       if (bkTitle) bkTitle.textContent = 'KNOCKOUT';
-      const lastIdx = kb.rounds.length - 1;
+      const full = bkPadRounds(kb.rounds);   // 아직 없는 라운드는 빈 슬롯으로 채운다
+      const lastIdx = full.length - 1;
       // 3·4위전은 결승 칼럼 하단에 배치(연결선이 가로지르지 않게)
-      let html = kb.rounds.map((rd, ri) => kkoCol(rd, ri === lastIdx ? kb.thirdPlaceMatch : null)).join('');
+      let html = full.map((rd, ri) => kkoCol(rd, ri === lastIdx ? kb.thirdPlaceMatch : null)).join('');
+      // 우승자는 '진짜' 결승 결과로만 판단한다 — 채워 넣은 빈 칸으로 우승이 정해지면 안 된다
       html += bkChampHTML(t, kb);
       cols.innerHTML = '<svg class="bk-conns"></svg>' + html;
       bkQueueConnectors();
