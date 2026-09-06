@@ -1,0 +1,466 @@
+{
+ "voice": "en-US-JennyNeural",
+ "rate": "-5%",
+ "phrases": [
+  {
+   "text": "love all",
+   "file": "love-all.mp3"
+  },
+  {
+   "text": "love, fifteen",
+   "file": "love-fifteen.mp3"
+  },
+  {
+   "text": "love, thirty",
+   "file": "love-thirty.mp3"
+  },
+  {
+   "text": "love, forty",
+   "file": "love-forty.mp3"
+  },
+  {
+   "text": "fifteen, love",
+   "file": "fifteen-love.mp3"
+  },
+  {
+   "text": "fifteen all",
+   "file": "fifteen-all.mp3"
+  },
+  {
+   "text": "fifteen, thirty",
+   "file": "fifteen-thirty.mp3"
+  },
+  {
+   "text": "fifteen, forty",
+   "file": "fifteen-forty.mp3"
+  },
+  {
+   "text": "thirty, love",
+   "file": "thirty-love.mp3"
+  },
+  {
+   "text": "thirty, fifteen",
+   "file": "thirty-fifteen.mp3"
+  },
+  {
+   "text": "thirty all",
+   "file": "thirty-all.mp3"
+  },
+  {
+   "text": "thirty, forty",
+   "file": "thirty-forty.mp3"
+  },
+  {
+   "text": "forty, love",
+   "file": "forty-love.mp3"
+  },
+  {
+   "text": "forty, fifteen",
+   "file": "forty-fifteen.mp3"
+  },
+  {
+   "text": "forty, thirty",
+   "file": "forty-thirty.mp3"
+  },
+  {
+   "text": "Deuce",
+   "file": "deuce.mp3"
+  },
+  {
+   "text": "Advantage",
+   "file": "advantage.mp3"
+  },
+  {
+   "text": "Star point",
+   "file": "star-point.mp3"
+  },
+  {
+   "text": "Golden point",
+   "file": "golden-point.mp3"
+  },
+  {
+   "text": "Undo",
+   "file": "undo.mp3"
+  },
+  {
+   "text": "Voice on",
+   "file": "voice-on.mp3"
+  },
+  {
+   "text": "Fifteen, love. Deuce. Advantage, server.",
+   "file": "fifteen-love-deuce-advantage-server.mp3"
+  },
+  {
+   "text": "Game. one game to zero.",
+   "file": "game-one-game-to-zero.mp3"
+  },
+  {
+   "text": "Game. one game all.",
+   "file": "game-one-game-all.mp3"
+  },
+  {
+   "text": "Game. two games to zero.",
+   "file": "game-two-games-to-zero.mp3"
+  },
+  {
+   "text": "Game. two games to one.",
+   "file": "game-two-games-to-one.mp3"
+  },
+  {
+   "text": "Game. two games all.",
+   "file": "game-two-games-all.mp3"
+  },
+  {
+   "text": "Game. three games to zero.",
+   "file": "game-three-games-to-zero.mp3"
+  },
+  {
+   "text": "Game. three games to one.",
+   "file": "game-three-games-to-one.mp3"
+  },
+  {
+   "text": "Game. three games to two.",
+   "file": "game-three-games-to-two.mp3"
+  },
+  {
+   "text": "Game. three games all.",
+   "file": "game-three-games-all.mp3"
+  },
+  {
+   "text": "Game. four games to zero.",
+   "file": "game-four-games-to-zero.mp3"
+  },
+  {
+   "text": "Game. four games to one.",
+   "file": "game-four-games-to-one.mp3"
+  },
+  {
+   "text": "Game. four games to two.",
+   "file": "game-four-games-to-two.mp3"
+  },
+  {
+   "text": "Game. four games to three.",
+   "file": "game-four-games-to-three.mp3"
+  },
+  {
+   "text": "Game. four games all.",
+   "file": "game-four-games-all.mp3"
+  },
+  {
+   "text": "Game. five games to zero.",
+   "file": "game-five-games-to-zero.mp3"
+  },
+  {
+   "text": "Game. five games to one.",
+   "file": "game-five-games-to-one.mp3"
+  },
+  {
+   "text": "Game. five games to two.",
+   "file": "game-five-games-to-two.mp3"
+  },
+  {
+   "text": "Game. five games to three.",
+   "file": "game-five-games-to-three.mp3"
+  },
+  {
+   "text": "Game. five games to four.",
+   "file": "game-five-games-to-four.mp3"
+  },
+  {
+   "text": "Game. five games all.",
+   "file": "game-five-games-all.mp3"
+  },
+  {
+   "text": "Game. six games to zero.",
+   "file": "game-six-games-to-zero.mp3"
+  },
+  {
+   "text": "Game. six games to one.",
+   "file": "game-six-games-to-one.mp3"
+  },
+  {
+   "text": "Game. six games to two.",
+   "file": "game-six-games-to-two.mp3"
+  },
+  {
+   "text": "Game. six games to three.",
+   "file": "game-six-games-to-three.mp3"
+  },
+  {
+   "text": "Game. six games to four.",
+   "file": "game-six-games-to-four.mp3"
+  },
+  {
+   "text": "Game. six games to five.",
+   "file": "game-six-games-to-five.mp3"
+  },
+  {
+   "text": "Game. six games all.",
+   "file": "game-six-games-all.mp3"
+  },
+  {
+   "text": "Game. seven games to zero.",
+   "file": "game-seven-games-to-zero.mp3"
+  },
+  {
+   "text": "Game. seven games to one.",
+   "file": "game-seven-games-to-one.mp3"
+  },
+  {
+   "text": "Game. seven games to two.",
+   "file": "game-seven-games-to-two.mp3"
+  },
+  {
+   "text": "Game. seven games to three.",
+   "file": "game-seven-games-to-three.mp3"
+  },
+  {
+   "text": "Game. seven games to four.",
+   "file": "game-seven-games-to-four.mp3"
+  },
+  {
+   "text": "Game. seven games to five.",
+   "file": "game-seven-games-to-five.mp3"
+  },
+  {
+   "text": "Game. seven games to six.",
+   "file": "game-seven-games-to-six.mp3"
+  },
+  {
+   "text": "Game. seven games all.",
+   "file": "game-seven-games-all.mp3"
+  },
+  {
+   "text": "Game and first set. six games to zero.",
+   "file": "game-and-first-set-six-games-to-zero.mp3"
+  },
+  {
+   "text": "Game and first set. six games to one.",
+   "file": "game-and-first-set-six-games-to-one.mp3"
+  },
+  {
+   "text": "Game and first set. six games to two.",
+   "file": "game-and-first-set-six-games-to-two.mp3"
+  },
+  {
+   "text": "Game and first set. six games to three.",
+   "file": "game-and-first-set-six-games-to-three.mp3"
+  },
+  {
+   "text": "Game and first set. six games to four.",
+   "file": "game-and-first-set-six-games-to-four.mp3"
+  },
+  {
+   "text": "Game and first set. six games to five.",
+   "file": "game-and-first-set-six-games-to-five.mp3"
+  },
+  {
+   "text": "Game and first set. six games all.",
+   "file": "game-and-first-set-six-games-all.mp3"
+  },
+  {
+   "text": "Game and first set. seven games to zero.",
+   "file": "game-and-first-set-seven-games-to-zero.mp3"
+  },
+  {
+   "text": "Game and first set. seven games to one.",
+   "file": "game-and-first-set-seven-games-to-one.mp3"
+  },
+  {
+   "text": "Game and first set. seven games to two.",
+   "file": "game-and-first-set-seven-games-to-two.mp3"
+  },
+  {
+   "text": "Game and first set. seven games to three.",
+   "file": "game-and-first-set-seven-games-to-three.mp3"
+  },
+  {
+   "text": "Game and first set. seven games to four.",
+   "file": "game-and-first-set-seven-games-to-four.mp3"
+  },
+  {
+   "text": "Game and first set. seven games to five.",
+   "file": "game-and-first-set-seven-games-to-five.mp3"
+  },
+  {
+   "text": "Game and first set. seven games to six.",
+   "file": "game-and-first-set-seven-games-to-six.mp3"
+  },
+  {
+   "text": "Game and first set. seven games all.",
+   "file": "game-and-first-set-seven-games-all.mp3"
+  },
+  {
+   "text": "Game and second set. six games to zero.",
+   "file": "game-and-second-set-six-games-to-zero.mp3"
+  },
+  {
+   "text": "Game and second set. six games to one.",
+   "file": "game-and-second-set-six-games-to-one.mp3"
+  },
+  {
+   "text": "Game and second set. six games to two.",
+   "file": "game-and-second-set-six-games-to-two.mp3"
+  },
+  {
+   "text": "Game and second set. six games to three.",
+   "file": "game-and-second-set-six-games-to-three.mp3"
+  },
+  {
+   "text": "Game and second set. six games to four.",
+   "file": "game-and-second-set-six-games-to-four.mp3"
+  },
+  {
+   "text": "Game and second set. six games to five.",
+   "file": "game-and-second-set-six-games-to-five.mp3"
+  },
+  {
+   "text": "Game and second set. six games all.",
+   "file": "game-and-second-set-six-games-all.mp3"
+  },
+  {
+   "text": "Game and second set. seven games to zero.",
+   "file": "game-and-second-set-seven-games-to-zero.mp3"
+  },
+  {
+   "text": "Game and second set. seven games to one.",
+   "file": "game-and-second-set-seven-games-to-one.mp3"
+  },
+  {
+   "text": "Game and second set. seven games to two.",
+   "file": "game-and-second-set-seven-games-to-two.mp3"
+  },
+  {
+   "text": "Game and second set. seven games to three.",
+   "file": "game-and-second-set-seven-games-to-three.mp3"
+  },
+  {
+   "text": "Game and second set. seven games to four.",
+   "file": "game-and-second-set-seven-games-to-four.mp3"
+  },
+  {
+   "text": "Game and second set. seven games to five.",
+   "file": "game-and-second-set-seven-games-to-five.mp3"
+  },
+  {
+   "text": "Game and second set. seven games to six.",
+   "file": "game-and-second-set-seven-games-to-six.mp3"
+  },
+  {
+   "text": "Game and second set. seven games all.",
+   "file": "game-and-second-set-seven-games-all.mp3"
+  },
+  {
+   "text": "Game and third set. six games to zero.",
+   "file": "game-and-third-set-six-games-to-zero.mp3"
+  },
+  {
+   "text": "Game and third set. six games to one.",
+   "file": "game-and-third-set-six-games-to-one.mp3"
+  },
+  {
+   "text": "Game and third set. six games to two.",
+   "file": "game-and-third-set-six-games-to-two.mp3"
+  },
+  {
+   "text": "Game and third set. six games to three.",
+   "file": "game-and-third-set-six-games-to-three.mp3"
+  },
+  {
+   "text": "Game and third set. six games to four.",
+   "file": "game-and-third-set-six-games-to-four.mp3"
+  },
+  {
+   "text": "Game and third set. six games to five.",
+   "file": "game-and-third-set-six-games-to-five.mp3"
+  },
+  {
+   "text": "Game and third set. six games all.",
+   "file": "game-and-third-set-six-games-all.mp3"
+  },
+  {
+   "text": "Game and third set. seven games to zero.",
+   "file": "game-and-third-set-seven-games-to-zero.mp3"
+  },
+  {
+   "text": "Game and third set. seven games to one.",
+   "file": "game-and-third-set-seven-games-to-one.mp3"
+  },
+  {
+   "text": "Game and third set. seven games to two.",
+   "file": "game-and-third-set-seven-games-to-two.mp3"
+  },
+  {
+   "text": "Game and third set. seven games to three.",
+   "file": "game-and-third-set-seven-games-to-three.mp3"
+  },
+  {
+   "text": "Game and third set. seven games to four.",
+   "file": "game-and-third-set-seven-games-to-four.mp3"
+  },
+  {
+   "text": "Game and third set. seven games to five.",
+   "file": "game-and-third-set-seven-games-to-five.mp3"
+  },
+  {
+   "text": "Game and third set. seven games to six.",
+   "file": "game-and-third-set-seven-games-to-six.mp3"
+  },
+  {
+   "text": "Game and third set. seven games all.",
+   "file": "game-and-third-set-seven-games-all.mp3"
+  },
+  {
+   "text": "zero",
+   "file": "zero.mp3"
+  },
+  {
+   "text": "one",
+   "file": "one.mp3"
+  },
+  {
+   "text": "two",
+   "file": "two.mp3"
+  },
+  {
+   "text": "three",
+   "file": "three.mp3"
+  },
+  {
+   "text": "four",
+   "file": "four.mp3"
+  },
+  {
+   "text": "five",
+   "file": "five.mp3"
+  },
+  {
+   "text": "six",
+   "file": "six.mp3"
+  },
+  {
+   "text": "seven",
+   "file": "seven.mp3"
+  },
+  {
+   "text": "eight",
+   "file": "eight.mp3"
+  },
+  {
+   "text": "nine",
+   "file": "nine.mp3"
+  },
+  {
+   "text": "ten",
+   "file": "ten.mp3"
+  },
+  {
+   "text": "eleven",
+   "file": "eleven.mp3"
+  },
+  {
+   "text": "twelve",
+   "file": "twelve.mp3"
+  }
+ ]
+}

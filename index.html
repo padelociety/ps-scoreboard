@@ -345,7 +345,10 @@
   <div class="s-group">
     <span class="caps">Voice · 음성 콜</span>
     <div class="frow"><label class="caps">Voice</label>
-      <div class="sel"><select id="selVoice" onchange="pickVoiceByName(this.value)" aria-label="목소리"></select></div>
+      <div class="sel"><select id="selClipVoice" onchange="pickClipVoice(this.value)" aria-label="콜 목소리"><option value="">목소리 목록 불러오는 중…</option></select></div>
+    </div>
+    <div class="frow"><label class="caps">Fallback</label>
+      <div class="sel"><select id="selVoice" onchange="pickVoiceByName(this.value)" aria-label="폴백 TTS 목소리"></select></div>
     </div>
     <div class="frow"><label class="caps">Tone</label>
       <div class="seg" id="btnPitch"><button onclick="cyclePitch(0)">낮음</button><button onclick="cyclePitch(1)">보통</button><button onclick="cyclePitch(2)">높음</button></div>
@@ -574,6 +577,32 @@
       .catch(() => {});
   }
   loadClipManifest();
+  // 구워 둔 목소리 목록(audio/voices.json) → 서랍의 Voice select. 고르면 manifest 갈아끼우고 샘플을 들려준다.
+  function loadClipVoices() {
+    fetch(`${CLIP_BASE}voices.json`, { cache: 'no-cache' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const sel = document.getElementById('selClipVoice');
+        const vs = (j && j.voices) || [];
+        if (!sel) return;
+        if (!vs.length) { sel.innerHTML = '<option value="">클립 목소리 없음 (TTS 사용)</option>'; return; }
+        if (!vs.some((v) => v.key === clipVoice)) clipVoice = vs[0].key;
+        sel.innerHTML = vs.map((v) => `<option value="${v.key}"${v.key === clipVoice ? ' selected' : ''}>${v.gender === 'f' ? '♀ ' : '♂ '}${v.label}</option>`).join('');
+      })
+      .catch(() => {});
+  }
+  loadClipVoices();
+  window.pickClipVoice = (key) => {
+    if (!key) return;
+    clipVoice = key;
+    localStorage.setItem('sbClipVoice', key);
+    clipCache.clear();
+    clipSet = null;
+    loadClipManifest();
+    // manifest 가 오면 샘플 한 마디 — 목소리를 바로 비교할 수 있게
+    const tryPlay = (n) => { if (clipSet) say('Fifteen, love. Deuce. Advantage, server.'); else if (n > 0) setTimeout(() => tryPlay(n - 1), 150); };
+    tryPlay(20);
+  };
   let clipPlaying = null;
   // 한 문장을 클립 1개, 타이브레이크 "x, y" 는 숫자 클립 2개로. 하나라도 없으면 false → TTS 폴백.
   function playClips(text) {
