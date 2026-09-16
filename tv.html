@@ -112,7 +112,8 @@
 
   /* ── 배너: 카드 아래에 absolute 고정 (카드 안 밀림) ── */
   .star-banner,
-  .gold-banner {
+  .gold-banner,
+  .tb-banner {
     position: absolute;
     left: 0; right: 0;
     top: calc(100% + 12px);
@@ -171,13 +172,21 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    min-width: 0;            /* 배지가 붙어도 이름이 자기 칸 안에서 줄어들게 */
   }
-  .sb-name span {
+  /* ⚠️ `:not(.crit)` 이 load-bearing 이다. 이 선택자(.sb-name span)는 특정도가
+     `.crit` 보다 높아서, 배지도 72px 볼드 크림색을 물려받아 팀 이름을 밀어내고
+     이름이 한 글자씩 세로로 눌렸다. */
+  .sb-name span:not(.crit) {
     font-size: clamp(36px, 5vw, 72px);
     font-weight: 800;
     color: var(--cream);
     letter-spacing: 1px;
     line-height: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   /* 서브권 — 골드 점. 예전엔 라켓 PNG(base64 28KB)에 filter 로 색을 입혔는데,
      잉크 팔레트에선 그 필터가 흰 얼룩으로 뭉개진다. view-all 과 같은 조형으로 통일. */
@@ -306,6 +315,46 @@
     animation: shimmer 1.8s linear infinite;
   }
 
+  /* ── TIE BREAK 배너 ──
+     ⚠️ 스타·골든과 달리 **빛나지 않는다.** 저 둘은 한 포인트짜리 순간이라 번쩍여야 하지만
+        타이브레이크는 몇 분씩 떠 있다 — 그동안 계속 명멸하면 화면이 피곤해지고, 정작
+        결정 포인트가 왔을 때 구분이 안 된다. 나타날 때 한 번만 알리고 그 뒤엔 조용하다. */
+  .tb-banner {
+    display: none;
+    background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.72) 18%,
+                                       rgba(0,0,0,.72) 82%, rgba(0,0,0,0) 100%);
+    border-top: 1px solid rgba(var(--gold-rgb),.34);
+    border-bottom: 1px solid rgba(var(--gold-rgb),.34);
+    padding: 11px 40px;
+    text-align: center;
+  }
+  .tb-banner.visible { display: block; animation: tbIn .5s cubic-bezier(.2,.9,.25,1.1); }
+  .tb-banner-text {
+    font-family: var(--ui);
+    font-size: clamp(18px, 2vw, 32px);
+    font-weight: 800; letter-spacing: 8px;
+    color: var(--cream);
+  }
+  .tb-banner-text em { font-style: normal; letter-spacing: 4px; color: var(--gold-hi); }
+  @keyframes tbIn { 0% { opacity: 0; transform: translateY(-12px); } 100% { opacity: 1; transform: none; } }
+
+  /* 타이브레이크엔 40-40 이 없다 — 스타·골든 플래그가 켜져 있다면 낡은 값이므로 하나만 띄운다. */
+  body.tb-on .star-banner, body.tb-on .gold-banner { display: none; }
+
+  /* ── 매치 포인트: 화면 테두리가 아주 느리게 맥박한다 ──
+     ⚠️ 화면 **전체**를 감싸는 유일한 연출이라 세게 하면 중계가 고장 난 것처럼 보인다.
+        테두리만 옅게, 느리게. 켜고 끄는 것도 페이드다 — 툭 나타나면 글리치로 읽힌다.
+     ⚠️ **세트포인트에는 걸지 않는다.** 한 세트에 몇 번씩 오는 것을 화면 전체로 알리면
+        정작 경기가 끝나는 순간과 구분이 안 된다. */
+  .mp-edge {
+    position: fixed; inset: 0; z-index: 40; pointer-events: none;
+    opacity: 0; transition: opacity .6s ease;
+    box-shadow: inset 0 0 0 4px rgba(var(--live-rgb),.5),
+                inset 0 0 90px 6px rgba(var(--live-rgb),.18);
+  }
+  .mp-edge.on { opacity: 1; animation: mpPulse 2s ease-in-out infinite alternate; }
+  @keyframes mpPulse { 0% { opacity: .38; } 100% { opacity: 1; } }
+
   @keyframes shimmer {
     0%   { left:-100%; }
     100% { left:200%; }
@@ -318,6 +367,159 @@
     100% { transform: scale(1); }
   }
   .pop { animation: pop .3s ease-out; }
+
+  /* ══════════════ 26S3 중계 연출 ══════════════
+   * 26S2 TV 는 점수가 '툭' 갈리기만 했다 — 포인트에 scale 팝 하나가 전부였고, 게임도
+   * 세트도 숫자만 바뀌어서 보는 사람이 방금 무슨 일이 있었는지 놓쳤다.
+   *
+   * ⚠️ 이 화면은 **OBS 브라우저소스**와 코트 TV 에서 같이 돈다. GPU 가 없다고 보고
+   *    transform / opacity 만 건드린다 — width·box-shadow·filter 를 애니메이션하면
+   *    매 프레임 다시 그려서 송출 프레임이 떨어진다.
+   * ⚠️ 상시 도는 애니메이션은 늘리지 않는다. 이미 배너 둘이 무한 루프 중이고, 거기에
+   *    상시 애니메이션을 더 얹으면 방송 내내 비용을 낸다. 아래 것들은 전부 **한 번 돌고
+   *    끝나는** 연출이고, 무한인 것은 세트·매치 포인트 배지 하나뿐이다(그 순간만 붙는다).
+   * ⚠️ 모션을 꺼 둔 기기(접근성)에서는 전부 즉시 표시로 떨어진다 — 맨 아래 규칙. */
+
+  /* ── 포인트 획득: 위에서 떨어져 자리에 꽂힌다 ── */
+  @keyframes ptIn {
+    0%   { transform: translateY(-42%) scale(.8);  opacity: 0; }
+    55%  { transform: translateY(0)    scale(1.2); opacity: 1; }
+    100% { transform: translateY(0)    scale(1);   opacity: 1; }
+  }
+  /* 정정(−)은 조용히 — 득점과 같은 연출을 주면 중계에서 점수가 올라간 것처럼 보인다 */
+  @keyframes ptDown {
+    0%   { transform: scale(1.12); opacity: .45; }
+    100% { transform: scale(1);    opacity: 1; }
+  }
+  .sb-cell.point { will-change: transform; }
+  .pt-in   { animation: ptIn   .42s cubic-bezier(.2,.9,.25,1.1); }
+  .pt-down { animation: ptDown .3s ease-out; }
+
+  /* ── 득점한 팀 행을 한 번 쓸어준다 ── */
+  .sb-row { position: relative; }
+  .sb-row::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(var(--gold-rgb),.16) 50%, transparent 100%);
+  }
+  .sb-row.scored::after { animation: rowSweep .6s ease-out; }
+  @keyframes rowSweep {
+    0%   { opacity: 0; transform: translateX(-35%); }
+    35%  { opacity: 1; }
+    100% { opacity: 0; transform: translateX(35%); }
+  }
+
+  /* ── 게임 획득: 진행 중 세트 칸이 금빛으로 부풀었다 내려온다 ── */
+  @keyframes gameWin {
+    0%   { transform: scale(1);    color: var(--cream); }
+    28%  { transform: scale(1.45); color: var(--gold-hi); }
+    100% { transform: scale(1);    color: var(--cream); }
+  }
+  .sb-cell.game-win { animation: gameWin .8s cubic-bezier(.2,.9,.25,1.1); }
+
+  /* ── 세트 획득: 화면 가운데에 한 번 찍고 사라진다 ── */
+  .set-flash {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center; gap: 6px;
+    pointer-events: none; z-index: 5;
+  }
+  .set-flash.show { display: flex; animation: setFlash 1.8s ease-out forwards; }
+  /* ⚠️ 카드 글자 **위에** 겹친다. 뒤를 안 깔면 이름·점수와 서로 뭉개져 둘 다 못 읽는다. */
+  .set-flash::before {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(7,27,32,.88);
+  }
+  /* ⚠️ 세트를 딴 팀 이름이 길 수 있다 — 한 줄에 다 넣으면 카드를 넘는다.
+     'SET n' 을 크게, 이름을 그 아래 작게 두 줄로 나눈다. */
+  .set-flash b, .set-flash i {
+    position: relative;
+    font-family: var(--disp);
+    max-width: 88%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-align: center;
+  }
+  .set-flash b {
+    font-size: clamp(38px, 6vw, 104px);
+    font-weight: 900; letter-spacing: 12px;
+    color: var(--gold-hi);
+    text-shadow: 0 0 40px rgba(var(--gold-rgb),.85), 0 0 120px rgba(var(--gold-rgb),.4);
+  }
+  .set-flash i {
+    font-style: normal;
+    font-size: clamp(20px, 2.4vw, 40px);
+    font-weight: 700; letter-spacing: 4px;
+    color: var(--cream);
+  }
+  @keyframes setFlash {
+    0%   { opacity: 0; transform: scale(.78); }
+    16%  { opacity: 1; transform: scale(1); }
+    72%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.06); }
+  }
+
+  /* ── 세트/매치 포인트 배지 ──
+   * 테니스 중계에서 가장 드라마가 큰 한 줄인데 26S2 TV 엔 없었다. 새 데이터가 필요 없다 —
+   * 게임·포인트만 보면 계산된다. */
+  .sb-name .crit {
+    display: none; flex: none;
+    font-family: var(--ui);
+    font-size: clamp(13px, 1.25vw, 22px);
+    font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+    padding: 6px 16px; border-radius: 999px; white-space: nowrap;
+    color: var(--dark);
+    background: linear-gradient(180deg, var(--gold-hi), var(--gold-dim));
+    box-shadow: 0 0 20px rgba(var(--gold-rgb),.5);
+  }
+  .sb-name .crit.show  { display: inline-flex; animation: critIn .34s cubic-bezier(.2,.9,.25,1.1), critPulse 1.3s ease-in-out .34s infinite alternate; }
+  .sb-name .crit.match { background: linear-gradient(180deg, #E8A0454D, var(--terra)); color: var(--cream); box-shadow: 0 0 24px rgba(var(--live-rgb),.6); }
+  @keyframes critIn    { 0% { opacity: 0; transform: scale(.7); } 100% { opacity: 1; transform: scale(1); } }
+  @keyframes critPulse { 0% { opacity: .72; } 100% { opacity: 1; } }
+
+  /* ── 하단 띠: 이번 세트 게임 타임라인 · 연속 득점 · 경기 시계 ── */
+  .sb-foot {
+    display: flex; align-items: center; gap: clamp(14px, 1.6vw, 28px);
+    padding: 12px clamp(20px, 2.2vw, 40px);
+    background: rgba(0,0,0,.32);
+    border: 1px solid rgba(255,255,255,.08); border-top: none;
+    border-radius: 0 0 12px 12px;
+    font-family: var(--ui);
+    font-size: clamp(12px, 1.05vw, 18px);
+    font-weight: 600; letter-spacing: 2px;
+    color: rgba(var(--cream-rgb),.45);
+    text-transform: uppercase;
+    min-height: 46px;
+  }
+  .sb-foot .lbl { flex: none; }
+  /* 게임 타임라인 — 이번 세트에서 누가 어느 게임을 가져갔나. ●=위 팀 ○=아래 팀 */
+  .gametl { display: flex; align-items: center; gap: clamp(5px, .6vw, 9px); flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  .gametl i {
+    flex: none; display: block;
+    width: clamp(11px, 1.05vw, 17px); height: clamp(11px, 1.05vw, 17px);
+    border-radius: 50%;
+    border: 2px solid rgba(var(--gold-rgb),.55);
+    background: transparent;
+  }
+  .gametl i.a { background: var(--gold-hi); border-color: var(--gold-hi); }
+  .gametl i.fresh { animation: tlIn .45s cubic-bezier(.2,.9,.25,1.1); }
+  @keyframes tlIn { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.5); opacity: 1; } 100% { transform: scale(1); } }
+  /* 연속 득점 — 3연속부터만 뜬다. 1·2 연속은 흔해서 켜 두면 의미가 없다. */
+  .runbox { flex: none; display: none; align-items: center; gap: 8px; color: var(--gold-hi); }
+  .runbox.show { display: inline-flex; animation: critIn .3s ease-out; }
+  .clock { flex: none; margin-left: auto; color: rgba(var(--cream-rgb),.55); font-variant-numeric: var(--num); }
+
+  /* 대진표가 같이 뜰 땐 하단 띠를 눌러 자리를 내준다 */
+  body.view-all .sb-foot { min-height: 34px; padding: 6px 20px; font-size: 12px; gap: 12px; }
+  body.view-all .set-flash b { font-size: clamp(32px, 5vw, 72px); letter-spacing: 6px; }
+
+  /* 모션을 꺼 둔 기기 — 연출 없이 값만 바뀐다 (내용은 하나도 안 사라진다) */
+  @media (prefers-reduced-motion: reduce) {
+    .pt-in, .pt-down, .sb-row.scored::after, .sb-cell.game-win,
+    .set-flash.show, .sb-name .crit.show, .gametl i.fresh, .runbox.show,
+    .tb-banner.visible, .mp-edge.on { animation: none; }
+    .set-flash.show { opacity: 1; }
+    /* 테두리는 끄지 않고 **멈춘다** — 맥박은 연출이지만 '매치포인트다' 는 정보다. */
+    .mp-edge.on { opacity: .8; }
+  }
 
   /* ── 연결 상태 ── */
   .conn-dot {
@@ -646,7 +848,8 @@
 
   /* STAR/GOLDEN 배너 — absolute 로 두면 순위표를 덮는다. 흐름 안으로 넣고 압축. */
   body.view-all .star-banner,
-  body.view-all .gold-banner   { position: static; padding: 8px 20px; }
+  body.view-all .gold-banner,
+  body.view-all .tb-banner     { position: static; padding: 8px 20px; }
   body.view-all .star-banner-text,
   body.view-all .gold-banner-text { font-size: 24px; letter-spacing: 6px; }
 
@@ -838,6 +1041,7 @@
       <div class="sb-name">
         <span id="tvNameA">Team A</span>
         <div class="serve-icon"></div>
+        <span class="crit" id="tvCritA"></span>
       </div>
       <div class="sb-cell set current" id="tvSetA1"></div>
       <div class="sb-cell set"         id="tvSetA2"></div>
@@ -851,6 +1055,7 @@
       <div class="sb-name">
         <span id="tvNameB">Team B</span>
         <div class="serve-icon"></div>
+        <span class="crit" id="tvCritB"></span>
       </div>
       <div class="sb-cell set current" id="tvSetB1"></div>
       <div class="sb-cell set"         id="tvSetB2"></div>
@@ -859,12 +1064,26 @@
     </div>
   </div>
 
+  <!-- 하단 띠 — 이번 세트 게임 타임라인 · 연속 득점 · 경기 시계 -->
+  <div class="sb-foot">
+    <span class="lbl">SET</span>
+    <div class="gametl" id="tvGameTl"></div>
+    <span class="runbox" id="tvRun"></span>
+    <span class="clock" id="tvClock"></span>
+  </div>
+
+  <!-- 세트 획득 연출 (카드 위에 한 번 찍고 사라진다) -->
+  <div class="set-flash" id="tvSetFlash"><b></b><i></i></div>
+
   <!-- 배너 -->
   <div class="star-banner" id="tvStarBanner">
-    <div class="star-banner-text">✦&nbsp;&nbsp;STAR POINT&nbsp;&nbsp;✦</div>
+    <div class="star-banner-text" id="tvStarText">✦&nbsp;&nbsp;STAR POINT&nbsp;&nbsp;✦</div>
   </div>
   <div class="gold-banner" id="tvGoldBanner">
     <div class="gold-banner-text">👑&nbsp;&nbsp;GOLDEN POINT&nbsp;&nbsp;👑</div>
+  </div>
+  <div class="tb-banner" id="tvTbBanner">
+    <div class="tb-banner-text" id="tvTbText"></div>
   </div>
 
 </div>
@@ -891,14 +1110,17 @@
   </div>
 </div>
 
+<!-- 매치 포인트 — 화면 테두리가 느리게 맥박한다. 숫자는 배지가 말하고 이건 분위기만 잡는다. -->
+<div class="mp-edge" id="tvMpEdge" aria-hidden="true"></div>
+
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b15--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b15 · 자동갱신</div>
+<!--TVBUILD:b17--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b17 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b15"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b17"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -968,6 +1190,143 @@
     el.classList.add('pop');
   }
 
+  /* ══════════════ 26S3 중계 연출 ══════════════
+   * 규칙은 스코어보드 콘솔(index.html)에만 있다. 여기는 **읽고 그리기만** 한다 —
+   * 듀스 회차(S.deuce)·게임 타임라인(S.gamelog)·연속 득점(S.run)·시작 시각(S.startedAt)은
+   * 전부 콘솔이 찍어 보낸 값이다. TV 가 스스로 세면 중계 도중 새로고침 한 번에 전부 0 이 된다. */
+
+  /** 클래스를 한 번 떼었다 붙여 애니메이션을 다시 튼다(연속 득점에도 매번 돈다). */
+  function replay(el, cls) {
+    if (!el) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
+
+  let prevGA = 0, prevGB = 0, prevSets = 0, prevServe = '';
+  /**
+   * ⚠️ **첫 스냅샷은 연출 없이 그린다.**
+   * TV·OBS 소스는 경기 **도중에** 켜지는 일이 흔하다(브라우저소스 새로고침, 키오스크
+   * 재부팅). 그때 첫 스냅샷을 '변화'로 읽으면 이미 30분 전에 끝난 세트의 축하 연출이
+   * 그 자리에서 재생되고, 포인트도 방금 딴 것처럼 떨어진다 — 중계에 없는 일이 방송된다.
+   * 첫 번째 콜백은 기준값만 채우고 지나간다.
+   */
+  let firstPaint = true;
+
+  /**
+   * 지금이 타이브레이크인가 — '' | 'tb'(7점) | 'stb'(슈퍼 타이브레이크 10점).
+   *
+   * ⚠️ **한 곳에만 적는다.** 예전엔 점수 표기(useRaw)와 critOf 가 각자 적고 있었고
+   *    조건이 미묘하게 달랐다(슈퍼TB 를 빼느냐 마느냐). 거기에 배너까지 세 벌이 되면
+   *    언젠가 갈라져서 '숫자는 타이브레이크인데 배너는 안 뜨는' 화면이 된다.
+   */
+  function tbKindOf(S) {
+    const sets = (S.a?.sets || []).length;
+    if (S.superTB && sets === 2) return 'stb';
+    if ((S.a?.game | 0) === 6 && (S.b?.game | 0) === 6) return 'tb';
+    return '';
+  }
+
+  /**
+   * 세트/매치 포인트 판정 — 새 데이터 없이 게임·포인트만으로 계산된다.
+   * '이 포인트를 따면 게임을 가져가고, 그 게임으로 세트(또는 경기)가 끝나는가'.
+   *
+   * 타이브레이크는 7점·2점 차, 슈퍼타이브레이크는 10점·2점 차로 본다.
+   * ⚠️ 확정이 아니라 **표시**다 — 세트 종료는 사람이 [Save Set] 으로 정한다(6-6 뒤
+   *    타이브레이크를 할지, 몇 세트 경기인지가 대회마다 달라서 규칙을 박지 않는다).
+   */
+  function critOf(S, me, you) {
+    const sets = (S.a?.sets || []).length;
+    const kind = tbKindOf(S);
+    const isTB = kind === 'tb';
+    const isSTB = kind === 'stb';
+    const p = me.point | 0, q = you.point | 0;
+
+    // 타이브레이크: 다음 한 점으로 끝나는가
+    if (isTB || isSTB) {
+      const target = isSTB ? 10 : 7;
+      if (p + 1 >= target && p + 1 - q >= 2) return sets >= 1 ? 'match point' : 'set point';
+      return '';
+    }
+    // 일반 게임: 다음 한 점으로 게임을 가져가는가
+    const decider = (S.deuce || 0) > (typeof S.deuceLimit === 'number' ? S.deuceLimit : 2) || !!S.starForce;
+    const winsGame = (p === 3 && q <= 2) || (p === 4) || (p === 3 && q === 3 && decider);
+    if (!winsGame) return '';
+    // 그 게임으로 세트가 끝나는가 — 6게임 + 2게임 차, 또는 7-5/7-6
+    const g = (me.game | 0) + 1, h = you.game | 0;
+    const winsSet = (g >= 6 && g - h >= 2) || g === 7;
+    if (!winsSet) return '';
+    // 이번 세트로 경기가 끝나는가 — 이미 한 세트를 이겨 뒀다면 매치포인트
+    const mySets = (me.sets || []).filter((v, i) => v > (you.sets || [])[i]).length;
+    return mySets >= 1 ? 'match point' : 'set point';
+  }
+  function paintCrit(id, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const on = !!text;
+    if (on && el.textContent !== text) el.textContent = text;
+    el.classList.toggle('match', /match/.test(text || ''));
+    if (on === el.classList.contains('show')) return;   // 이미 같은 상태면 다시 튀우지 않는다
+    el.classList.toggle('show', on);
+  }
+
+  /** 이번 세트 게임 타임라인 — ●=위 팀(A) ○=아래 팀(B). */
+  let prevTl = '';
+  function paintTimeline(log) {
+    const box = document.getElementById('tvGameTl');
+    if (!box) return;
+    const arr = Array.isArray(log) ? log : [];
+    // ⚠️ 길이가 아니라 **내용**으로 비교한다. 심판이 게임을 무르고 반대 팀에 주면
+    //    길이는 그대로인데 주인이 바뀐다 — 길이만 보면 그 칸 색이 안 바뀐다.
+    const key = arr.join('');
+    if (key !== prevTl) {
+      box.innerHTML = arr.map((t) => `<i class="${t === 'A' ? 'a' : 'b'}"></i>`).join('');
+      // 칸이 늘어난 경우에만 마지막 칸을 톡 튀어나오게 — 정정으로 다시 그려질 때까지
+      // 연출이 나가면 무른 것이 득점처럼 보인다.
+      if (!firstPaint && arr.length > prevTl.length && box.lastElementChild) replay(box.lastElementChild, 'fresh');
+    }
+    prevTl = key;
+  }
+
+  /** 연속 득점 — 3연속부터. 1·2 연속은 흔해서 켜 두면 눈에 안 들어온다. */
+  function paintRun(S) {
+    const el = document.getElementById('tvRun');
+    if (!el) return;
+    const r = S.run;
+    const on = !!(r && (r.n | 0) >= 3);
+    if (on) {
+      const nm = (r.t === 'A' ? S.a?.name : S.b?.name) || (r.t === 'A' ? 'Team A' : 'Team B');
+      const txt = `🔥 ${nm} ${r.n}연속`;
+      if (el.textContent !== txt) el.textContent = txt;
+    }
+    el.classList.toggle('show', on);
+  }
+
+  /** 경기 시계 — 콘솔이 첫 포인트에 찍은 startedAt 기준. */
+  let clockTimer = null, clockFrom = 0;
+  function paintClock(startedAt) {
+    const el = document.getElementById('tvClock');
+    if (!el) return;
+    clockFrom = Number(startedAt) || 0;
+    const tick = () => {
+      if (!clockFrom) { el.textContent = ''; return; }
+      const sec = Math.max(0, Math.floor((Date.now() - clockFrom) / 1000));
+      el.textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+    };
+    tick();
+    if (!clockTimer) clockTimer = setInterval(tick, 1000);
+  }
+
+  /** 세트 획득 연출 — 'SET n' 을 크게, 딴 팀 이름을 그 아래 작게. */
+  function flashSet(head, who) {
+    const el = document.getElementById('tvSetFlash');
+    if (!el) return;
+    el.querySelector('b').textContent = head;
+    el.querySelector('i').textContent = who || '';
+    replay(el, 'show');
+    setTimeout(() => el.classList.remove('show'), 1900);
+  }
+
   function setCell(elId, val, classes) {
     const el = document.getElementById(elId);
     el.textContent = val;
@@ -989,19 +1348,40 @@
 
     // 포인트
     const starMode = !!S.starPoint;
-    const sets = (S.a?.sets||[]).length;
-    const isTB = S.a?.game === 6 && S.b?.game === 6;
-    const isSuperTB = !!S.superTB && sets === 2;
-    const useRaw = isTB || isSuperTB;
-    const DISP = useRaw ? null : (starMode ? ['0','15','30','40','⭐'] : POINTS);
-    const ptA = useRaw ? (S.a?.point ?? 0) : (DISP[S.a?.point] ?? S.a?.point ?? '0');
-    const ptB = useRaw ? (S.b?.point ?? 0) : (DISP[S.b?.point] ?? S.b?.point ?? '0');
+    const tbKind = tbKindOf(S);        // '' | 'tb' | 'stb' — 판정은 tbKindOf 한 곳
+    const useRaw = !!tbKind;           // 타이브레이크는 0·15·30 이 아니라 숫자 그대로
+    // 결정 포인트(2듀스의 ★ · 골든의 ◆)는 40-40 **양쪽**에 표기한다 — 콘솔의 fmtPoint 와
+    // 같은 규칙. 예전엔 AD 자리(포인트 4)를 ⭐ 로 덮었는데, 2듀스에선 AD 가 진짜
+    // 어드밴티지(다음 점을 따면 게임)라 그걸 덮으면 결정 포인트와 구분이 안 된다.
+    const deciding = starMode ? '★' : (S.goldenPoint ? '◆' : '');
+    const ptOf = (t) => {
+      const p = t?.point ?? 0;
+      if (useRaw) return p;
+      if (deciding) return deciding;
+      return POINTS[p] ?? String(p);
+    };
+    const ptA = ptOf(S.a);
+    const ptB = ptOf(S.b);
     const elPA = document.getElementById('tvPointA');
     const elPB = document.getElementById('tvPointB');
-    if ((S.a?.point ?? 0) !== prevPA) { pop(elPA); prevPA = S.a?.point ?? 0; }
-    if ((S.b?.point ?? 0) !== prevPB) { pop(elPB); prevPB = S.b?.point ?? 0; }
+    const nowPA = S.a?.point ?? 0, nowPB = S.b?.point ?? 0;
+    // 득점은 위에서 떨어지고(pt-in) 정정은 조용히(pt-down) — 중계에서 둘이 같아 보이면
+    // 심판이 오타를 고친 것도 득점처럼 보인다.
+    if (nowPA !== prevPA) { if (!firstPaint) { replay(elPA, nowPA > prevPA ? 'pt-in' : 'pt-down'); if (nowPA > prevPA) replay(document.getElementById('tvRowA'), 'scored'); } prevPA = nowPA; }
+    if (nowPB !== prevPB) { if (!firstPaint) { replay(elPB, nowPB > prevPB ? 'pt-in' : 'pt-down'); if (nowPB > prevPB) replay(document.getElementById('tvRowB'), 'scored'); } prevPB = nowPB; }
     elPA.textContent = ptA;
     elPB.textContent = ptB;
+
+    // 세트/매치 포인트 배지
+    const critA = critOf(S, S.a || {}, S.b || {});
+    const critB = critOf(S, S.b || {}, S.a || {});
+    paintCrit('tvCritA', critA);
+    paintCrit('tvCritB', critB);
+
+    // 매치 포인트면 화면 테두리가 맥박한다 — **어느 쪽이든**. 누가 끝낼 수 있는지는
+    // 이름 옆 배지가 말한다(테두리는 한 겹뿐이라 편을 가릴 수 없다).
+    const mpEdge = document.getElementById('tvMpEdge');
+    if (mpEdge) mpEdge.classList.toggle('on', /match/.test(critA) || /match/.test(critB));
 
     // 세트
     const curSet = (S.a?.sets || []).length;
@@ -1026,9 +1406,55 @@
       }
     }
 
-    // 배너
+    // 게임 획득 — 진행 중 세트 칸이 금빛으로 한 번 부푼다
+    const nowGA = S.a?.game ?? 0, nowGB = S.b?.game ?? 0;
+    if (!firstPaint && nowGA > prevGA) replay(document.getElementById(`tvSetA${Math.min(curSet, 2) + 1}`), 'game-win');
+    if (!firstPaint && nowGB > prevGB) replay(document.getElementById(`tvSetB${Math.min(curSet, 2) + 1}`), 'game-win');
+    prevGA = nowGA; prevGB = nowGB;
+
+    // 세트 획득 — 세트 칸이 하나 늘어났을 때만(정정으로 줄면 조용히)
+    if (!firstPaint && curSet > prevSets && curSet > 0) {
+      const a = S.a.sets[curSet - 1], b = S.b.sets[curSet - 1];
+      const who = a > b ? (S.a?.name || 'Team A') : b > a ? (S.b?.name || 'Team B') : '';
+      flashSet(`SET ${curSet}  ${Math.max(a, b)}-${Math.min(a, b)}`, who);
+    }
+    prevSets = curSet;
+
+    // 서브권이 넘어가는 순간 — 받은 쪽 행을 한 번 쓸어 준다
+    const serve = S.a?.serving ? 'A' : S.b?.serving ? 'B' : '';
+    if (!firstPaint && serve && serve !== prevServe && prevServe) replay(document.getElementById(`tvRow${serve}`), 'scored');
+    prevServe = serve;
+
+    // 하단 띠
+    paintTimeline(S.gamelog);
+    paintRun(S);
+    paintClock(S.startedAt);
+
+    // 배너 — 2듀스에선 몇 번째 듀스에서 결정 포인트가 왔는지까지 보여준다.
+    // (26S2 엔 'STAR POINT' 한 줄뿐이라, 보는 사람은 그게 왜 떴는지 알 수 없었다.)
+    const starTxt = document.getElementById('tvStarText');
+    if (starTxt) {
+      const n = S.deuce | 0;
+      starTxt.innerHTML = n > 1
+        ? `✦&nbsp;&nbsp;DEUCE ${n} · STAR POINT&nbsp;&nbsp;✦`
+        : '✦&nbsp;&nbsp;STAR POINT&nbsp;&nbsp;✦';
+    }
     document.getElementById('tvStarBanner').classList.toggle('visible', starMode);
     document.getElementById('tvGoldBanner').classList.toggle('visible', !!S.goldenPoint);
+
+    // 타이브레이크 배너 — **몇 점 경기인지까지** 적는다. 점수가 숫자로 바뀌는 것만으로는
+    // 7점인지 10점인지 알 수 없고, 슈퍼 타이브레이크는 세트 대신 치는 것이라 더 그렇다.
+    const tbEl = document.getElementById('tvTbBanner');
+    const tbTxt = document.getElementById('tvTbText');
+    if (tbTxt && tbKind) {
+      tbTxt.innerHTML = tbKind === 'stb'
+        ? 'SUPER TIE BREAK&nbsp;&nbsp;<em>10점 · 2점 차</em>'
+        : 'TIE BREAK&nbsp;&nbsp;<em>7점 · 2점 차</em>';
+    }
+    if (tbEl) tbEl.classList.toggle('visible', !!tbKind);
+    document.body.classList.toggle('tb-on', !!tbKind);
+
+    firstPaint = false;   // 여기서부터가 진짜 '변화'다
   });
 
   // 연결 상태 표시 — 'disconnect'는 유효한 RTDB 이벤트가 아니라 (기존 버그: 여기서

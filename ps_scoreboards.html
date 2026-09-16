@@ -65,7 +65,7 @@
 <!-- 대회용(포인트 표시) · 자동 업데이트(2분) -->
 <script>
 (function () {
-  var BUILD = "c5";
+  var BUILD = "c6";
   function check() {
     fetch(location.href.split('?')[0] + '?n=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.text(); })
@@ -76,7 +76,7 @@
   document.addEventListener("visibilitychange", function () { if (!document.hidden) check(); });
 })();
 </script>
-<!--SBBUILD:c5-->
+<!--SBBUILD:c6-->
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -113,8 +113,10 @@
     var isTB = (a.game === 6 && b.game === 6);
     var isSuperTB = !!S.superTB && curSet === 2;
     var useRaw = isTB || isSuperTB;
-    var DISP = useRaw ? null : (starMode ? ['0','15','30','40','⭐'] : POINTS);
-    function pt(x){ return useRaw ? (x!=null?x:0) : (DISP[x]!=null?DISP[x]:(x!=null?x:'0')); }
+    // 결정 포인트(2듀스 ★ · 골든 ◆)는 40-40 양쪽에. 2듀스에선 AD 가 진짜 어드밴티지라
+    // AD 자리를 덮으면 어드밴티지와 결정 포인트가 구분되지 않는다 (콘솔 fmtPoint 와 같은 규칙).
+    var deciding = starMode ? '★' : (S.goldenPoint ? '◆' : '');
+    function pt(x){ if (useRaw) return x!=null?x:0; if (deciding) return deciding; return POINTS[x]!=null?POINTS[x]:(x!=null?x:'0'); }
     var eA=document.getElementById('pA'); eA.textContent=pt(a.point); eA.className='cell pt';
     var eB=document.getElementById('pB'); eB.textContent=pt(b.point); eB.className='cell pt';
     document.getElementById('goldBanner').classList.toggle('show', !!S.goldenPoint);

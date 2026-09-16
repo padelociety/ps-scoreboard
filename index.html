@@ -278,8 +278,9 @@
       <button class="btn r-undo" id="btnUndo" onclick="undo()" disabled><span class="sym">↶</span><span class="caps">Undo</span></button>
       <button class="btn gold r-save" onclick="saveSet()"><span class="caps">Save Set</span></button>
       <div class="r-toggles">
-        <button class="btn tog" id="btnStar" onclick="toggleStar()"><span class="caps">Star</span><span class="st caps">Off</span></button>
-        <button class="btn tog" id="btnGold" onclick="toggleGold()"><span class="caps">Golden</span><span class="st caps">Off</span></button>
+        <!-- 듀스는 이제 규칙이 센다 — 이 버튼은 현재 상태를 보여주고, 탭하면 **강제로** 결정
+             포인트를 켠다(심판이 듀스 횟수를 놓쳤을 때의 구제책). 규칙 자체는 설정에 있다. -->
+        <button class="btn tog" id="btnDeuce" onclick="forceStar()"><span class="caps">Deuce</span><span class="st caps">—</span></button>
         <button class="btn tog" id="btnSuperTB" onclick="toggleSuperTB()"><span class="caps">Super TB</span><span class="st caps">Off</span></button>
       </div>
     </aside>
@@ -357,6 +358,14 @@
   </div>
 
   <div class="s-group">
+    <span class="caps">Deuce Rule</span>
+    <div class="frow"><label class="caps">40-40</label>
+      <div class="seg" id="btnDeuceRule"><button data-d="0" onclick="setDeuceLimit(0)">골든</button><button data-d="1" onclick="setDeuceLimit(1)">1듀스</button><button data-d="2" onclick="setDeuceLimit(2)">2듀스</button><button data-d="99" onclick="setDeuceLimit(99)">무제한</button></div>
+    </div>
+    <p class="hint" id="deuceHint"></p>
+  </div>
+
+  <div class="s-group">
     <span class="caps">TV Theme</span>
     <div class="frow"><label class="caps">Theme</label>
       <div class="seg" id="btnTvTheme"><button data-t="luxury" onclick="toggleTvTheme('luxury')">럭셔리</button><button data-t="classic" onclick="toggleTvTheme('classic')">클래식</button></div>
@@ -430,10 +439,55 @@
   // push() 가 scoreboard 노드를 통째로 set 하므로 superTB 처럼 여기서 들고 있다가 같이 실어 보낸다.
   let tvTheme = 'luxury';
 
+  /* ── 듀스 규칙 (26S3) ──────────────────────────────────────────────────────
+   * 26S2 는 **골든포인트**였다 — 40-40 이면 그 한 점으로 게임이 끝난다. 빠른 대신
+   * 한 점이 게임을 가져가서, 실력차가 있는 판은 순식간에 6-0 으로 벌어졌다.
+   * 26S3 은 **2듀스**다: 듀스 두 번은 어드밴티지로 겨루고, **세 번째 듀스**가
+   * 스타포인트(결정 포인트)가 된다.
+   *
+   *   deuceLimit = 어드밴티지로 겨룰 수 있는 듀스 횟수
+   *     0  → 첫 듀스가 곧 결정 포인트 (= 옛 골든포인트)
+   *     1  → 듀스 1회는 어드밴티지, 2번째 듀스가 결정
+   *     2  → 듀스 2회는 어드밴티지, **3번째 듀스가 결정** ← 26S3 기본값
+   *     99 → 사실상 무제한 (정통 어드밴티지)
+   *
+   * ⚠️ 듀스 횟수는 사람이 세지 않는다. 예전엔 심판이 [Golden] 버튼을 직접 켰고,
+   *    누르는 걸 잊으면 TV 에 배너가 안 떴다. 이제 40-40 에 도착한 횟수(S.deuce)를
+   *    스코어보드가 세고, 한계를 넘으면 자동으로 결정 포인트가 켜진다.
+   */
+  const DEUCE_STEPS = [0, 1, 2, 99];
+  const DEUCE_DEFAULT = 2;
+  const DEUCE_LABEL = { 0: '골든포인트', 1: '1듀스', 2: '2듀스', 99: '무제한 듀스' };
+  let deuceLimit = DEUCE_DEFAULT;
+
+  /** 지금 40-40 인가. 타이브레이크엔 듀스가 없다(2점차 규칙이 따로 돈다). */
+  function atDeuce() {
+    if (isTiebreak() || isSuperTiebreak()) return false;
+    return (S.a.point | 0) === 3 && (S.b.point | 0) === 3;
+  }
+  /** 지금 이 포인트가 게임을 끝내는 결정 포인트(스타/골든)인가. */
+  function starLive() {
+    if (!atDeuce()) return false;
+    if (S.starForce) return true;                  // 심판 수동 강제
+    return (S.deuce || 0) > deuceLimit;            // 듀스 2회 허용 → 3회차가 결정
+  }
+  /**
+   * 표시용 플래그를 상태에서 다시 계산해 S 에 박는다.
+   * TV·OBS·미니 스코어보드 셋은 이미 `starPoint`·`goldenPoint` 를 읽고 있으므로,
+   * 그 두 값을 **계산 결과로** 채우면 표시 쪽을 한 줄도 안 고치고 새 규칙이 켜진다.
+   * (골든 모드일 때만 금색 배너, 나머지는 은색 스타 배너 — 둘이 같이 뜨지 않는다.)
+   */
+  function syncDecidingFlags() {
+    const live = starLive();
+    S.goldenPoint = live && deuceLimit === 0;
+    S.starPoint = live && deuceLimit !== 0;
+  }
+  function sayDeciding() { say(deuceLimit === 0 ? 'Golden point' : 'Star point'); }
+
   // ── UNDO: 상태를 바꾸는 모든 동작은 mutate() 를 거친다 — 바꾸기 전 스냅샷을 쌓고, 실제로 달라졐을 때만 push.
   // 깊은 복사는 JSON 왕복 — S 는 순수 JSON 이고, 구형 태블릿 브라우저에 structuredClone 이 없을 수 있다.
   const undoStack = [];
-  const snapshot = () => JSON.stringify({ S, superTB });
+  const snapshot = () => JSON.stringify({ S, superTB, deuceLimit });
   function syncUndoBtn() { $('btnUndo').disabled = !undoStack.length; }
   function mutate(fn) {
     const before = snapshot();
@@ -448,7 +502,9 @@
   window.undo = () => {
     const prev = undoStack.pop();
     if (!prev) return;
-    ({ S, superTB } = JSON.parse(prev));
+    const p = JSON.parse(prev);
+    S = p.S; superTB = p.superTB;
+    if (typeof p.deuceLimit === 'number') deuceLimit = p.deuceLimit;   // 옛 스냅샷엔 없다
     syncUndoBtn();
     push();
     syncInputs();
@@ -469,6 +525,9 @@
     if (snap.val()) {
       S = snap.val();
       if (typeof S.superTB === 'boolean') superTB = S.superTB;   // superTB 상태 복원
+      // 듀스 규칙 복원 — 없으면(옛 데이터) 기본값 2듀스. 심판 태블릿을 새로 열어도
+      // 진행 중인 경기의 규칙이 그대로 따라와야 한다.
+      if (typeof S.deuceLimit === 'number') deuceLimit = S.deuceLimit;
       if (typeof S.tvTheme === 'string') {                         // TV 테마 상태 복원
         tvTheme = S.tvTheme === 'classic' ? 'classic' : 'luxury';
         syncTvThemeBtn();
@@ -678,8 +737,8 @@
     if (isSuperTiebreak() || isTiebreak()) { say(`${num(sv.point || 0)}, ${num(rc.point || 0)}`); return; }
     const sp = sv.point || 0, rp = rc.point || 0;
     if (sp === rp) { say(sp >= 3 ? 'Deuce' : `${PT_WORD[sp]} all`); return; }
+    // 결정 포인트는 chPoint 가 sayDeciding() 으로 따로 부른다 — 여기까지 오면 평범한 어드밴티지다.
     if (sp === 4 || rp === 4) {
-      if (S.starPoint) { say('Star point'); return; }
       say('Advantage');            // 이름을 못 부르니 'server/receiver' 를 붙이면 어색하다
       return;
     }
@@ -702,7 +761,7 @@
   }
 
   function push() {
-    set(sbRef, { ...S, superTB, tvTheme });
+    set(sbRef, { ...S, superTB, tvTheme, deuceLimit });
     renderPreview();
     renderCP();
     try { lgMaybeBroadcastLive(); } catch (_) {}
@@ -712,6 +771,7 @@
     syncTvThemeBtn();
     syncVoiceBtn();
     syncVoiceMetaBtns();
+    syncDeuceUI();
     $('inTitle').value = S.title || '';
     $('inNameA').value = S.a.name || '';
     $('inNameB').value = S.b.name || '';
@@ -734,11 +794,25 @@
   window.closeSettings = () => document.body.classList.remove('settings-open');
 
   window.toggleSuperTB = () => { mutate(() => { superTB = !superTB; }); };
-  window.toggleStar = () => {
-    if (mutate(() => { S.starPoint = !S.starPoint; }) && S.starPoint) say('Star point');   // 끌 때는 침묵
+
+  // 규칙 바꾸기 — 경기 도중에도 바꿀 수 있다(1세트는 골든, 2세트는 2듀스 같은 운영).
+  // 바꾸면 지금 상태에 바로 다시 적용한다: 2듀스에서 골든으로 내리면 진행 중인
+  // 40-40 이 그 자리에서 결정 포인트가 된다.
+  window.setDeuceLimit = (n) => {
+    const v = DEUCE_STEPS.includes(n) ? n : DEUCE_DEFAULT;
+    const wasStar = starLive();
+    if (mutate(() => { deuceLimit = v; syncDecidingFlags(); })) {
+      if (starLive() && !wasStar) sayDeciding();
+      else say(deuceLimit === 0 ? 'Golden point' : 'Deuce');
+    }
   };
-  window.toggleGold = () => {
-    if (mutate(() => { S.goldenPoint = !S.goldenPoint; }) && S.goldenPoint) say('Golden point');
+
+  // 강제 결정 포인트 — 심판이 듀스 횟수를 놓쳤을 때 손으로 켠다. 40-40 이 아니면 의미가
+  // 없으므로(결정할 포인트가 없다) 그때만 먹는다.
+  window.forceStar = () => {
+    if (!atDeuce()) { say('Deuce'); return; }
+    const wasStar = starLive();
+    if (mutate(() => { S.starForce = !wasStar; syncDecidingFlags(); }) && starLive()) sayDeciding();
   };
 
   window.onTitleChange = () => { S.title = $('inTitle').value; push(); };
@@ -752,11 +826,20 @@
   window.chGame = (t, d) => {
     const s = t === 'A' ? S.a : S.b;
     const changed = mutate(() => {
+      const before = s.game;
       s.game = Math.max(0, s.game + d);
+      if (s.game === before) return;      // 0 에서 − 같은 헛손질 — 타임라인도 건드리지 않는다
       if (d > 0) {
         S.a.point = 0; S.b.point = 0;
         [S.a.serving, S.b.serving] = [!!S.b.serving, !!S.a.serving];
+        // 듀스 이력은 **게임마다** 처음부터 센다 — 지난 게임에서 세 번 듀스를 갔다고
+        // 다음 게임 첫 40-40 이 결정 포인트가 되면 안 된다.
+        S.deuce = 0; S.starForce = false;
         S.starPoint = false; S.goldenPoint = false;
+        S.run = null;                                   // 연속 득점은 게임 단위
+        S.gamelog = [...(S.gamelog || []), t];          // 이번 세트의 게임 주인 (TV 타임라인)
+      } else {
+        S.gamelog = (S.gamelog || []).slice(0, -1);     // 정정이면 마지막 한 칸만 무른다
       }
     });
     if (changed && d > 0) speakGame();   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
@@ -775,9 +858,55 @@
 
   window.chPoint = (t, d) => {
     const s = t === 'A' ? S.a : S.b;
+    const o = t === 'A' ? S.b : S.a;
+    const raw = isSuperTiebreak() || isTiebreak();
+
+    // 이 포인트로 게임이 끝나면 **게임을 올린다**(포인트를 4 로 올려 두지 않는다).
+    //
+    // ⚠️ 26S2 엔 이 자리가 없었다 — 골든포인트라 어드밴티지가 아예 안 나와서 안 드러났을
+    //    뿐이다. 2듀스에선 AD 가 매 게임 나오는데, AD(4) 에서 [+Point] 를 누르면 값이
+    //    4 에서 잘려 **아무 일도 일어나지 않는 죽은 버튼**이 된다(mutate 가 false 를
+    //    돌려주니 콜도 안 나간다). 40-30 에서 한 점을 따도 마찬가지로 'AD' 가 떴다.
+    //    그래서 규칙대로 판정한다: 4점째이면서 2점 차, 또는 결정 포인트를 따냈을 때.
+    // [+Game] 은 그대로 남는다 — 정정용이고, 게임이 올라가면 소리로 알려 주므로
+    // (speakGame) 심판이 두 번 누를 일은 없다.
+    if (d > 0 && !raw) {
+      const p = (s.point | 0) + 1;
+      const q = o.point | 0;
+      if (starLive() || (p >= 4 && p - q >= 2)) { window.chGame(t, 1); return; }
+    }
+
     // 타이브레이크(6-6)·슈퍼타이브레이크: 1점씩 무제한. 일반 포인트: 0~AD.
-    const max = (isSuperTiebreak() || isTiebreak()) ? Infinity : POINTS.length - 1;
-    if (mutate(() => { s.point = Math.max(0, Math.min(max, (s.point || 0) + d)); })) speakPoint();   // 내릴 때(정정)도 읽는다 — 지금 몇 대 몇인지가 콜의 목적이라
+    const max = raw ? Infinity : POINTS.length - 1;
+    const changed = mutate(() => {
+      const wasDeuce = atDeuce();
+      if (d > 0) {
+        // 경기 시작 시각 — 첫 포인트에 한 번만 찍는다. TV 의 경기 시계가 이걸 본다.
+        // (TV 가 스스로 재는 게 아니라 여기서 찍어 보내야, 중계 도중 TV 를 새로고침해도
+        //  시계가 0 으로 돌아가지 않는다.)
+        if (!S.startedAt) S.startedAt = Date.now();
+        // 연속 득점 — 이 게임 안에서만. TV 가 '3연속' 같은 흐름을 보여준다.
+        S.run = (S.run && S.run.t === t) ? { t, n: S.run.n + 1 } : { t, n: 1 };
+      }
+      if (d > 0 && !raw && (o.point | 0) === 4 && (s.point | 0) === 3) {
+        // 어드밴티지를 가진 쪽이 그 포인트를 잃으면 **듀스로 돌아간다**.
+        // (예전엔 여기서 이쪽이 4 가 되어 양 팀이 동시에 AD 인, 테니스에 없는 점수가 나왔다.)
+        o.point = 3;
+      } else {
+        s.point = Math.max(0, Math.min(max, (s.point || 0) + d));
+      }
+      if (!raw) {
+        // 40-40 에 **새로** 도착하면 듀스 한 번. 정정(−)으로 내려온 건 세지 않는다 —
+        // 실제로 겨룬 듀스가 아니라 입력을 되돌린 것이라, 세면 결정 포인트가 앞당겨진다.
+        if (d > 0 && !wasDeuce && atDeuce()) S.deuce = (S.deuce || 0) + 1;
+        // 둘 중 하나라도 40 밑으로 내려가면(정정) 듀스 이력도 같이 내려간다.
+        if ((S.a.point | 0) < 3 || (S.b.point | 0) < 3) { S.deuce = 0; S.starForce = false; }
+        syncDecidingFlags();
+      }
+    });
+    if (!changed) return;
+    // 내릴 때(정정)도 읽는다 — 지금 몇 대 몇인지가 콜의 목적이라.
+    if (starLive()) sayDeciding(); else speakPoint();
   };
   window.setServe = t => {
     mutate(() => {
@@ -791,6 +920,8 @@
     const changed = mutate(() => {
       S.a.sets = [...(S.a.sets||[]), S.a.game]; S.b.sets = [...(S.b.sets||[]), S.b.game];
       S.a.game=0; S.b.game=0; S.a.point=0; S.b.point=0;
+      S.deuce = 0; S.starForce = false; S.starPoint = false; S.goldenPoint = false;
+      S.gamelog = []; S.run = null;    // 게임 타임라인은 세트마다 새로
     });
     if (changed) speakSet();
   };
@@ -807,11 +938,38 @@
   };
 
   // ── Render ──
-  // 포인트 표기 하나로: 타이브레이크·슈퍼TB 는 숫자 그대로, AD 는 스타포인트가 켜져 있으면 ★.
+  // 포인트 표기 하나로: 타이브레이크·슈퍼TB 는 숫자 그대로, 40-40 이 결정 포인트면 ★.
+  // ⚠️ AD 는 이제 항상 'AD' 다 — 2듀스에선 어드밴티지가 **진짜 어드밴티지**(다음 포인트를
+  //    따면 게임)라, 예전처럼 ★ 로 덮으면 결정 포인트와 구분이 안 된다.
   function fmtPoint(t) {
     if (isTiebreak() || isSuperTiebreak()) return String(t.point || 0);
-    if (t.point === 4) return S.starPoint ? '★' : 'AD';
+    if (starLive()) return deuceLimit === 0 ? '◆' : '★';
+    if (t.point === 4) return 'AD';
     return POINTS[t.point] ?? String(t.point ?? 0);
+  }
+  /** 레일의 Deuce 버튼에 찍히는 현재 상태 — 규칙 + 이번 게임 듀스 회차. */
+  function deuceStatus() {
+    if (isTiebreak() || isSuperTiebreak()) return 'TB';
+    if (starLive()) return deuceLimit === 0 ? '◆ GOLD' : '★ STAR';
+    if (atDeuce()) return `듀스 ${S.deuce || 1}`;
+    return DEUCE_LABEL[deuceLimit] || `${deuceLimit}듀스`;
+  }
+  function syncDeuceUI() {
+    const b = $('btnDeuce');
+    if (b) {
+      b.classList.toggle('on', starLive());
+      b.querySelector('.st').textContent = deuceStatus();
+    }
+    const seg = $('btnDeuceRule');
+    if (seg) [...seg.children].forEach((x) => x.classList.toggle('on', Number(x.dataset.d) === deuceLimit));
+    const hint = $('deuceHint');
+    if (hint) {
+      hint.textContent = deuceLimit === 0
+        ? '40-40 이면 그 한 점으로 게임이 끝난다 (26S2 방식).'
+        : deuceLimit >= 99
+          ? '2점 차가 날 때까지 — 상한이 없어 한 게임이 길어질 수 있다.'
+          : `듀스 ${deuceLimit}번은 어드밴티지로 겨루고, ${deuceLimit + 1}번째 듀스가 결정 포인트(★)다. 횟수는 스코어보드가 센다.`;
+    }
   }
   function setToggle(id, on) {
     const b = $(id);
@@ -829,8 +987,7 @@
     $('bServeB').classList.toggle('on', !!S.b.serving);
     $('tnA').classList.toggle('serving', !!S.a.serving);
     $('tnB').classList.toggle('serving', !!S.b.serving);
-    setToggle('btnStar', !!S.starPoint);
-    setToggle('btnGold', !!S.goldenPoint);
+    syncDeuceUI();
     setToggle('btnSuperTB', superTB);
     renderChips('A', S.a.sets||[]);
     renderChips('B', S.b.sets||[]);
@@ -931,7 +1088,9 @@
       S.title = m.time ? `${tdTournament.name} · ${m.time}` : String(tdTournament.name || '');
       S.a = { ...blank(), name: m.a };
       S.b = { ...blank(), name: m.b };
+      S.deuce = 0; S.starForce = false;
       S.starPoint = false; S.goldenPoint = false;
+      S.startedAt = 0; S.gamelog = []; S.run = null;   // 새 경기 — 시계·타임라인도 새로
     });
     syncInputs();
   };

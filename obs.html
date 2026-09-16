@@ -94,13 +94,58 @@
   .sb-set.has-score { color:#fff; background:#235438; }
   .sb-set.sb-set-cur { background:var(--green-dark); color:#fff; }
 
-  /* score pop animation */
+  /* ══════ 26S3 중계 연출 ══════
+     ⚠️ 이 오버레이는 **유튜브 시청자가 실제로 보는 화면**이고 영상 위에 얹힌다.
+        tv.html(코트 TV)보다 더 절제한다 — 세트 획득 전체화면 연출·하단 띠는 넣지 않는다
+        (영상을 가린다). 늘 도는 애니메이션도 늘리지 않는다. transform/opacity 만. */
   @keyframes pop {
     0%   { transform:scale(1); }
     40%  { transform:scale(1.35); }
     100% { transform:scale(1); }
   }
   .pop { animation: pop .25s ease-out; }
+
+  /* 득점 — 위에서 떨어져 꽂힌다 / 정정 — 조용히 (둘이 같아 보이면 오타 정정이 득점처럼 보인다) */
+  @keyframes ptIn   { 0%{transform:translateY(-40%) scale(.8);opacity:0} 55%{transform:translateY(0) scale(1.2);opacity:1} 100%{transform:translateY(0) scale(1);opacity:1} }
+  @keyframes ptDown { 0%{transform:scale(1.1);opacity:.45} 100%{transform:scale(1);opacity:1} }
+  .pt-in   { animation: ptIn .4s cubic-bezier(.2,.9,.25,1.1); }
+  .pt-down { animation: ptDown .28s ease-out; }
+
+  /* 게임 획득 — 진행 중 세트 칸이 한 번 부푼다 */
+  @keyframes gameWin { 0%{transform:scale(1)} 30%{transform:scale(1.35)} 100%{transform:scale(1)} }
+  .game-win { animation: gameWin .7s cubic-bezier(.2,.9,.25,1.1); }
+
+  /* 득점한 팀 행을 한 번 쓸어준다 */
+  .sb-row { position:relative; }
+  .sb-row::after {
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+  }
+  .sb-row.scored::after { animation: rowSweep .55s ease-out; }
+  @keyframes rowSweep { 0%{opacity:0;transform:translateX(-35%)} 35%{opacity:1} 100%{opacity:0;transform:translateX(35%)} }
+
+  /* 세트/매치 포인트 배지 — 중계에서 가장 드라마가 큰 한 줄인데 26S2 엔 없었다.
+     새 데이터가 필요 없다: 게임·포인트만 보면 계산된다.
+     ⚠️ **타이틀바에 둔다.** 처음엔 팀 이름 옆에 붙였는데, 이 오버레이의 이름 칸은
+        320px 뿐이라 배지가 잘리거나(overflow:hidden) 선수 이름을 잘라야 했다 —
+        중계에서 선수 이름을 자르는 건 배지를 못 보여주는 것보다 나쁘다.
+        어느 팀인지는 ▲(위 줄) ▼(아래 줄) 로 가리킨다. */
+  .sb-title { display:flex; align-items:center; gap:14px; }
+  .sb-title-text { flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sb-title .crit {
+    display:none; flex:none;
+    font-size:19px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
+    padding:3px 12px; border-radius:999px; white-space:nowrap;
+    background:#C6A867; color:#123328;
+  }
+  .sb-title .crit.show  { display:inline-flex; animation: critIn .3s cubic-bezier(.2,.9,.25,1.1), critPulse 1.3s ease-in-out .3s infinite alternate; }
+  .sb-title .crit.match { background:#B3543C; color:#fff; }
+  @keyframes critIn    { 0%{opacity:0;transform:scale(.7)} 100%{opacity:1;transform:scale(1)} }
+  @keyframes critPulse { 0%{opacity:.7} 100%{opacity:1} }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pop, .pt-in, .pt-down, .game-win, .sb-row.scored::after, .sb-title .crit.show { animation:none; }
+  }
 
   /* ── GOLDEN POINT BANNER ── */
   .gold-banner {
@@ -171,11 +216,36 @@
     background: linear-gradient(90deg, transparent, rgba(200,220,255,0.15), transparent);
     animation: shimmer 2.5s linear infinite;
   }
+
+  /* ── TIE BREAK 배너 ──
+     ⚠️ 스타·골든과 달리 **빛나지 않는다** (tv.html 과 같은 결정). 저 둘은 한 포인트짜리
+        순간이지만 타이브레이크는 몇 분씩 떠 있다 — 계속 명멸하면 화면이 피곤해지고
+        정작 결정 포인트가 왔을 때 구분이 안 된다. 나타날 때 한 번만 알린다. */
+  .tb-banner {
+    display: none;
+    margin-top: 6px;
+    background: rgba(0,0,0,.72);
+    border-top: 1px solid rgba(245,197,24,0.3);
+    border-bottom: 1px solid rgba(245,197,24,0.3);
+    padding: 7px 20px;
+    text-align: center;
+  }
+  .tb-banner.visible { display: block; animation: tbIn .5s cubic-bezier(.2,.9,.25,1.1); }
+  .tb-banner-text {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 900; letter-spacing: 6px;
+    color: #e8f0f7; text-transform: uppercase;
+  }
+  .tb-banner-text em { font-style: normal; letter-spacing: 3px; color: #f5c518; }
+  @keyframes tbIn { 0% { opacity: 0; transform: translateY(-10px); } 100% { opacity: 1; transform: none; } }
+
+  /* 타이브레이크엔 40-40 이 없다 — 낡은 스타·골든 플래그가 함께 뜨지 않게 한다. */
+  body.tb-on .star-banner, body.tb-on .gold-banner { display: none; }
 </style>
 </head>
 <body>
 <div class="scoreboard" id="sb">
-  <div class="sb-title" id="sbTitle">PS i-League</div>
+  <div class="sb-title"><span class="sb-title-text" id="sbTitle">PS i-League</span><span class="crit" id="sbCrit"></span></div>
   <div class="sb-teams">
     <div class="sb-teams-inner">
       <div class="sb-logo-panel">
@@ -201,9 +271,12 @@
     </div>
   </div>
   <div class="star-banner" id="starBanner">
-    <div class="star-banner-text">
+    <div class="star-banner-text" id="starBannerText">
       <span class="star">✦</span>STAR POINT<span class="star">✦</span>
     </div>
+  </div>
+  <div class="tb-banner" id="tbBanner">
+    <div class="tb-banner-text" id="tbBannerText"></div>
   </div>
   <div class="gold-banner" id="goldBanner">
     <div class="gold-banner-text">
@@ -232,11 +305,89 @@
 
   let prevPointA = 0;
   let prevPointB = 0;
+  let prevGameA = 0, prevGameB = 0, prevServe = '';
+  /**
+   * ⚠️ **첫 스냅샷은 연출 없이 그린다.** OBS 브라우저소스는 경기 도중에 새로고침되는
+   * 일이 흔하다 — 그때 첫 스냅샷을 '변화'로 읽으면 아까 딴 포인트가 방금 난 것처럼
+   * 떨어지고, 중계에 없는 일이 그대로 방송된다.
+   */
+  let firstPaint = true;
 
   function pop(el) {
     el.classList.remove('pop');
     void el.offsetWidth;
     el.classList.add('pop');
+  }
+  /** 클래스를 뗐다 붙여 애니메이션을 다시 튼다 (연속 득점에도 매번 돌게). */
+  function replay(el, cls) {
+    if (!el) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
+
+  /**
+   * 지금이 타이브레이크인가 — '' | 'tb'(7점) | 'stb'(슈퍼 타이브레이크 10점).
+   *
+   * ⚠️ **한 곳에만 적는다.** 예전엔 점수 표기(useRaw)와 critOf 가 각자 적고 있었고
+   *    조건이 미묘하게 달랐다(슈퍼TB 를 빼느냐 마느냐). 거기에 배너까지 세 벌이 되면
+   *    언젠가 갈라져서 '숫자는 타이브레이크인데 배너는 안 뜨는' 화면이 된다.
+   */
+  function tbKindOf(S) {
+    const sets = (S.a?.sets || []).length;
+    if (S.superTB && sets === 2) return 'stb';
+    if ((S.a?.game | 0) === 6 && (S.b?.game | 0) === 6) return 'tb';
+    return '';
+  }
+
+  /**
+   * 세트/매치 포인트 판정 — 새 데이터 없이 게임·포인트만으로 계산된다.
+   * '이 포인트를 따면 게임을 가져가고, 그 게임으로 세트(또는 경기)가 끝나는가'.
+   *
+   * 타이브레이크는 7점·2점 차, 슈퍼타이브레이크는 10점·2점 차로 본다.
+   * ⚠️ 확정이 아니라 **표시**다 — 세트 종료는 사람이 [Save Set] 으로 정한다(6-6 뒤
+   *    타이브레이크를 할지, 몇 세트 경기인지가 대회마다 달라서 규칙을 박지 않는다).
+   */
+  function critOf(S, me, you) {
+    const sets = (S.a?.sets || []).length;
+    const kind = tbKindOf(S);
+    const isTB = kind === 'tb';
+    const isSTB = kind === 'stb';
+    const p = me.point | 0, q = you.point | 0;
+
+    // 타이브레이크: 다음 한 점으로 끝나는가
+    if (isTB || isSTB) {
+      const target = isSTB ? 10 : 7;
+      if (p + 1 >= target && p + 1 - q >= 2) return sets >= 1 ? 'match point' : 'set point';
+      return '';
+    }
+    // 일반 게임: 다음 한 점으로 게임을 가져가는가
+    const decider = (S.deuce || 0) > (typeof S.deuceLimit === 'number' ? S.deuceLimit : 2) || !!S.starForce;
+    const winsGame = (p === 3 && q <= 2) || (p === 4) || (p === 3 && q === 3 && decider);
+    if (!winsGame) return '';
+    // 그 게임으로 세트가 끝나는가 — 6게임 + 2게임 차, 또는 7-5/7-6
+    const g = (me.game | 0) + 1, h = you.game | 0;
+    const winsSet = (g >= 6 && g - h >= 2) || g === 7;
+    if (!winsSet) return '';
+    // 이번 세트로 경기가 끝나는가 — 이미 한 세트를 이겨 뒀다면 매치포인트
+    const mySets = (me.sets || []).filter((v, i) => v > (you.sets || [])[i]).length;
+    return mySets >= 1 ? 'match point' : 'set point';
+  }
+  /**
+   * 타이틀바 배지 하나에 두 팀을 합쳐 그린다.
+   * 결정 포인트(40-40 스타/골든)에서는 **양쪽 다** 세트포인트라 화살표를 빼고 문구만 둔다 —
+   * 둘 다 가리키는 화살표는 아무것도 안 가리키는 것과 같다.
+   */
+  function paintCrit(critA, critB) {
+    const el = document.getElementById('sbCrit');
+    if (!el) return;
+    const text = critA && critB ? critA
+      : critA ? '▲ ' + critA
+      : critB ? '▼ ' + critB : '';
+    const on = !!text;
+    if (on && el.textContent !== text) el.textContent = text;
+    el.classList.toggle('match', /match/.test(text));
+    if (on !== el.classList.contains('show')) el.classList.toggle('show', on);
   }
 
   function render(S) {
@@ -246,31 +397,65 @@
 
     // 타이브레이크(6-6)·슈퍼TB(3세트)는 숫자 그대로, 아니면 15/30/40 매핑 (스타포인트 모드면 AD 대신 ⭐) — tv.html 과 동일 규칙
     const starMode = !!S.starPoint;
-    const sets = (S.a.sets || []).length;
-    const isTB = S.a.game === 6 && S.b.game === 6;
-    const isSuperTB = !!S.superTB && sets === 2;
-    const useRaw = isTB || isSuperTB;
-    const DISP = useRaw ? null : (starMode ? ['0','15','30','40','⭐'] : POINTS);
-    const ptA = useRaw ? (S.a.point ?? 0) : (DISP[S.a.point] ?? S.a.point ?? '0');
-    const ptB = useRaw ? (S.b.point ?? 0) : (DISP[S.b.point] ?? S.b.point ?? '0');
+    const tbKind = tbKindOf(S);        // '' | 'tb' | 'stb' — 판정은 tbKindOf 한 곳
+    const useRaw = !!tbKind;           // 타이브레이크는 0·15·30 이 아니라 숫자 그대로
+    // 결정 포인트(2듀스 ★ · 골든 ◆)는 40-40 **양쪽**에 찍는다 — 콘솔 fmtPoint 와 같은 규칙.
+    // 2듀스에선 AD(포인트 4)가 진짜 어드밴티지라, 예전처럼 AD 자리를 ⭐ 로 덮으면
+    // 어드밴티지와 결정 포인트가 화면에서 구분되지 않는다.
+    const deciding = starMode ? '★' : (S.goldenPoint ? '◆' : '');
+    const ptOf = (t) => (useRaw ? (t.point ?? 0) : deciding || POINTS[t.point] || String(t.point ?? 0));
+    const ptA = ptOf(S.a);
+    const ptB = ptOf(S.b);
     const elPA = document.getElementById('sbPointA');
     const elPB = document.getElementById('sbPointB');
 
-    if (S.a.point !== prevPointA) { pop(elPA); prevPointA = S.a.point; }
-    if (S.b.point !== prevPointB) { pop(elPB); prevPointB = S.b.point; }
+    const nowPA = S.a.point ?? 0, nowPB = S.b.point ?? 0;
+    if (nowPA !== prevPointA) { if (!firstPaint) { replay(elPA, nowPA > prevPointA ? 'pt-in' : 'pt-down'); if (nowPA > prevPointA) replay(document.getElementById('rowA'), 'scored'); } prevPointA = nowPA; }
+    if (nowPB !== prevPointB) { if (!firstPaint) { replay(elPB, nowPB > prevPointB ? 'pt-in' : 'pt-down'); if (nowPB > prevPointB) replay(document.getElementById('rowB'), 'scored'); } prevPointB = nowPB; }
 
     elPA.textContent = ptA;
     elPB.textContent = ptB;
 
-    // 스타 배너
+    // 세트/매치 포인트 배지
+    paintCrit(critOf(S, S.a || {}, S.b || {}), critOf(S, S.b || {}, S.a || {}));
+
+    // 스타 배너 — 2듀스면 몇 번째 듀스에서 왔는지까지. 26S2 엔 'STAR POINT' 한 줄뿐이라
+    // 보는 사람은 그게 왜 떴는지 알 수 없었다.
+    const st = document.getElementById('starBannerText');
+    if (st) {
+      const n = S.deuce | 0;
+      st.innerHTML = n > 1
+        ? '<span class="star">✦</span>DEUCE ' + n + ' · STAR POINT<span class="star">✦</span>'
+        : '<span class="star">✦</span>STAR POINT<span class="star">✦</span>';
+    }
     document.getElementById('starBanner').classList.toggle('visible', starMode);
     // 골든포인트 배너
     document.getElementById('goldBanner').classList.toggle('visible', !!S.goldenPoint);
 
+    // 타이브레이크 배너 — **몇 점 경기인지까지** 적는다. 점수가 숫자로 바뀌는 것만으로는
+    // 7점인지 10점인지 알 수 없고, 슈퍼 타이브레이크는 세트 대신 치는 것이라 더 그렇다.
+    const tbEl = document.getElementById('tbBanner');
+    const tbTxt = document.getElementById('tbBannerText');
+    if (tbTxt && tbKind) {
+      tbTxt.innerHTML = tbKind === 'stb'
+        ? 'SUPER TIE BREAK&nbsp;&nbsp;<em>10점 · 2점 차</em>'
+        : 'TIE BREAK&nbsp;&nbsp;<em>7점 · 2점 차</em>';
+    }
+    if (tbEl) tbEl.classList.toggle('visible', !!tbKind);
+    document.body.classList.toggle('tb-on', !!tbKind);
+
+    const serve = S.a.serving ? 'A' : S.b.serving ? 'B' : '';
+    if (!firstPaint && serve && serve !== prevServe && prevServe) replay(document.getElementById('row' + serve), 'scored');
+    prevServe = serve;
     document.getElementById('rowA').classList.toggle('serving', !!S.a.serving);
     document.getElementById('rowB').classList.toggle('serving', !!S.b.serving);
 
     const curSet = (S.a.sets || []).length;
+    // 게임 획득 — 진행 중 세트 칸이 한 번 부푼다
+    const nowGA = S.a.game ?? 0, nowGB = S.b.game ?? 0;
+    if (!firstPaint && nowGA > prevGameA) replay(document.getElementById('sbSetA' + (Math.min(curSet, 2) + 1)), 'game-win');
+    if (!firstPaint && nowGB > prevGameB) replay(document.getElementById('sbSetB' + (Math.min(curSet, 2) + 1)), 'game-win');
+    prevGameA = nowGA; prevGameB = nowGB;
     for (let i = 0; i < 3; i++) {
       const ca = document.getElementById(`sbSetA${i+1}`);
       const cb = document.getElementById(`sbSetB${i+1}`);
@@ -290,17 +475,22 @@
         cb.classList.remove('has-score','sb-set-cur');
       }
     }
+
+    firstPaint = false;   // 여기서부터가 진짜 '변화'다
   }
 
   const sbEl = document.getElementById('sb');
   function show(on) { sbEl.classList.toggle('on', !!on); }
 
   // ?demo=1 — 경기가 없을 때 OBS 에서 자리·크기를 잡기 위한 샘플.
+  // ⚠️ 일부러 **세트포인트 상태**로 둔다. 배지가 붙었을 때가 이름 줄이 가장 넓어지는
+  //    순간이라, 그때 안 잘리면 경기 중에도 안 잘린다 — 자리를 잡으면서 확인할 수 있다.
   if (new URLSearchParams(location.search).get('demo') === '1') {
     render({
-      title: 'PSiL 26S2 · Match 3',
-      a: { name: '현수정 / 도우석', point: 2, game: 3, sets: [6, 4], serving: true  },
-      b: { name: '이주경 / 김민수', point: 1, game: 2, sets: [3, 6], serving: false },
+      title: 'PSiL 26S3 · Match 3',
+      deuceLimit: 2,
+      a: { name: '현수정 / 도우석', point: 3, game: 5, sets: [6], serving: true  },
+      b: { name: '이주경 / 김민수', point: 2, game: 3, sets: [4], serving: false },
     });
     show(true);
   } else {
