@@ -182,7 +182,12 @@
     font-weight: 800;
     color: var(--cream);
     letter-spacing: 1px;
-    line-height: 1;
+    /* ⚠️ `line-height: 1` 이면 **한글 밑이 잘린다.** 72px 글자의 글자상자는 마루부리·Noto
+       한글에서 ~90px 인데 1 이면 담는 칸이 72px 뿐이라, `overflow: hidden`(가로 말줄임용)이
+       삐져나온 아래쪽을 잘라 낸다 — '양지은' 의 ㅇ 받침 아래가 날아간다(2026-09-19 신고).
+       조별 목록의 `.tn` 이 같은 이유로 이미 1.3 을 쓴다. `.sb-row` 는 min-height 130px 라
+       1.3(93.6px)으로 올려도 줄 높이는 그대로다. */
+    line-height: 1.3;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -929,10 +934,14 @@
        경기 수로 **그냥 n 등분**해서, 한 번 재면 끝이다(gsFitRows).
        ⚠️ min-height 도 없앴다 — 44px 를 우기면 경기가 많을 때 행들이 목록 밖으로
        밀려 나가 overflow:hidden 에 잘린다. 대신 글자를 줄여 담는다. */
-    flex: 1 1 0; min-height: 0; max-height: 150px;
+    flex: 1 1 0; min-height: 0; max-height: 110px;
     display: grid;
+    /* ⚠️ **한 경기 = 한 줄**이다(사용자 결정 2026-09-19: "양지은 & 이준우 6 : 4 임안규 …").
+       예전엔 홈/원정을 위아래 두 줄로 놓아서 한 행이 글자 두 줄을 담아야 했다 —
+       15경기면 행이 57px 뿐인데 두 줄이 72px 를 요구해 애초에 들어갈 수가 없었다.
+       한 줄이면 같은 57px 에 28px 글자가 그대로 들어간다(줄일 필요가 없어진다). */
     grid-template-columns: 66px minmax(0, 1fr);
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: 1fr;
     align-items: center;
     /* 세로 패딩 0 — .no 의 세로 헤어라인이 행 위아래 끝까지 닿아야 열처럼 보인다 */
     padding: 0 10px;
@@ -942,7 +951,7 @@
   /* 매치번호 = 거터의 맨 숫자 (번호 위 · 시각 아래 · LIVE/NEXT 그 아래).
      시드 칩(.bk-seed)으로 오독되지 않게 배경·테두리 없이 세로 헤어라인으로만 나눈다. */
   .gs-m .no {
-    grid-row: 1 / span 2; align-self: stretch; overflow: hidden;
+    grid-row: 1; align-self: stretch; overflow: hidden;
     display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px;
     /* line-height 1 이면 34px 숫자의 글자상자(40px)가 아래 시각과 겹친다 */
     padding-right: 13px; border-right: 1px solid rgba(var(--gold-rgb),0.22); line-height: 1.2;
@@ -951,8 +960,10 @@
      글자 크기는 **화면 너비**(vw)로 정해지는데 남는 높이는 **경기 수**로 정해진다 —
      둘은 아무 상관이 없어서, 6팀 조(15경기)처럼 행이 많아지면 28px 글자가 57px 행에
      두 줄로 들어가려다 서로 겹쳐 찍혔다. `--gs-row`(행 실제 높이)는 gsFitRows 가 넣는다.
-     계수: 이름·점수가 앉는 칸은 행의 **절반**이고 line-height 1.3 이라 글자는 행의
-     0.385 배가 한계다 — 이름 0.324 / 점수 0.37 은 그 안에서 원래 비율(28:32)을 지킨 값.
+     계수: 이름·점수가 한 줄에 앉으므로 칸이 행 **전체**다. line-height 1.3 이라 글자는
+     행의 0.77 배가 한계 — 이름 0.62 / 점수 0.68 은 그 안에서 원래 비율(28:32)을 지킨 값.
+     ⚠️ 두 줄이던 시절 계수는 0.324/0.37 이었다. 한 줄로 바꾸면서 두 배로 키운 것이고,
+     그래서 15경기에서도 이름이 상한 28px 를 그대로 쓴다(더는 줄지 않는다).
      번호 거터(.no)는 행을 **통째로** 쓰므로 더 클 수 있다: 숫자 0.36 + 시각 0.15 +
      배지 0.15 를 line-height 까지 더하면 행의 0.97 로, LIVE 배지가 붙은 행도 들어간다.
      ⚠️ 번호를 h/2 기준(0.28)으로 잡으면 번호가 이름보다 작아진다 — 거터의 큰 숫자가
@@ -970,34 +981,40 @@
     font-size: max(9px, min(clamp(11px, 1.1vw, 15px), calc(var(--gs-row, 999px) * 0.15)));
     letter-spacing: 0.8px; color: rgba(var(--cream-rgb),0.32);
   }
-  /* 홈·원정을 위아래로 — 조 칼럼이 좁아 한 줄에 두 이름을 넣으면 한글 페어 이름이 잘린다 */
-  .gs-m .side {
-    display: grid; grid-template-columns: minmax(0, 1fr) 46px;
-    align-items: center; gap: 10px; padding-left: 13px; height: 100%;
+  /* 홈 · 점수 · 원정을 한 줄에. 가운데 점수가 세로 축을 만들어 목록이 한눈에 읽힌다
+     (홈은 오른쪽 정렬, 원정은 왼쪽 정렬 — 축이 행마다 같은 자리에 선다). */
+  .gs-m .pair {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center; gap: 14px; padding-left: 13px; height: 100%;
     /* ⚠️ 이 한 줄이 '겹쳐 찍히는' 사고를 구조적으로 막는다. 글자 상자가 칸보다 커지면
        예전엔 위아래 칸으로 **새어 나가** 두 팀 이름이 포개졌다(2026-09-19 신고).
        이제 최악이라도 잘릴 뿐이고, 아래 `--gs-row` 가 애초에 잘리지 않게 줄인다. */
     overflow: hidden;
   }
-  /* 홈/원정 사이는 경기 구분선보다 훨씬 옅게 — 안 그러면 두 줄이 별개 경기처럼 보이고
-     가운데 번호가 어느 쪽 것인지 헷갈린다. */
-  .gs-m .side + .side { border-top: 1px solid rgba(var(--cream-rgb),0.045); }
+  .gs-m .tn.h { text-align: right; }
+  .gs-m .tn.a { text-align: left; }
+  /* 점수 묶음 — 행마다 폭이 달라지면 축이 흔들린다. 숫자는 등폭으로 고정. */
+  .gs-m .scs {
+    display: flex; align-items: baseline; justify-content: center; gap: 7px;
+    font-variant-numeric: lining-nums tabular-nums; font-weight: 700;
+    color: rgba(var(--cream-rgb),0.34);
+    /* 이름과 같은 1.3 — 베이스라인이 1px 안쪽으로 맞는다 */
+    line-height: 1.3;
+    font-size: max(13px, min(clamp(16px, 1.7vw, 32px), calc(var(--gs-row, 999px) * 0.68)));
+  }
+  .gs-m .scs b { min-width: 1.1em; text-align: center; font-weight: 700; }
+  .gs-m .scs .vs { font-style: normal; letter-spacing: 1px; opacity: 0.55; }
   .gs-m .tn {
     /* line-height 1 은 안 된다 — 한글 글자 상하가 잘린다(27.8px 글자에 32px 필요).
        마루부리·Noto 한글은 27.8px 글자에 35px 를 쓴다 — 1.3 이 필요하다.
        점수도 같은 1.3 을 써서 베이스라인이 1px 안쪽으로 맞는다. */
-    font-size: max(13px, min(clamp(14px, 1.45vw, 28px), calc(var(--gs-row, 999px) * 0.324)));
+    font-size: max(13px, min(clamp(14px, 1.45vw, 28px), calc(var(--gs-row, 999px) * 0.62)));
     line-height: 1.3; color: rgba(var(--cream-rgb),0.88);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .gs-m .sc {
-    text-align: right; font-weight: 700; line-height: 1.3;
-    font-size: max(13px, min(clamp(16px, 1.7vw, 32px), calc(var(--gs-row, 999px) * 0.37)));
-    color: rgba(var(--cream-rgb),0.34);
-  }
   /* 완료 — 승자 골드 / 패자 dim */
-  .gs-m.done .tn.w, .gs-m.done .sc.w { color: var(--gold-hi); font-weight: 700; }
-  .gs-m.done .tn.l, .gs-m.done .sc.l { color: rgba(var(--cream-rgb),0.34); }
+  .gs-m.done .tn.w, .gs-m.done .scs b.w { color: var(--gold-hi); font-weight: 700; }
+  .gs-m.done .tn.l, .gs-m.done .scs b.l { color: rgba(var(--cream-rgb),0.34); }
   /* 예정 — 전체 dim */
   .gs-m.soon .tn   { color: rgba(var(--cream-rgb),0.34); }
   .gs-m.soon .no b { color: rgba(var(--cream-rgb),0.34); }
@@ -1007,7 +1024,7 @@
     content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--terra);
   }
   .gs-m.live .tn   { color: #fff; font-weight: 700; }
-  .gs-m.live .sc   { color: #fff; }
+  .gs-m.live .scs, .gs-m.live .scs b { color: #fff; }
   .gs-m.live .no b { background: var(--terra); color: #fff; border-radius: 2px; padding: 1px 9px; }
   .gs-m.live .no i { color: rgba(var(--cream-rgb),0.6); }
   /* 배지는 거터 안 — 점수칸을 건드리지 않는다 */
@@ -1149,11 +1166,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b18--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b18 · 자동갱신</div>
+<!--TVBUILD:b19--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b19 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b18"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b19"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -2073,16 +2090,20 @@
     const cls = done ? 'done' : live ? 'live' : 'soon';
     const badge = live ? '<span class="gs-livebadge"><span class="dot"></span>LIVE</span>'
                 : isNext ? '<span class="gs-nextbadge">NEXT</span>' : '';
-    // 점수는 끝났거나 뛰는 중일 때만. 예정 경기는 '–'.
-    const sc = (v) => ((done || live) ? (v != null ? v : 0) : '–');
-    const side = (name, v, win, lose) => {
-      const k = win ? 'w' : lose ? 'l' : '';
-      return `<div class="side"><span class="tn ${k}">${name}</span><span class="sc ${k}">${sc(v)}</span></div>`;
-    };
+    // 점수는 끝났거나 뛰는 중일 때만. 예정 경기는 숫자 대신 'vs' —
+    // ⚠️ '– : –' 로 두면 0 : 0 처럼 읽혀서 "0-0 으로 끝난 경기인가?" 가 된다.
+    const n = (v) => (v != null ? v : 0);
+    const scs = (done || live)
+      ? `<span class="scs"><b class="${hW ? 'w' : aW ? 'l' : ''}">${n(hs)}</b>`
+        + `<i class="vs">:</i><b class="${aW ? 'w' : hW ? 'l' : ''}">${n(as)}</b></span>`
+      : '<span class="scs"><i class="vs">vs</i></span>';
+    const tn = (name, win, lose, side) =>
+      `<span class="tn ${side} ${win ? 'w' : lose ? 'l' : ''}">${name}</span>`;
+    // ⚠️ **한 경기 = 한 줄**(홈 · 점수 · 원정). 예전엔 홈/원정이 위아래 두 줄이라
+    //    한 행이 글자 두 줄을 담아야 했고, 15경기면 애초에 들어갈 수가 없었다.
     return `<div class="gs-m ${cls}">
       <div class="no"><b>${no}</b><i>${m.matchTime || '--:--'}</i>${badge}</div>
-      ${side(hName, hs, hW, aW)}
-      ${side(aName, as, aW, hW)}
+      <div class="pair">${tn(hName, hW, aW, 'h')}${scs}${tn(aName, aW, hW, 'a')}</div>
     </div>`;
   }
 
