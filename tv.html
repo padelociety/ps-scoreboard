@@ -924,7 +924,12 @@
              display: flex; flex-direction: column; }
   .gs-m {
     position: relative;
-    flex: 1 1 auto; min-height: 44px; max-height: 150px;
+    /* ⚠️ `flex: 1 1 0` 이다(basis auto 아님). basis 가 내용이면 글자를 줄일수록 행이
+       줄어들어 '재고 → 줄이고 → 다시 재야 하는' 되먹임이 생긴다. 0 이면 남는 높이를
+       경기 수로 **그냥 n 등분**해서, 한 번 재면 끝이다(gsFitRows).
+       ⚠️ min-height 도 없앴다 — 44px 를 우기면 경기가 많을 때 행들이 목록 밖으로
+       밀려 나가 overflow:hidden 에 잘린다. 대신 글자를 줄여 담는다. */
+    flex: 1 1 0; min-height: 0; max-height: 150px;
     display: grid;
     grid-template-columns: 66px minmax(0, 1fr);
     grid-template-rows: 1fr 1fr;
@@ -937,20 +942,42 @@
   /* 매치번호 = 거터의 맨 숫자 (번호 위 · 시각 아래 · LIVE/NEXT 그 아래).
      시드 칩(.bk-seed)으로 오독되지 않게 배경·테두리 없이 세로 헤어라인으로만 나눈다. */
   .gs-m .no {
-    grid-row: 1 / span 2; align-self: stretch;
+    grid-row: 1 / span 2; align-self: stretch; overflow: hidden;
     display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px;
     /* line-height 1 이면 34px 숫자의 글자상자(40px)가 아래 시각과 겹친다 */
     padding-right: 13px; border-right: 1px solid rgba(var(--gold-rgb),0.22); line-height: 1.2;
   }
-  .gs-m .no b { font-size: clamp(20px, 2vw, 34px); font-weight: 400; color: rgba(var(--cream-rgb),0.5); }
+  /* ⚠️ 아래 네 곳의 `min(…, calc(var(--gs-row) * k))` 가 이 화면의 핵심이다.
+     글자 크기는 **화면 너비**(vw)로 정해지는데 남는 높이는 **경기 수**로 정해진다 —
+     둘은 아무 상관이 없어서, 6팀 조(15경기)처럼 행이 많아지면 28px 글자가 57px 행에
+     두 줄로 들어가려다 서로 겹쳐 찍혔다. `--gs-row`(행 실제 높이)는 gsFitRows 가 넣는다.
+     계수: 이름·점수가 앉는 칸은 행의 **절반**이고 line-height 1.3 이라 글자는 행의
+     0.385 배가 한계다 — 이름 0.324 / 점수 0.37 은 그 안에서 원래 비율(28:32)을 지킨 값.
+     번호 거터(.no)는 행을 **통째로** 쓰므로 더 클 수 있다: 숫자 0.36 + 시각 0.15 +
+     배지 0.15 를 line-height 까지 더하면 행의 0.97 로, LIVE 배지가 붙은 행도 들어간다.
+     ⚠️ 번호를 h/2 기준(0.28)으로 잡으면 번호가 이름보다 작아진다 — 거터의 큰 숫자가
+     디자인의 뼈대라(DESIGN_SYSTEM §3) 그러면 행이 어느 경기 것인지 안 읽힌다.
+     ⚠️ `max(13px, …)` 하한이 있다. 이건 **전광판**이라 코트 밖에서 읽어야 한다 —
+     하한이 없으면 7·8팀 조(21·28경기)에서 글자가 10px 로 줄어 아무도 못 읽는다.
+     하한에 걸리면 행 아래가 조금 잘린다(overflow:hidden) — 읽히지도 않는 크기보다 낫다.
+     ⚠️ 설계 목표는 **6팀 조(15경기)**까지다(아래 .gs-list 주석). 7팀 이상을 제대로
+     담으려면 글자를 더 줄이는 게 아니라 **조 칼럼을 2열로 접어야** 한다 — 아직 안 했다.
+     ⚠️ 폴백 999px 을 지울 것 — 그러면 JS 가 늦는 첫 프레임에 calc 가 깨져 글자가 사라진다. */
+  .gs-m .no b { font-size: max(12px, min(clamp(20px, 2vw, 34px), calc(var(--gs-row, 999px) * 0.36)));
+                font-weight: 400; color: rgba(var(--cream-rgb),0.5); }
   .gs-m .no i {
-    font-style: normal; font-size: clamp(11px, 1.1vw, 15px); font-weight: 600;
+    font-style: normal; font-weight: 600;
+    font-size: max(9px, min(clamp(11px, 1.1vw, 15px), calc(var(--gs-row, 999px) * 0.15)));
     letter-spacing: 0.8px; color: rgba(var(--cream-rgb),0.32);
   }
   /* 홈·원정을 위아래로 — 조 칼럼이 좁아 한 줄에 두 이름을 넣으면 한글 페어 이름이 잘린다 */
   .gs-m .side {
     display: grid; grid-template-columns: minmax(0, 1fr) 46px;
     align-items: center; gap: 10px; padding-left: 13px; height: 100%;
+    /* ⚠️ 이 한 줄이 '겹쳐 찍히는' 사고를 구조적으로 막는다. 글자 상자가 칸보다 커지면
+       예전엔 위아래 칸으로 **새어 나가** 두 팀 이름이 포개졌다(2026-09-19 신고).
+       이제 최악이라도 잘릴 뿐이고, 아래 `--gs-row` 가 애초에 잘리지 않게 줄인다. */
+    overflow: hidden;
   }
   /* 홈/원정 사이는 경기 구분선보다 훨씬 옅게 — 안 그러면 두 줄이 별개 경기처럼 보이고
      가운데 번호가 어느 쪽 것인지 헷갈린다. */
@@ -959,11 +986,13 @@
     /* line-height 1 은 안 된다 — 한글 글자 상하가 잘린다(27.8px 글자에 32px 필요).
        마루부리·Noto 한글은 27.8px 글자에 35px 를 쓴다 — 1.3 이 필요하다.
        점수도 같은 1.3 을 써서 베이스라인이 1px 안쪽으로 맞는다. */
-    font-size: clamp(14px, 1.45vw, 28px); line-height: 1.3; color: rgba(var(--cream-rgb),0.88);
+    font-size: max(13px, min(clamp(14px, 1.45vw, 28px), calc(var(--gs-row, 999px) * 0.324)));
+    line-height: 1.3; color: rgba(var(--cream-rgb),0.88);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .gs-m .sc {
-    text-align: right; font-size: clamp(16px, 1.7vw, 32px); font-weight: 700; line-height: 1.3;
+    text-align: right; font-weight: 700; line-height: 1.3;
+    font-size: max(13px, min(clamp(16px, 1.7vw, 32px), calc(var(--gs-row, 999px) * 0.37)));
     color: rgba(var(--cream-rgb),0.34);
   }
   /* 완료 — 승자 골드 / 패자 dim */
@@ -983,7 +1012,11 @@
   .gs-m.live .no i { color: rgba(var(--cream-rgb),0.6); }
   /* 배지는 거터 안 — 점수칸을 건드리지 않는다 */
   .gs-livebadge, .gs-nextbadge {
-    margin-top: 5px; font-size: clamp(9px, 0.9vw, 13px); font-weight: 700; letter-spacing: 1.4px;
+    /* ⚠️ 배지가 붙은 행만 거터 내용이 2px 넘쳤다(숫자+시각+배지). 여백도 행에 따라
+       줄여야 LIVE·NEXT 행에서 배지 밑이 잘리지 않는다. */
+    margin-top: min(5px, calc(var(--gs-row, 999px) * 0.06));
+    font-weight: 700; letter-spacing: 1.4px;
+    font-size: min(clamp(9px, 0.9vw, 13px), calc(var(--gs-row, 999px) * 0.13));
     padding: 1px 6px; border-radius: 2px;
   }
   .gs-livebadge { background: var(--terra); color: #fff; display: flex; align-items: center; gap: 4px; }
@@ -1116,11 +1149,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b17--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b17 · 자동갱신</div>
+<!--TVBUILD:b18--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b18 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b17"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b18"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1523,6 +1556,31 @@
 
   function bkEffView(){ return bkView; }
 
+  /**
+   * 조별 스테이지 — 행 실제 높이를 재서 `--gs-row` 로 내려준다.
+   *
+   * ⚠️ 왜 CSS 만으로 안 되나: 글자 크기는 `vw`(화면 **너비**)로 정해지는데, 한 행에
+   *    남는 높이는 **경기 수**가 정한다. 둘은 아무 관계가 없다. 1920 폭에서 이름은
+   *    항상 28px(=1.45vw 가 상한에 걸림)인데, 6팀 조(15경기)면 행이 57px 뿐이라
+   *    두 줄(각 36px)이 한 행에 들어가려다 서로 **겹쳐 찍혔다**
+   *    (2026-09-19 신고: "글씨 엄청 깨져"). 높이는 CSS 가 알 수 없으니 여기서 잰다.
+   *
+   * ⚠️ 한 번만 재면 되는 이유: `.gs-m` 이 `flex: 1 1 0` 이라 행 높이가 **내용과
+   *    무관하게** 목록 높이 ÷ 경기 수다. basis 가 auto 면 글자를 줄일수록 행도 줄어
+   *    다시 재야 하는 되먹임이 생긴다(그래서 CSS 에서 0 으로 바꿨다).
+   */
+  function gsFitRows() {
+    document.querySelectorAll('.gs-col').forEach((col) => {
+      const list = col.querySelector('.gs-list');
+      const n = list ? list.children.length : 0;
+      // ⚠️ 숨어 있을 때(display:none) 재면 0 이 나온다 — 그대로 내려보내면 글자가
+      //    0px 이 되어 화면이 텅 빈다. 그럴 땐 손대지 말고 다음 기회에 다시 잰다.
+      if (!n || !list.clientHeight) return;
+      col.style.setProperty('--gs-row', (list.clientHeight / n) + 'px');
+    });
+  }
+  window.addEventListener('resize', gsFitRows);
+
   function bkApply() {
     // 대회를 못 잡으면 점수판만 (조별 순위·스테이지를 그릴 데이터가 없다)
     const panelOn = !!bkTournament;
@@ -1531,6 +1589,9 @@
     if (bkTournament) bkRender(bkTournament);
     // 전체 뷰로 바뀌면 제목 칸이 700px 로 좁아진다 — 그때 다시 맞춰야 끝이 안 잘린다
     if (typeof tvFitTitle === 'function') tvFitTitle();
+    // ⚠️ 전체 뷰로 바뀌면 우측 패널 높이가 달라진다 — 그 뒤에 한 번 더 잰다.
+    //    (rAF: class 토글 직후엔 아직 옛 높이가 잡힌다)
+    requestAnimationFrame(gsFitRows);
   }
 
   // 뷰가 하나뿐이라 RTDB 의 tvView·showBracket 리모컨은 더 이상 읽지 않는다.
@@ -2109,6 +2170,7 @@
       // 패널이 자기 머리에 'Group Stage' 를 달고 나오므로 위 라벨은 비운다(중복 방지)
       if (bkTitle) bkTitle.textContent = '';
       cols.innerHTML = gsHTML;
+      gsFitRows();
       return true;
     }
     cols.innerHTML = '';
