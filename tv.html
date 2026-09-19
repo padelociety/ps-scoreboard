@@ -1038,6 +1038,34 @@
   .gs-m.live .scs, .gs-m.live .scs b { color: #fff; }
   .gs-m.live .no b { background: var(--terra); color: #fff; border-radius: 2px; padding: 1px 9px; }
   .gs-m.live .no i { color: rgba(var(--cream-rgb),0.6); }
+  /* ── 거터를 **가로로 눕힌 모드** (`.gs-flat`) ──
+   * 사용자 지시 2026-09-20: "시간탭 짤린다. 어차피 옆으로 공간 많으니 Match 1 08:00
+   * 뭐 이런식으로 표현해도될듯."
+   *
+   * 경기가 많으면 행이 낮아진다(10팀 조 = 45경기 → 행 19px). 번호·시각·배지를 **세로로
+   * 쌓으면** 셋이 28px 을 요구해 시각 밑이 잘렸다. 한 줄로 눕히면 19px 에 그대로 들어간다.
+   * ⚠️ 언제 눕힐지는 `gsFlatGutter` 가 **재서** 정한다 — 행이 넉넉하면 세로 스택이
+   *    디자인의 뼈대(큰 번호)라 그대로 둔다.
+   * ⚠️ 눕히면 거터가 넓어져야 한다(숫자+시각+배지가 한 줄). 넓어진 만큼 이름 칸이
+   *    줄지만, 눕히는 상황은 애초에 행이 낮아 글자가 하한에 붙은 때라 폭이 남는다. */
+  /* 폭은 `gsFlatGutter` 가 **내용을 재서** 넣는다. 132px 은 JS 가 늦는 첫 프레임용 폴백 —
+     고정값으로 두면 짧은 시각·배지 없는 조에서 이름 칸을 공짜로 빼앗는다(8팀 두 조에서
+     이름 7개가 그렇게 잘렸다). */
+  .gs-col.gs-flat .gs-m { grid-template-columns: var(--gs-no, 132px) minmax(0, 1fr); }
+  .gs-col.gs-flat .gs-m .no {
+    flex-direction: row; align-items: baseline; justify-content: flex-end; gap: 7px;
+  }
+  /* 한 줄이 되면 위 여백은 오히려 베이스라인을 흔든다 */
+  .gs-col.gs-flat .gs-livebadge, .gs-col.gs-flat .gs-nextbadge { margin-top: 0; align-self: center; }
+  /* 눕힌 줄에서는 번호가 '큰 숫자' 일 이유가 없다 — 시각과 나란히 읽히는 게 낫다 */
+  .gs-col.gs-flat .gs-m .no b { font-size: max(12px, min(clamp(13px, 1.2vw, 20px), calc(var(--gs-row, 999px) * 0.62))); }
+  .gs-col.gs-flat .gs-m .no i { font-size: max(9px, min(clamp(11px, 1.1vw, 15px), calc(var(--gs-row, 999px) * 0.5))); }
+  /* ⚠️ 배지 크기도 다시 잡는다. 세로로 쌓을 때의 계수(행의 0.13)는 한 줄에서는 말이 안 된다 —
+     행 31px 에서 4px 짜리 LIVE 가 나온다(아무도 못 읽는다). 한 줄이면 시각과 같은 급이다. */
+  .gs-col.gs-flat .gs-livebadge, .gs-col.gs-flat .gs-nextbadge {
+    font-size: max(9px, min(clamp(9px, 0.9vw, 13px), calc(var(--gs-row, 999px) * 0.42)));
+  }
+
   /* 배지는 거터 안 — 점수칸을 건드리지 않는다 */
   .gs-livebadge, .gs-nextbadge {
     /* ⚠️ 배지가 붙은 행만 거터 내용이 2px 넘쳤다(숫자+시각+배지). 여백도 행에 따라
@@ -1177,11 +1205,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b20--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b20 · 자동갱신</div>
+<!--TVBUILD:b21--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b21 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b20"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b21"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1628,31 +1656,79 @@
    *    읽을 수 없는 크기로 다 보여 주는 것보다 낫다. 하한을 지금 크기보다 **올리지는
    *    않는다**(경기가 많아 이미 작은 칼럼을 이 함수가 키우면 행 밖으로 넘친다).
    */
-  const GS_NAME_MIN = 15;
+  // ⚠️ CSS 가 쓰는 하한과 **같은 13px** 이다. 여기만 15 로 두면 13~15px 이면 들어갈 이름을
+  //    굳이 말줄임으로 자른다(8팀 두 조에서 이름 7개가 그랬다). 13px 은 이 화면이 이미
+  //    '읽을 수 있는 가장 작은 크기' 로 정해 둔 값이고, 잘린 이름보다는 작은 이름이 낫다.
+  const GS_NAME_MIN = 13;
   function gsFitNames() {
-    document.querySelectorAll('.gs-col').forEach((col) => {
-      const tns = [...col.querySelectorAll('.gs-m .tn')];
-      if (!tns.length) return;
-      // ⚠️ **먼저 전부 지우고** 잰다. 리사이즈로 다시 부를 때 지난번에 넣은 인라인
-      //    값이 남아 있으면 '이미 들어간다' 고 나와 영영 작은 채로 굳는다.
-      tns.forEach((el) => { el.style.fontSize = ''; });
-      // 읽기·쓰기를 나눠 레이아웃을 한 번만 돌린다(칼럼당 1회).
-      const plan = tns.map((el) => {
+    const rows = [...document.querySelectorAll('.gs-m')];
+    if (!rows.length) return;
+    // ⚠️ **먼저 전부 지우고** 잰다. 리사이즈로 다시 부를 때 지난번에 넣은 인라인
+    //    값이 남아 있으면 '이미 들어간다' 고 나와 영영 작은 채로 굳는다.
+    rows.forEach((m) => m.querySelectorAll('.tn').forEach((el) => { el.style.fontSize = ''; }));
+    // 읽기·쓰기를 나눠 레이아웃을 한 번만 돌린다.
+    const plan = rows.map((m) => {
+      const tns = [...m.querySelectorAll('.tn')];
+      if (!tns.length) return null;
+      // ⚠️ **한 줄의 두 이름은 같은 크기**다. 이름마다 따로 맞추면 '긴 이름 13px vs 짧은
+      //    이름 26px' 이 한 줄에 나란히 앉아 한쪽이 덧붙인 주석처럼 보인다 — 눈이 읽는
+      //    단위는 이름이 아니라 **경기 한 줄**이다. 줄 안에서 제일 빡빡한 쪽에 맞춘다.
+      let ratio = 1, base = 0;
+      tns.forEach((el) => {
         const have = el.clientWidth, need = el.scrollWidth;
-        if (!have || need <= have + 1) return null;
-        const base = parseFloat(getComputedStyle(el).fontSize) || 0;
-        if (!base) return null;
-        const floor = Math.min(base, GS_NAME_MIN);
-        // 0.99 는 반올림 여유 — 딱 맞추면 1px 때문에 말줄임이 남는다.
-        return { el, size: Math.max(floor, Math.floor(base * (have / need) * 0.99)) };
+        base = Math.max(base, parseFloat(getComputedStyle(el).fontSize) || 0);
+        if (have && need > have + 1) ratio = Math.min(ratio, have / need);
       });
-      plan.forEach((x) => { if (x) x.el.style.fontSize = x.size + 'px'; });
+      if (ratio >= 1 || !base) return null;
+      const floor = Math.min(base, GS_NAME_MIN);
+      // 0.99 는 반올림 여유 — 딱 맞추면 1px 때문에 말줄임이 남는다.
+      return { tns, size: Math.max(floor, Math.floor(base * ratio * 0.99)) };
+    });
+    plan.forEach((x) => { if (x) x.tns.forEach((el) => { el.style.fontSize = x.size + 'px'; }); });
+  }
+
+  /**
+   * 번호 거터를 **세로로 쌓을까, 가로로 눕힐까**.
+   *
+   * 사용자 지시 2026-09-20: "시간탭 짤린다. 어차피 옆으로 공간 많으니 Match 1 08:00
+   * 뭐 이런식으로." 10팀 조(45경기)면 행이 19px 인데 번호·시각·배지를 쌓으면 28px 을
+   * 요구해 **시각 밑이 잘렸다**(실측 45행 전부). 한 줄로 눕히면 들어간다.
+   *
+   * ⚠️ 무조건 눕히지 않는다. 행이 넉넉하면 **큰 번호가 디자인의 뼈대**라(DESIGN_SYSTEM §3)
+   *    세로 스택이 맞다. 넘치는 칼럼만 눕힌다.
+   * ⚠️ 판정은 `scrollHeight > clientHeight` — 글자 크기·배지 유무가 섞인 계산을 여기서
+   *    다시 하지 않는다. 브라우저가 이미 답을 알고 있다.
+   */
+  function gsFlatGutter() {
+    document.querySelectorAll('.gs-col').forEach((col) => {
+      // 먼저 세로 스택으로 되돌려 놓고 잰다 — 눕힌 채로 재면 늘 '들어간다' 가 나온다.
+      col.classList.remove('gs-flat');
+      let over = false;
+      col.querySelectorAll('.gs-m .no').forEach((n) => {
+        if (n.scrollHeight > n.clientHeight + 1) over = true;
+      });
+      if (!over) { col.style.removeProperty('--gs-no'); return; }
+      col.classList.add('gs-flat');
+      // ⚠️ 거터 폭을 **내용에서** 구한다. `.no` 는 그리드 트랙에 꽉 차 있어 scrollWidth 로는
+      //    자연 폭을 알 수 없다 — 자식(번호·시각·배지)을 더한다. 트랙은 칼럼에 하나뿐이라
+      //    (세로 헤어라인이 한 줄로 이어져야 한다) **가장 넓은 행**에 맞춘다.
+      let widest = 0;
+      col.querySelectorAll('.gs-m .no').forEach((n) => {
+        const cs = getComputedStyle(n);
+        const gap = parseFloat(cs.columnGap) || 0;
+        const kids = [...n.children];
+        let w = parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth) + gap * Math.max(0, kids.length - 1);
+        kids.forEach((k) => { w += k.getBoundingClientRect().width; });
+        if (w > widest) widest = w;
+      });
+      // 1px 여유 — 소수점 반올림으로 마지막 글자가 잘리는 것을 막는다.
+      if (widest) col.style.setProperty('--gs-no', Math.ceil(widest + 1) + 'px');
     });
   }
 
-  // 높이 → 폭 순서다. 행 높이가 먼저 정해져야 그 안에서 글자 크기가 나오고,
-  // 그 크기로 재야 폭 판정이 맞는다.
-  function gsFit() { gsFitRows(); gsFitNames(); }
+  // 높이 → 거터 → 폭 순서다. 행 높이가 먼저 정해져야 거터가 넘치는지 알 수 있고,
+  // 거터를 눕히면 이름 칸 폭이 달라지므로 폭 맞춤이 마지막이다.
+  function gsFit() { gsFitRows(); gsFlatGutter(); gsFitNames(); }
 
   /**
    * 조를 **가로로 나란히** 놓을까, **위아래로 쌓을까**.
