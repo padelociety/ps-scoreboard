@@ -628,9 +628,18 @@
       .then((m) => {
         if (!m || !Array.isArray(m.phrases)) return;
         clipSet = new Set(m.phrases.map((p) => slug(p.text)));
-        // 자주 쓰는 것부터 미리 받아 둔다 — 첫 콜이 늦지 않게
-        ['fifteen, love', 'love, fifteen', 'thirty, fifteen', 'fifteen all', 'Deuce', 'Advantage'].forEach((t) => {
+        // 포인트 콜은 계속 나온다 — 미리 받아 **디코드까지** 해 둔다.
+        // ⚠️ 디코드를 미리 안 해 두면 그 구절의 **첫 콜만** 잘리지 않은 옛 소리로 나간다
+        //    (playTrimmed 는 동기라 디코드를 기다릴 수 없다).
+        const PT4 = ['love', 'fifteen', 'thirty', 'forty'];
+        const warm = ['Deuce', 'Advantage', 'Star point', 'Golden point'];
+        PT4.forEach((a, i) => PT4.forEach((b, j) => {
+          warm.push(i === j ? (i < 3 ? `${a} all` : 'Deuce') : `${a}, ${b}`);
+        }));
+        [...new Set(warm)].forEach((t) => {
+          if (!clipSet.has(slug(t))) return;
           const a = new Audio(clipUrl(t)); a.preload = 'auto'; clipCache.set(slug(t), a);
+          warmSegs(t);
         });
       })
       .catch(() => {});
@@ -656,12 +665,111 @@
     clipVoice = key;
     localStorage.setItem('sbClipVoice', key);
     clipCache.clear();
+    segCache.clear();          // ⚠️ 목소리를 바꾸면 디코드해 둔 것도 버린다 — 안 버리면 옛 목소리가 난다
+    stopTrimmed();
     clipSet = null;
     loadClipManifest();
     // manifest 가 오면 샘플 한 마디 — 목소리를 바로 비교할 수 있게
     const tryPlay = (n) => { if (clipSet) say('Fifteen, love. Deuce. Advantage, server.'); else if (n > 0) setTimeout(() => tryPlay(n - 1), 150); };
     tryPlay(20);
   };
+  /* ── 클립 안의 죽은 시간 잘라내기 (2026-09-19) ──────────────────────────
+   * 구운 mp3 는 앞뒤가 무음이고 쉼표에서 한 박자 쉰다. 기본 목소리(christopher) 실측:
+   *   "Fifteen, love" = 2.57초인데 **앞 260ms 무음 · 쉼표 260ms · 뒤 970ms 무음**,
+   *   실제 말은 1.34초뿐이다. (thirty-love 280ms · forty-thirty 310ms 로 다 비슷하다.)
+   * 그래서 콜이 늦게 시작하고 두 숫자가 뚝 떨어져 들렸다
+   * (신고: "15과 0 사이의 공백이 너무 길어").
+   *
+   * ⚠️ 다시 굽지 않고 **재생할 때** 고친다. 클립을 다시 만들려면 voice-gen.py 로
+   *    목소리 4벌 × 115구절을 새로 받아 커밋해야 하는데, 재생 쪽을 고치면 지금 있는
+   *    파일 그대로 모든 목소리가 같이 좋아진다.
+   * 방법: Web Audio 로 디코드해 **소리 나는 구간만** 뽑고, 그 구간들을 GAP_MS 간격으로
+   *    이어서 튼다. 앞뒤 무음은 통째로 사라지고 쉼표는 GAP_MS 로 줄어든다.
+   * ⚠️ 폴백을 지우지 말 것 — 디코드가 아직이거나 Web Audio 가 없으면 예전 <audio>
+   *    경로로, 클립 자체가 없으면 TTS 로 떨어진다. 콜이 끊기는 일은 없어야 한다.
+   */
+  const GAP_MS = 90;          // 말과 말 사이에 남길 간격 (원본은 260~310ms)
+  const SEG_TH = 0.02;        // 무음 판정 진폭(-34dB) — 구운 클립 바닥 잡음보다 위
+  let actx = null;
+  function audioCtx() {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return null;
+    if (!actx) { try { actx = new C(); } catch (_) { return null; } }
+    if (actx.state === 'suspended') actx.resume().catch(() => {});
+    return actx;
+  }
+  /** 소리 나는 구간 [{off,dur}]. 120ms 미만의 틈은 낱말 **안쪽**(파열음)이라 붙여 둔다. */
+  function speechSegments(buf) {
+    const d = buf.getChannelData(0);
+    const win = Math.round(buf.sampleRate * 0.01);             // 10ms 창
+    const loud = [];
+    for (let i = 0; i + win <= d.length; i += win) {
+      let m = 0;
+      for (let j = i; j < i + win; j++) { const v = Math.abs(d[j]); if (v > m) m = v; }
+      loud.push(m >= SEG_TH);
+    }
+    const raw = [];
+    let st = -1;
+    for (let i = 0; i <= loud.length; i++) {
+      if (i < loud.length && loud[i]) { if (st < 0) st = i; }
+      else if (st >= 0) {
+        const prev = raw[raw.length - 1];
+        if (prev && st - prev.e < 12) prev.e = i; else raw.push({ s: st, e: i });
+        st = -1;
+      }
+    }
+    // 앞 20ms · 뒤 30ms 를 남긴다 — 첫 자음과 끝 여운이 잘리면 말이 뭉개진다
+    return raw
+      .map((r) => {
+        const off = Math.max(0, r.s * 0.01 - 0.02);
+        return { off, dur: Math.min(buf.duration, r.e * 0.01 + 0.03) - off };
+      })
+      .filter((r) => r.dur > 0.05);
+  }
+  const segCache = new Map();                                  // slug → Promise<{buf,segs}|null>
+  function clipSegs(text) {
+    const k = slug(text);
+    if (segCache.has(k)) return segCache.get(k);
+    const ctx = audioCtx();
+    if (!ctx) return null;
+    const pr = fetch(clipUrl(text))
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('no clip'))))
+      .then((b) => ctx.decodeAudioData(b))
+      .then((buf) => ({ buf, segs: speechSegments(buf) }))
+      .catch(() => null);
+    segCache.set(k, pr);
+    return pr;
+  }
+  let waNodes = [];
+  function stopTrimmed() { waNodes.forEach((n) => { try { n.stop(); } catch (_) {} }); waNodes = []; }
+  /** 디코드가 끝나 있으면 잘라서 튼다. 아직이면 false → 이번 한 번만 <audio> 로. */
+  function playTrimmed(parts) {
+    const ctx = audioCtx();
+    if (!ctx) return false;
+    const ready = parts.map((t) => (segCache.get(slug(t)) || {}).__v);
+    if (ready.some((e) => !e)) return false;
+    stopTrimmed();
+    let t = ctx.currentTime + 0.02;
+    for (const e of ready) {
+      for (const sg of e.segs) {
+        const src = ctx.createBufferSource();
+        src.buffer = e.buf;
+        src.connect(ctx.destination);
+        try { src.start(t, sg.off, sg.dur); } catch (_) { return false; }
+        waNodes.push(src);
+        t += sg.dur + GAP_MS / 1000;
+      }
+    }
+    return waNodes.length > 0;
+  }
+  // 디코드가 끝나면 Promise 에 결과를 붙여 둔다 — playTrimmed 는 동기라 기다릴 수 없다.
+  function warmSegs(text) {
+    const pr = clipSegs(text);
+    if (pr && typeof pr.then === 'function' && pr.__v === undefined) {
+      pr.then((v) => { pr.__v = v || null; }).catch(() => { pr.__v = null; });
+    }
+  }
+
   let clipPlaying = null;
   // 한 문장을 클립 1개, 타이브레이크 "x, y" 는 숫자 클립 2개로. 하나라도 없으면 false → TTS 폴백.
   function playClips(text) {
@@ -672,7 +780,10 @@
       if (!m || !clipSet.has(slug(m[1])) || !clipSet.has(slug(m[2]))) return false;
       parts = [m[1], m[2]];
     }
+    parts.forEach(warmSegs);                                   // 다음 번을 위해 미리 디코드
     if (clipPlaying) { try { clipPlaying.pause(); } catch (_) {} clipPlaying = null; }
+    if (playTrimmed(parts)) return true;                       // ← 잘라 낸 쪽이 기본
+    stopTrimmed();
     const play = (i) => {
       if (i >= parts.length) return;
       const k = slug(parts[i]);
