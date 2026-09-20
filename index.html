@@ -375,6 +375,14 @@
   </div>
 
   <div class="s-group">
+    <span class="caps">Set Length · 세트 게임 수</span>
+    <div class="frow"><label class="caps">Games</label>
+      <div class="seg" id="btnGameTarget"><button data-g="4" onclick="setGameTarget(4)">4게임</button><button data-g="6" onclick="setGameTarget(6)">6게임</button><button data-g="8" onclick="setGameTarget(8)">8게임</button></div>
+    </div>
+    <p class="hint" id="gameHint"></p>
+  </div>
+
+  <div class="s-group">
     <span class="caps">TV Theme</span>
     <div class="frow"><label class="caps">Theme</label>
       <div class="seg" id="btnTvTheme"><button data-t="luxury" onclick="toggleTvTheme('luxury')">럭셔리</button><button data-t="classic" onclick="toggleTvTheme('classic')">클래식</button></div>
@@ -493,6 +501,24 @@
   const DEUCE_LABEL = { 0: '골든포인트', 1: '1듀스', 2: '2듀스', 99: '무제한 듀스' };
   let deuceLimit = DEUCE_DEFAULT;
 
+  /* ── 세트 길이 (몇 게임을 먼저 따면 세트인가) ────────────────────────────────
+   * 6게임이 표준이지만 코트가 모자라거나 경기가 많은 날엔 4게임으로 줄이고,
+   * 결승처럼 길게 갈 땐 8게임(프로세트)으로 늘린다. 예전엔 **6 이 코드에 박혀
+   * 있어서** 8게임 경기를 하면 6-6 에서 점수판이 제멋대로 타이브레이크로 넘어갔다.
+   *
+   *   gameTarget = 세트를 가져가는 게임 수 (타이브레이크는 그 수에서 동점일 때)
+   *     4 → 4게임 · 4-4 타이브레이크
+   *     6 → 6게임 · 6-6 타이브레이크  ← 기본값(표준)
+   *     8 → 8게임 · 8-8 타이브레이크
+   *
+   * ⚠️ **게임 올리기에 상한을 두지 않는다.** 심판이 정정으로 목표를 넘겨 올릴 수 있어야
+   *    하고, 세트 종료는 사람이 [Save Set] 으로 정한다(대회마다 규칙이 달라서다).
+   *    이 값이 정하는 것은 **타이브레이크 시점과 TV 의 세트포인트 판정** 둘이다.
+   */
+  const GAME_STEPS = [4, 6, 8];
+  const GAME_DEFAULT = 6;
+  let gameTarget = GAME_DEFAULT;
+
   /** 지금 40-40 인가. 타이브레이크엔 듀스가 없다(2점차 규칙이 따로 돈다). */
   function atDeuce() {
     if (isTiebreak() || isSuperTiebreak()) return false;
@@ -539,7 +565,7 @@
   // ── UNDO: 상태를 바꾸는 모든 동작은 mutate() 를 거친다 — 바꾸기 전 스냅샷을 쌓고, 실제로 달라졐을 때만 push.
   // 깊은 복사는 JSON 왕복 — S 는 순수 JSON 이고, 구형 태블릿 브라우저에 structuredClone 이 없을 수 있다.
   const undoStack = [];
-  const snapshot = () => JSON.stringify({ S, superTB, deuceLimit });
+  const snapshot = () => JSON.stringify({ S, superTB, deuceLimit, gameTarget });
   function syncUndoBtn() { $('btnUndo').disabled = !undoStack.length; }
   function mutate(fn) {
     const before = snapshot();
@@ -557,6 +583,7 @@
     const p = JSON.parse(prev);
     S = p.S; superTB = p.superTB;
     if (typeof p.deuceLimit === 'number') deuceLimit = p.deuceLimit;   // 옛 스냅샷엔 없다
+    if (typeof p.gameTarget === 'number') gameTarget = p.gameTarget;   // 옛 스냅샷엔 없다
     syncUndoBtn();
     push();
     syncInputs();
@@ -580,6 +607,8 @@
       // 듀스 규칙 복원 — 없으면(옛 데이터) 기본값 2듀스. 심판 태블릿을 새로 열어도
       // 진행 중인 경기의 규칙이 그대로 따라와야 한다.
       if (typeof S.deuceLimit === 'number') deuceLimit = S.deuceLimit;
+      // 세트 길이도 같이 — 다른 기기에서 8게임으로 켜 둔 경기를 이어받을 수 있어야 한다.
+      if (typeof S.gameTarget === 'number') gameTarget = S.gameTarget;
       if (typeof S.tvTheme === 'string') {                         // TV 테마 상태 복원
         tvTheme = S.tvTheme === 'classic' ? 'classic' : 'luxury';
         syncTvThemeBtn();
@@ -1215,7 +1244,7 @@
   }
 
   function push() {
-    set(sbRef, { ...S, superTB, tvTheme, deuceLimit });
+    set(sbRef, { ...S, superTB, tvTheme, deuceLimit, gameTarget });
     renderPreview();
     renderCP();
     try { lgMaybeBroadcastLive(); } catch (_) {}
@@ -1226,6 +1255,7 @@
     syncVoiceBtn();
     syncVoiceMetaBtns();
     syncDeuceUI();
+    syncGameUI();
     $('inTitle').value = S.title || '';
     $('inNameA').value = S.a.name || '';
     $('inNameB').value = S.b.name || '';
@@ -1248,6 +1278,19 @@
   window.closeSettings = () => document.body.classList.remove('settings-open');
 
   window.toggleSuperTB = () => { mutate(() => { superTB = !superTB; }); };
+
+  // 세트 길이 바꾸기 — 경기 도중에도 바꿀 수 있다(1세트는 6게임, 3세트는 4게임 같은 운영).
+  // 바꾸면 지금 상태에 바로 적용된다: 6-6 에서 8게임으로 늘리면 타이브레이크가 풀려
+  // 일반 게임으로 돌아가고, 8게임에서 6으로 줄이면 그 자리가 타이브레이크가 된다.
+  //
+  // ⚠️ **이미 올라간 게임 수는 건드리지 않는다.** 8-2 에서 6게임으로 줄였다고 점수를
+  //    깎으면 실제로 친 게임이 사라진다 — 세트 종료는 사람이 [Save Set] 으로 정한다.
+  window.setGameTarget = (n) => {
+    const v = GAME_STEPS.includes(n) ? n : GAME_DEFAULT;
+    if (!mutate(() => { gameTarget = v; syncDecidingFlags(); })) return;
+    syncGameUI();
+    say(`${v} game set`);
+  };
 
   // 규칙 바꾸기 — 경기 도중에도 바꿀 수 있다(1세트는 골든, 2세트는 2듀스 같은 운영).
   // 바꾸면 지금 상태에 바로 다시 적용한다: 2듀스에서 골든으로 내리면 진행 중인
@@ -1304,7 +1347,7 @@
     const sets = (S.a.sets||[]).length;
     const isThirdSet = sets === 2;
     if (isThirdSet && superTB) return false; // 슈퍼타이브레이크는 별도 처리
-    return S.a.game === 6 && S.b.game === 6;
+    return S.a.game === gameTarget && S.b.game === gameTarget;
   }
   function isSuperTiebreak() {
     return superTB && (S.a.sets||[]).length === 2;
@@ -1425,6 +1468,13 @@
           : `듀스 ${deuceLimit}번은 어드밴티지로 겨루고, ${deuceLimit + 1}번째 듀스가 결정 포인트(★)다. 횟수는 스코어보드가 센다.`;
     }
   }
+  function syncGameUI() {
+    const seg = $('btnGameTarget');
+    if (seg) [...seg.children].forEach((x) => x.classList.toggle('on', Number(x.dataset.g) === gameTarget));
+    const hint = $('gameHint');
+    if (hint) hint.textContent =
+      `${gameTarget}게임을 먼저 따면 세트. ${gameTarget}-${gameTarget} 이면 타이브레이크로 넘어가고, TV 의 세트·매치포인트 판정도 이 값을 따른다.`;
+  }
   function setToggle(id, on) {
     const b = $(id);
     b.classList.toggle('on', on);
@@ -1442,6 +1492,7 @@
     $('tnA').classList.toggle('serving', !!S.a.serving);
     $('tnB').classList.toggle('serving', !!S.b.serving);
     syncDeuceUI();
+    syncGameUI();
     setToggle('btnSuperTB', superTB);
     renderChips('A', S.a.sets||[]);
     renderChips('B', S.b.sets||[]);

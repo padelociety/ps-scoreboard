@@ -333,10 +333,16 @@
    *    조건이 미묘하게 달랐다(슈퍼TB 를 빼느냐 마느냐). 거기에 배너까지 세 벌이 되면
    *    언젠가 갈라져서 '숫자는 타이브레이크인데 배너는 안 뜨는' 화면이 된다.
    */
+  function gameTargetOf(S) {
+    const n = S?.gameTarget | 0;
+    return n >= 2 ? n : 6;
+  }
+
   function tbKindOf(S) {
     const sets = (S.a?.sets || []).length;
+    const gTarget = gameTargetOf(S);
     if (S.superTB && sets === 2) return 'stb';
-    if ((S.a?.game | 0) === 6 && (S.b?.game | 0) === 6) return 'tb';
+    if ((S.a?.game | 0) === gTarget && (S.b?.game | 0) === gTarget) return 'tb';
     return '';
   }
 
@@ -345,7 +351,9 @@
    * '이 포인트를 따면 게임을 가져가고, 그 게임으로 세트(또는 경기)가 끝나는가'.
    *
    * 타이브레이크는 7점·2점 차, 슈퍼타이브레이크는 10점·2점 차로 본다.
-   * ⚠️ 확정이 아니라 **표시**다 — 세트 종료는 사람이 [Save Set] 으로 정한다(6-6 뒤
+   * 세트 길이는 PS Control 설정(`gameTarget`, 4·6·8)이 정한다 — 여기에 6 을 박으면
+   * 8게임 경기에서 **없는 세트포인트**가 방송된다.
+   * ⚠️ 확정이 아니라 **표시**다 — 세트 종료는 사람이 [Save Set] 으로 정한다(동점 뒤
    *    타이브레이크를 할지, 몇 세트 경기인지가 대회마다 달라서 규칙을 박지 않는다).
    */
   function critOf(S, me, you) {
@@ -365,9 +373,10 @@
     const decider = (S.deuce || 0) > (typeof S.deuceLimit === 'number' ? S.deuceLimit : 2) || !!S.starForce;
     const winsGame = (p === 3 && q <= 2) || (p === 4) || (p === 3 && q === 3 && decider);
     if (!winsGame) return '';
-    // 그 게임으로 세트가 끝나는가 — 6게임 + 2게임 차, 또는 7-5/7-6
+    // 그 게임으로 세트가 끝나는가 — 목표 게임 + 2게임 차, 또는 한 게임 더(6게임이면 7-5/7-6)
+    const gTarget = gameTargetOf(S);
     const g = (me.game | 0) + 1, h = you.game | 0;
-    const winsSet = (g >= 6 && g - h >= 2) || g === 7;
+    const winsSet = (g >= gTarget && g - h >= 2) || g === gTarget + 1;
     if (!winsSet) return '';
     // 이번 세트로 경기가 끝나는가 — 이미 한 세트를 이겨 뒀다면 매치포인트
     const mySets = (me.sets || []).filter((v, i) => v > (you.sets || [])[i]).length;
