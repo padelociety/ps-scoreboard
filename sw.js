@@ -1,4 +1,4 @@
-const CACHE = 'ps-control-v18';  // v18: 26S3 2듀스 스타포인트 — 규칙이 바뀌었으니 옛 index.html 을 확실히 버려야 한다
+const CACHE = 'ps-control-v19';  // v19: 배경 음악(유튜브 재생목록 / 올려 둔 음원) — 콜 때 자동으로 줄어든다
 const ASSETS = ['/ps-scoreboard/', '/ps-scoreboard/index.html'];
 
 self.addEventListener('install', e => {
