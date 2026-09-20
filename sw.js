@@ -1,4 +1,4 @@
-const CACHE = 'ps-control-v19';  // v19: 배경 음악(유튜브 재생목록 / 올려 둔 음원) — 콜 때 자동으로 줄어든다
+const CACHE = 'ps-control-v20';  // v20: 배경 음악 켜고 끌 때 볼륨이 미끄러진다(페이드 인/아웃)
 const ASSETS = ['/ps-scoreboard/', '/ps-scoreboard/index.html'];
 
 self.addEventListener('install', e => {
