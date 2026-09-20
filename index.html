@@ -402,7 +402,10 @@
         <div class="frow" id="muListRow"><label class="caps">List</label><input class="in" type="text" id="muList" placeholder="https://music.youtube.com/playlist?list=..."></div>
         <div class="frow"><label class="caps">Volume</label><input class="in" type="range" id="muVol" min="0" max="100" step="5" oninput="muOnVol()"></div>
         <div class="frow"><label class="caps">콜 중</label><input class="in" type="range" id="muDuck" min="0" max="60" step="5" oninput="muOnDuck()"></div>
+        <div class="frow"><label class="caps">Fade <b id="muFadeVal"></b></label><input class="in" type="range" id="muFade" min="0" max="10000" step="250" oninput="muOnFade()"></div>
         <div class="row-btns"><button class="btn line" onclick="muNext()">다음 곡</button><button class="btn line" onclick="muSave()">저장</button></div>
+        <p class="hint">Fade 는 <b>켜고 끌 때</b> 볼륨이 오르내리는 시간이에요. 0 이면 곧바로 켜져요.
+          점수 콜 때 잠깐 줄이는 건 이 값과 상관없이 늘 빠릅니다 — 느리면 콜 앞머리가 묻혀요.</p>
         <p class="hint" id="muStatus">꺼져 있어요.</p>
       </div>
     </details>
@@ -917,6 +920,8 @@
     list: localStorage.getItem('sbMuList') || '',
     vol: +(localStorage.getItem('sbMuVol') ?? 35),
     duck: +(localStorage.getItem('sbMuDuck') ?? 10),
+    // 켜고 끌 때 볼륨이 오르내리는 시간(ms). 사용자 요청 2026-09-20 "좀 더 슬라이스로".
+    fade: +(localStorage.getItem('sbMuFade') ?? 3000),
   };
   let ytP = null;          // YT.Player
   let ytReady = false;
@@ -1027,7 +1032,11 @@
   let muCur = 0;            // 지금 실제로 나가고 있는 볼륨(0~100). MU.vol 은 '설정값' 이라 다르다.
   let muFadeTimer = null;
   let muGen = 0;            // 토글할 때마다 올린다 — 늦게 끝난 페이드가 새 상태를 덮지 않게
-  const FADE_IN = 900, FADE_OUT = 700, DUCK_DOWN = 160, DUCK_UP = 420;
+  // ⚠️ **켜고 끄는 페이드만 설정값**(`MU.fade`)이다. 콜 덕킹은 상수로 둔다 — 페이드를
+  //    5초로 맞춘 사람의 코트에서 덕킹까지 5초면 **콜이 끝난 뒤에야 음악이 줄어든다.**
+  //    줄이는 건 콜을 덮지 않으려고 하는 일이라 늘 빨라야 한다.
+  const DUCK_DOWN = 160, DUCK_UP = 420;
+  const muFadeMs = () => Math.max(0, MU.fade);
 
   function muSetVolume(v) {
     muCur = Math.max(0, Math.min(100, Math.round(v)));
@@ -1047,7 +1056,8 @@
     muStopFade();
     return new Promise((res) => {
       const from = muCur, span = target - from;
-      if (!span) { muSetVolume(target); return res(); }
+      // 길이가 0 이거나 움직일 폭이 없으면 곧바로 — 빈 타이머를 돌리지 않는다.
+      if (!span || ms <= 0) { muSetVolume(target); return res(); }
       const step = 30, n = Math.max(1, Math.round(ms / step));
       let i = 0;
       muFadeTimer = setInterval(() => {
@@ -1083,7 +1093,7 @@
     const gen = ++muGen;
     if (muDuckTimer) { clearTimeout(muDuckTimer); muDuckTimer = null; }
     if (!MU.on) {
-      await muFadeTo(0, FADE_OUT);          // 끄는 것도 미끄러진다
+      await muFadeTo(0, muFadeMs());        // 끄는 것도 미끄러진다
       if (gen !== muGen) return;            // 그 사이에 다시 켰다
       muYtStop(); muFileStop();
       muStatus('꺼져 있어요.');
@@ -1098,7 +1108,7 @@
     //    안 난다" 가 되고, 원인이 화면 어디에도 없다.
     if (!ok) { MU.on = false; localStorage.setItem('sbMuOn', '0'); syncMusicBtn(); return; }
     syncMusicBtn();
-    muFadeTo(MU.vol, FADE_IN);
+    muFadeTo(MU.vol, muFadeMs());
   }
   function syncMusicBtn() {
     const b = $('btnMusic'); if (!b) return;
@@ -1130,6 +1140,15 @@
     MU.duck = +$('muDuck').value;
     localStorage.setItem('sbMuDuck', String(MU.duck));
   };
+  function muSyncFadeLabel() {
+    const e = $('muFadeVal');
+    if (e) e.textContent = MU.fade ? (MU.fade / 1000).toFixed(1) + '초' : '없음';
+  }
+  window.muOnFade = () => {
+    MU.fade = +$('muFade').value;
+    localStorage.setItem('sbMuFade', String(MU.fade));
+    muSyncFadeLabel();
+  };
   window.muSave = () => {
     MU.list = ($('muList').value || '').trim();
     localStorage.setItem('sbMuList', MU.list);
@@ -1149,6 +1168,8 @@
     $('muList').value = MU.list;
     $('muVol').value = MU.vol;
     $('muDuck').value = MU.duck;
+    $('muFade').value = MU.fade;
+    muSyncFadeLabel();
     $('muListRow').style.display = MU.src === 'yt' ? '' : 'none';
     syncMusicBtn();
     // ⚠️ 새로고침했다고 **저절로 틀지 않는다.** 브라우저가 첫 탭 전 자동재생을 막기도 하고,

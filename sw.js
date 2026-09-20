@@ -1,4 +1,4 @@
-const CACHE = 'ps-control-v20';  // v20: 배경 음악 켜고 끌 때 볼륨이 미끄러진다(페이드 인/아웃)
+const CACHE = 'ps-control-v21';  // v21: 페이드 길이를 설정 슬라이더로(기본 3초) — 콜 덕킹은 그대로 빠르게
 const ASSETS = ['/ps-scoreboard/', '/ps-scoreboard/index.html'];
 
 self.addEventListener('install', e => {
