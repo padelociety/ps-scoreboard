@@ -139,6 +139,11 @@
   .r-repeat{height:60px;flex-direction:row;gap:10px}
   .r-repeat .sym{font-size:20px}
   .r-repeat .caps{font-size:12px;letter-spacing:3px}
+  .r-crit{height:60px;gap:6px;padding:0 8px}
+  .r-crit .caps{font-size:11px;letter-spacing:2px}
+  .r-crit .st{font-size:10px;letter-spacing:1px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .r-crit.on{border-color:var(--gold);color:var(--gold)}
+  .r-crit.on .st{color:var(--gold)}
   .r-toggles{margin-top:auto;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
   .r-toggles .btn{height:60px;gap:8px}
   .r-toggles .st{font-size:10px;letter-spacing:2px;color:var(--muted)}
@@ -197,7 +202,7 @@
     .tv-board{grid-template-columns:1fr 32px 32px 32px 56px 84px}
     .body{grid-template-columns:1fr;grid-auto-rows:auto}
     .rail{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
-    .r-undo,.r-save,.r-repeat{height:72px}
+    .r-undo,.r-save,.r-repeat,.r-crit{height:72px}
     .r-repeat{flex-direction:column;gap:4px}
     .r-toggles{display:contents}
     .r-toggles .btn{height:72px}
@@ -285,6 +290,9 @@
            새로고침 뒤에도 된다. ⚠️ Voice 가 꺼져 있어도 이 버튼만은 소리를 낸다(눌렀는데
            조용하면 고장으로 읽힌다). -->
       <button class="btn line r-repeat" id="btnRepeat" onclick="repeatCall()"><span class="sym">🔊</span><span class="caps">Repeat</span></button>
+      <!-- 세트·매치 포인트를 부른다. ⚠️ 자동으로 안 부른다 — 판정이 한 점마다 뒤집혀서
+           자동이면 한 게임에 열 번 떠든다. 지금이 아니면 버튼이 꺼져 있다. -->
+      <button class="btn line r-crit" id="btnCrit" onclick="sayCrit()" disabled><span class="caps">Set · Match</span><span class="st caps">—</span></button>
       <button class="btn gold r-save" onclick="saveSet()"><span class="caps">Save Set</span></button>
       <div class="r-toggles">
         <!-- 듀스는 이제 규칙이 센다 — 이 버튼은 현재 상태를 보여주고, 탭하면 **강제로** 결정
@@ -594,7 +602,7 @@
   function setUILocked(locked) {
     document.querySelectorAll('.body button, .today select').forEach(b => b.disabled = locked);
     $('console').classList.toggle('locked', locked);
-    if (!locked) syncUndoBtn();
+    if (!locked) { syncUndoBtn(); syncCritBtn(); }   // 전체 해제가 이 둘의 '꺼짐' 까지 풀어 버린다
   }
   setUILocked(true);
 
@@ -1244,7 +1252,7 @@
   }
 
   function push() {
-    set(sbRef, { ...S, superTB, tvTheme, deuceLimit, gameTarget });
+    set(sbRef, { ...liveState(), tvTheme });
     renderPreview();
     renderCP();
     try { lgMaybeBroadcastLive(); } catch (_) {}
@@ -1312,6 +1320,46 @@
     if (mutate(() => { S.starForce = !wasStar; syncDecidingFlags(); }) && starLive()) sayDeciding();
   };
 
+  /** 지금 세트·매치 포인트인 쪽 — { text, team } 또는 null. (양쪽이 동시에 되는 점수는 없다.) */
+  function critNow() {
+    const st = liveState();
+    const a = critOf(st, st.a || {}, st.b || {});
+    if (a) return { text: a, team: 'A' };
+    const b = critOf(st, st.b || {}, st.a || {});
+    if (b) return { text: b, team: 'B' };
+    return null;
+  }
+
+  /**
+   * 세트·매치 포인트를 부른다 — **심판이 누를 때만.**
+   *
+   * ⚠️ 자동으로 부르지 않는다. 이 판정은 '이 한 점을 따면 끝난다' 는 **표시**라
+   *    정정(−)으로 켜졌다 꺼졌다 하고, 타이브레이크에선 한 점마다 뒤집힌다 —
+   *    자동이면 한 게임에 열 번 떠든다. TV 배지는 그래도 되지만 스피커는 아니다.
+   * ⚠️ 지금이 아니면 **버튼 자체가 꺼져 있다**(syncCritBtn) — 눌러도 아무 일 없는
+   *    버튼을 두지 않는다.
+   * ⚠️ Voice 가 꺼져 있어도 이 한 번은 낸다(Repeat 과 같은 규칙) — 일부러 누른 것이라
+   *    조용하면 고장으로 읽힌다.
+   */
+  window.sayCrit = () => {
+    const c = critNow();
+    if (!c) return;
+    forceOnce = true;
+    try { say(c.text === 'match point' ? 'Match point' : 'Set point'); }
+    finally { forceOnce = false; }
+  };
+
+  function syncCritBtn() {
+    const btn = $('btnCrit');
+    if (!btn) return;
+    const c = critNow();
+    btn.disabled = !c;
+    btn.classList.toggle('on', !!c);
+    // 어느 팀인지까지 적는다 — 콜은 "Set point" 한 마디라, 누가 딸 차례인지는 눈으로 본다.
+    const nm = c ? ((c.team === 'A' ? S.a.name : S.b.name) || (c.team === 'A' ? 'Team A' : 'Team B')) : '';
+    btn.querySelector('.st').textContent = c ? `${c.text === 'match point' ? 'MATCH' : 'SET'} · ${nm}` : '—';
+  }
+
   window.onTitleChange = () => { S.title = $('inTitle').value; push(); };
   window.onNameChange  = () => {
     S.a.name = $('inNameA').value;
@@ -1342,16 +1390,67 @@
     if (changed && d > 0) speakGame();   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
   };
 
-  // 타이브레이크 여부 판단
-  function isTiebreak() {
-    const sets = (S.a.sets||[]).length;
-    const isThirdSet = sets === 2;
-    if (isThirdSet && superTB) return false; // 슈퍼타이브레이크는 별도 처리
-    return S.a.game === gameTarget && S.b.game === gameTarget;
+  /* ── 세트·매치 포인트 판정 ─ tv.html·obs.html 과 **글자까지 같은** 세 함수 ──────
+   * 공유 JS 가 없어 세 파일에 각각 있을 수밖에 없다. 갈라지는 것은
+   * `tvlive.test.cjs` 가 **소스를 글자 단위로 대조**해 막는다 — 한쪽만 고치면 거기서 실패한다.
+   * ⚠️ 심판이 "매치포인트" 라고 외치는데 TV 엔 안 뜨면, 현장과 중계가 다른 경기를
+   *    보여주는 셈이 된다. 그래서 보내는 한 벌(`liveState`)로 같은 함수를 돌린다.
+   */
+  function gameTargetOf(S) {
+    const n = S?.gameTarget | 0;
+    return n >= 2 ? n : 6;
   }
-  function isSuperTiebreak() {
-    return superTB && (S.a.sets||[]).length === 2;
+
+  function tbKindOf(S) {
+    const sets = (S.a?.sets || []).length;
+    const gTarget = gameTargetOf(S);
+    if (S.superTB && sets === 2) return 'stb';
+    if ((S.a?.game | 0) === gTarget && (S.b?.game | 0) === gTarget) return 'tb';
+    return '';
   }
+
+  function critOf(S, me, you) {
+    const sets = (S.a?.sets || []).length;
+    const kind = tbKindOf(S);
+    const isTB = kind === 'tb';
+    const isSTB = kind === 'stb';
+    const p = me.point | 0, q = you.point | 0;
+
+    // 타이브레이크: 다음 한 점으로 끝나는가
+    if (isTB || isSTB) {
+      const target = isSTB ? 10 : 7;
+      if (p + 1 >= target && p + 1 - q >= 2) return sets >= 1 ? 'match point' : 'set point';
+      return '';
+    }
+    // 일반 게임: 다음 한 점으로 게임을 가져가는가
+    const decider = (S.deuce || 0) > (typeof S.deuceLimit === 'number' ? S.deuceLimit : 2) || !!S.starForce;
+    const winsGame = (p === 3 && q <= 2) || (p === 4) || (p === 3 && q === 3 && decider);
+    if (!winsGame) return '';
+    // 그 게임으로 세트가 끝나는가 — 목표 게임 + 2게임 차, 또는 한 게임 더(6게임이면 7-5/7-6)
+    const gTarget = gameTargetOf(S);
+    const g = (me.game | 0) + 1, h = you.game | 0;
+    const winsSet = (g >= gTarget && g - h >= 2) || g === gTarget + 1;
+    if (!winsSet) return '';
+    // 이번 세트로 경기가 끝나는가 — 이미 한 세트를 이겨 뒀다면 매치포인트
+    const mySets = (me.sets || []).filter((v, i) => v > (you.sets || [])[i]).length;
+    return mySets >= 1 ? 'match point' : 'set point';
+  }
+
+  /**
+   * TV·OBS 가 보는 것과 **똑같은** 한 벌 — push() 가 내보내는 모양 그대로다.
+   *
+   * ⚠️ 여기서 빠뜨린 값은 화면과 콘솔의 판정을 갈라 놓는다. 그래서 push() 도
+   *    이걸 쓴다 — 보내는 것과 판정하는 것이 두 모양이 되면 언젠가 어긋난다.
+   */
+  // ⚠️ 함수 선언이다(호이스팅). Firebase 콜백이 모듈 초기화 중에 **동기로** 오면
+  //    그때 이미 renderCP → isTiebreak 가 이걸 부른다 — const 화살표로 두면 TDZ 로 죽고
+  //    버튼이 영영 잠긴다(이 파일의 setUILocked 주석에 적힌 그 사고다).
+  function liveState() { return { ...S, superTB, deuceLimit, gameTarget }; }
+
+  // 타이브레이크 여부 — 판정을 다시 적지 않고 tbKindOf 하나를 부른다.
+  // (예전엔 여기 6-6 이 따로 적혀 있었고, 그게 곧 8게임 경기가 깨지던 자리다.)
+  function isTiebreak() { return tbKindOf(liveState()) === 'tb'; }
+  function isSuperTiebreak() { return tbKindOf(liveState()) === 'stb'; }
 
   window.chPoint = (t, d) => {
     const s = t === 'A' ? S.a : S.b;
@@ -1493,6 +1592,7 @@
     $('tnB').classList.toggle('serving', !!S.b.serving);
     syncDeuceUI();
     syncGameUI();
+    syncCritBtn();
     setToggle('btnSuperTB', superTB);
     renderChips('A', S.a.sets||[]);
     renderChips('B', S.b.sets||[]);
