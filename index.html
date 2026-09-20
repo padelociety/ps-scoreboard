@@ -52,6 +52,7 @@
   .top-match{color:var(--gold);white-space:nowrap}
   .top-match:empty{display:none}
   .top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex:none}
+  .build{color:var(--muted);opacity:.55;font-size:11px;letter-spacing:1px}
   .conn{display:flex;align-items:center;gap:8px;color:var(--muted);padding:0 8px}
   .conn i{width:8px;height:8px;border-radius:50%;background:var(--muted);animation:pulse 1s infinite}
   .conn i.ok{background:var(--gold);box-shadow:0 0 0 3px rgba(var(--gold-rgb),.18);animation:none}
@@ -142,8 +143,13 @@
   .r-crit{height:60px;gap:6px;padding:0 8px}
   .r-crit .caps{font-size:11px;letter-spacing:2px}
   .r-crit .st{font-size:10px;letter-spacing:1px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .r-crit.on{border-color:var(--gold);color:var(--gold)}
-  .r-crit.on .st{color:var(--gold)}
+  /* ⚠️ 세트·매치 포인트는 한 경기에 몇 번 안 온다 — 온 순간을 몰라보면 버튼이
+     없는 것과 같다(2026-09-20 신고: "세트포인트 말하는 버튼 아직 없는데?" — 있었다).
+     꺼져 있을 때는 조용하고, 켜지면 [Save Set] 만큼 눈에 들어오게 한다. */
+  .r-crit.on{border:1.5px solid var(--gold);background:rgba(var(--gold-rgb),.16);color:var(--gold)}
+  .r-crit.on .caps{color:var(--gold2)}
+  .r-crit.on .st{color:var(--gold2);font-weight:700}
+  .r-crit.on.match{background:rgba(var(--gold-rgb),.30);box-shadow:0 0 0 2px rgba(var(--gold-rgb),.35)}
   .r-toggles{margin-top:auto;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
   .r-toggles .btn{height:60px;gap:8px}
   .r-toggles .st{font-size:10px;letter-spacing:2px;color:var(--muted)}
@@ -229,6 +235,10 @@
     <div class="top-title kr" id="topTitle">PS Scoreboard</div>
     <div class="top-match caps" id="topMatch"></div>
     <div class="top-right">
+      <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
+           새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
+           TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
+      <span class="build caps" id="psBuild">b26</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -300,7 +310,7 @@
       <button class="btn line r-repeat" id="btnRepeat" onclick="repeatCall()"><span class="sym">🔊</span><span class="caps">Repeat</span></button>
       <!-- 세트·매치 포인트를 부른다. ⚠️ 자동으로 안 부른다 — 판정이 한 점마다 뒤집혀서
            자동이면 한 게임에 열 번 떠든다. 지금이 아니면 버튼이 꺼져 있다. -->
-      <button class="btn line r-crit" id="btnCrit" onclick="sayCrit()" disabled><span class="caps">Set · Match</span><span class="st caps">—</span></button>
+      <button class="btn line r-crit" id="btnCrit" onclick="sayCrit()" disabled><span class="caps">Set · Match</span><span class="st caps">세트·매치 콜</span></button>
       <button class="btn gold r-save" onclick="saveSet()"><span class="caps">Save Set</span></button>
       <div class="r-toggles">
         <!-- 듀스는 이제 규칙이 센다 — 이 버튼은 현재 상태를 보여주고, 탭하면 **강제로** 결정
@@ -1367,9 +1377,13 @@
     const c = critNow();
     btn.disabled = !c;
     btn.classList.toggle('on', !!c);
+    // 매치포인트는 한 단계 더 진하게 — 경기가 끝나는 한 점이다.
+    btn.classList.toggle('match', !!c && c.text === 'match point');
     // 어느 팀인지까지 적는다 — 콜은 "Set point" 한 마디라, 누가 딸 차례인지는 눈으로 본다.
     const nm = c ? ((c.team === 'A' ? S.a.name : S.b.name) || (c.team === 'A' ? 'Team A' : 'Team B')) : '';
-    btn.querySelector('.st').textContent = c ? `${c.text === 'match point' ? 'MATCH' : 'SET'} · ${nm}` : '—';
+    // ⚠️ 꺼져 있을 때 '—' 만 찍으면 무슨 버튼인지 알 수가 없어 있는지도 모른다
+    //    (2026-09-20 신고: "세트포인트 말하는 버튼 아직 없는데?" — 있었다).
+    btn.querySelector('.st').textContent = c ? `${c.text === 'match point' ? 'MATCH' : 'SET'} · ${nm}` : '세트·매치 콜';
   }
 
   window.onTitleChange = () => { S.title = $('inTitle').value; push(); };
