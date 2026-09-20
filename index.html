@@ -151,6 +151,12 @@
   /* ── 하단 오늘 경기 64 ── */
   .today{height:64px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;border-top:1px solid var(--line)}
   .today .lbl{color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
+  .td-st{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)}
+  .td-st.ok{color:var(--gold)}
+  .td-st.err{color:var(--terra)}
+  .td-done{flex:none;height:48px;padding:0 18px}
+  .td-done .caps{font-size:12px;letter-spacing:2px}
+  .td-done:not(:disabled){border-color:var(--gold);color:var(--gold)}
   .sel{position:relative;flex:1;min-width:0}
   .sel select{width:100%;height:48px;appearance:none;-webkit-appearance:none;background:rgba(7,27,32,.65);border:1px solid var(--line2);border-radius:6px;color:var(--cream);padding:0 48px 0 16px;font-family:'Playfair Display','MaruBuri',serif;font-size:17px;line-height:1}
   .sel::after{content:'';position:absolute;right:18px;top:50%;width:9px;height:9px;border-right:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);transform:translateY(-70%) rotate(45deg);pointer-events:none}
@@ -208,6 +214,8 @@
     .r-toggles .btn{height:72px}
     .today{height:auto;flex-wrap:wrap;padding:12px 16px}
     .today .lbl{max-width:100%}
+    .td-st{flex-basis:100%;order:3}
+    .td-done{order:2}
     .sel{flex-basis:100%}
   }
 </style>
@@ -340,6 +348,10 @@
         <option value="">대회 목록 불러오는 중</option>
       </select>
     </div>
+    <!-- 지금 무엇이 대회에 기록되고 있는지 한 줄. 이게 없으면 저장되는지 안 되는지
+         알 길이 없다 — 그러면 심판은 불안해서 대회 PWA 를 또 열어 본다. -->
+    <span class="td-st" id="tdStatus"></span>
+    <button class="btn line td-done" id="btnTdDone" onclick="tdFinish()" disabled><span class="caps">경기 완료 · 다음</span></button>
   </footer>
 
 </div><!-- /console -->
@@ -602,7 +614,7 @@
   function setUILocked(locked) {
     document.querySelectorAll('.body button, .today select').forEach(b => b.disabled = locked);
     $('console').classList.toggle('locked', locked);
-    if (!locked) { syncUndoBtn(); syncCritBtn(); }   // 전체 해제가 이 둘의 '꺼짐' 까지 풀어 버린다
+    if (!locked) { syncUndoBtn(); syncCritBtn(); tdSyncDoneBtn(); }   // 전체 해제가 이들의 '꺼짐' 까지 풀어 버린다
   }
   setUILocked(true);
 
@@ -1388,6 +1400,9 @@
       }
     });
     if (changed && d > 0) speakGame();   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
+    // 대회 경기면 이 순간이 기록 지점이다. 정정(−)도 보낸다 — 틀린 점수가 서버에
+    // 남아 있는 것보다 나쁘며, 보내는 값이 누적이 아니라 **지금 점수 전체**라 안전하다.
+    if (changed) tdMaybeSave();
   };
 
   /* ── 세트·매치 포인트 판정 ─ tv.html·obs.html 과 **글자까지 같은** 세 함수 ──────
@@ -1628,6 +1643,8 @@
    * 고른 대회의 groups[].rounds[][] 를 평탄화해 matchTime 순으로 나열. 60초마다 갱신, 선택은 유지. */
   const TD_API = 'https://api.padelsociety.co.kr/api/tournament-store/tournaments';
   let tdTournament = null, tdMatches = [], tdKey = null, tdMsg = '대회 목록 불러오는 중';   // tdMsg = 대회가 없을 때 select 한 줄
+  // 지금 채점 중인 대회 경기 — 경기를 고를 때 박히고, 완료하거나 풀면 비운다.
+  let tdTid = '', tdMid = '', tdSaveTimer = null, tdSaving = false, tdLast = '';
   function todayStr() {
     const d = new Date(), p = (n) => (n < 10 ? '0' : '') + n;
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
@@ -1660,8 +1677,15 @@
       for (const g of (t.groups || [])) { const x = (g.teams || []).find((x) => x.id === id); if (x) return x.name; }
       return id ? String(id) : 'TBD';
     };
+    // ⚠️ **id 를 버리지 않는다.** 예전엔 이름·시각만 남겨서 고른 경기가 대회의 어느
+    //    매치인지 말할 수가 없었다 — 점수를 되돌려 저장할 수 없던 이유가 이것이다.
     return (t.groups || []).flatMap((g) => (g.rounds || []).flat())
-      .map((m) => ({ time: m.matchTime || '', a: nameOf(m.home), b: nameOf(m.away), done: !!m.completed }))
+      .map((m) => ({
+        id: m.id, time: m.matchTime || '', a: nameOf(m.home), b: nameOf(m.away),
+        done: !!m.completed, live: !!m.live,
+        ha: typeof m.homeScore === 'number' ? m.homeScore : null,
+        ab: typeof m.awayScore === 'number' ? m.awayScore : null,
+      }))
       .sort((x, y) => (x.time || '99:99').localeCompare(y.time || '99:99'));
   }
   function tdRender() {
@@ -1673,7 +1697,8 @@
     tdMatches.forEach((m, i) => {
       const live = !!S.a.name && m.a === S.a.name && m.b === S.b.name;
       if (live) liveIdx = i;
-      sel.append(new Option(`${m.time}  ${m.a} vs ${m.b}${m.done ? ' ✓' : ''}${live ? ' · LIVE' : ''}`, String(i)));
+      const sc = m.ha != null && m.ab != null ? ` ${m.ha}-${m.ab}` : '';
+      sel.append(new Option(`${m.time}  ${m.a} vs ${m.b}${sc}${m.done ? ' ✓' : ''}${live ? ' · 지금 채점' : ''}`, String(i)));
     });
     sel.value = liveIdx >= 0 ? String(liveIdx) : prev;
     const cur = tdMatches[sel.value];
@@ -1688,7 +1713,7 @@
   }
   window.pickTodayMatch = (val) => {
     const m = tdMatches[val];
-    if (!m) return;
+    if (!m) { tdTid = ''; tdMid = ''; tdSyncDoneBtn(); tdSetStatus(''); return; }
     mutate(() => {
       S.title = m.time ? `${tdTournament.name} · ${m.time}` : String(tdTournament.name || '');
       S.a = { ...blank(), name: m.a };
@@ -1697,8 +1722,121 @@
       S.starPoint = false; S.goldenPoint = false;
       S.startedAt = 0; S.gamelog = []; S.run = null;   // 새 경기 — 시계·타임라인도 새로
     });
+    // 여기서부터 이 경기의 점수가 대회에 기록된다.
+    tdTid = (tdTournament && (tdTournament.id || tdTournament._id)) || '';
+    tdMid = m.id || '';
+    tdLast = '';
     syncInputs();
+    tdSyncDoneBtn();
+    if (!tdMid) tdSetStatus('이 경기는 대회에 저장할 수 없어요 (매치 id 없음).', 'err');
+    else if (!lg.token) tdSetStatus('설정에서 로그인하면 점수가 대회에 기록돼요.', 'err');
+    else if (m.done) tdSetStatus('⚠️ 이미 끝난 경기예요 — 저장하면 기록이 덮여요.', 'err');
+    else tdSetStatus('⚠️ 대회 PWA 에서 같은 경기를 동시에 채점하지 마세요.', '');
   };
+  /* ══════════════ 대회 점수 되돌려 저장 (운영자 토큰 필요) ══════════════
+   * 예전엔 이 화면이 **읽기 전용**이었다 — 경기를 고르면 이름만 채우고, 점수는 운영자가
+   * 대회 PWA 에 **손으로 다시 입력**했다. 심판이 친 점수와 기록이 갈라지는 자리였다.
+   *
+   * 쓰는 곳은 `PATCH /tournament-store/live-score` 하나다. 그 주소는 blob 전체가 아니라
+   * **그 매치 한 개만** 병합하고 서버가 직렬화한다 — 코트가 여럿이어도 서로 덮어쓰지 않는다.
+   *
+   * ⚠️ **조별리그 경기는 단판이다**(setMode:false). `homeScore`/`awayScore` 는 세트 승수가
+   *    아니라 **게임 수**다(6-4 처럼). 그래서 저장하는 값은 `S.a.game`·`S.b.game` 이다 —
+   *    세트 승수를 보내면 조별 순위가 통째로 틀어진다.
+   * ⚠️ 하단 목록에는 **조별리그 경기만** 나온다(groups[].rounds 만 훑는다). 8강~결승은
+   *    세트제라 계산이 다르고, 그쪽은 대회 PWA 의 라이브 패널이 맡는다.
+   */
+  // ⚠️ try/catch 가 장식이 아니다. `lg` 는 이 파일 **아래쪽**에 선언된 const 라,
+  //    Firebase 콜백이 초기화 중에 동기로 오면 setUILocked(false) → tdSyncDoneBtn 이
+  //    TDZ 에 닿는다(`typeof lg` 도 TDZ 에선 던진다). 죽으면 버튼이 영영 잠긴다.
+  const tdCanWrite = () => { try { return !!(lg.token && tdTid && tdMid); } catch (_) { return false; } };
+  function tdSetStatus(msg, kind) {
+    const el = $('tdStatus');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('ok', kind === 'ok');
+    el.classList.toggle('err', kind === 'err');
+  }
+  /** 지금 점수 한 벌 — 단판이므로 게임 수가 곧 결과다. */
+  const tdScore = () => ({ homeScore: S.a.game | 0, awayScore: S.b.game | 0 });
+  function tdSyncDoneBtn() {
+    const btn = $('btnTdDone');
+    if (btn) btn.disabled = !tdCanWrite();
+  }
+  async function tdPatch(patch) {
+    if (!tdCanWrite()) return false;
+    const res = await fetch(`${lg.apiBase}/tournament-store/live-score`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${lg.token}` },
+      body: JSON.stringify({ tournamentId: tdTid, matchId: tdMid, patch }),
+    });
+    let body = null;
+    try { body = await res.json(); } catch (_) {}
+    if (!res.ok || (body && body.isSuccess === false)) {
+      throw new Error((body && body.message) || `HTTP ${res.status}`);
+    }
+    return true;
+  }
+  /**
+   * 게임이 올라갈 때마다 중간 저장 — 단판 경기에서 '세트 저장' 에 해당하는 지점이다.
+   *
+   * ⚠️ 포인트마다 보내지 않는다. 대회 데이터는 한 덩어리라 저장할 때마다 락을 잡고
+   *    파싱한다 — 코트가 여럿이면 서로 기다리고, 정정(−)까지 그대로 기록에 나간다.
+   * ⚠️ 실패해도 점수 조작은 계속돼야 한다. 실패는 하단 줄에만 적고, 다음 게임에서 다시
+   *    보낸다(보내는 값이 누적이 아니라 **지금 점수 전체**라 한 번 실패해도 따라잡는다).
+   */
+  function tdMaybeSave() {
+    if (!tdCanWrite()) return;
+    clearTimeout(tdSaveTimer);
+    tdSaveTimer = setTimeout(async () => {
+      if (tdSaving) return;
+      tdSaving = true;
+      const sc = tdScore();
+      try {
+        await tdPatch({ ...sc, live: true, completed: false });
+        tdLast = `${sc.homeScore}-${sc.awayScore}`;
+        tdSetStatus(`대회에 저장됨 ${tdLast}`, 'ok');
+      } catch (e) {
+        tdSetStatus('대회 저장 실패: ' + e.message, 'err');
+      } finally { tdSaving = false; }
+    }, 600);
+  }
+  /**
+   * 경기 완료 → 확정 저장하고 **다음 경기**를 올린다.
+   *
+   * ⚠️ 저장이 실패하면 다음으로 넘어가지 않는다. 넘어가 버리면 방금 친 경기가 기록되지
+   *    않은 채 화면에서 사라진다 — 심판은 저장된 줄 안다.
+   */
+  window.tdFinish = async () => {
+    if (!tdCanWrite()) { tdSetStatus('경기를 고르고 설정에서 로그인하세요.', 'err'); return; }
+    if ((S.a.sets || []).length) {
+      // 세트제 경기는 이 목록에 없다 — 여기서 세트가 보이면 다른 경기를 치고 있는 것이다.
+      tdSetStatus('세트가 저장돼 있어요 — 조별리그 단판이 맞는지 확인하세요.', 'err');
+      return;
+    }
+    clearTimeout(tdSaveTimer);
+    const sc = tdScore();
+    const btn = $('btnTdDone');
+    if (btn) btn.disabled = true;
+    try {
+      await tdPatch({ ...sc, live: false, completed: true });
+      tdSetStatus(`완료 저장됨 ${sc.homeScore}-${sc.awayScore}`, 'ok');
+      const done = tdMid;
+      const cur = tdMatches.findIndex((m) => m.id === done);
+      if (cur >= 0) tdMatches[cur] = { ...tdMatches[cur], done: true, live: false, ha: sc.homeScore, ab: sc.awayScore };
+      tdTid = ''; tdMid = '';
+      // 다음 = 아직 안 끝난 경기 중 지금 것보다 뒤. 없으면 앞쪽에서 남은 것.
+      const next = tdMatches.findIndex((m, i) => i > cur && !m.done) >= 0
+        ? tdMatches.findIndex((m, i) => i > cur && !m.done)
+        : tdMatches.findIndex((m) => !m.done);
+      tdKey = null;                                  // 목록을 다시 그리게 한다(✓·점수 반영)
+      if (next >= 0) { window.pickTodayMatch(String(next)); tdSetStatus(`다음 경기 — ${tdMatches[next].a} vs ${tdMatches[next].b}`, 'ok'); }
+      else { tdRender(); tdSyncDoneBtn(); tdSetStatus('남은 경기가 없어요.', 'ok'); }
+    } catch (e) {
+      tdSetStatus('완료 저장 실패: ' + e.message, 'err');
+    } finally { tdSyncDoneBtn(); }
+  };
+
   async function tdPoll() {
     try {
       const res = await fetch(TD_API, { headers: { Accept: 'application/json' } });
@@ -2009,6 +2147,7 @@
     $('lgToken').value = lg.token;
     if (lg.token) lgSetAuthStatus('토큰 있음 (라이브/결과 가능)');
     else lgSetAuthStatus('로그인 필요 (읽기는 가능)');
+    tdSyncDoneBtn();   // lg 가 이제 살아 있다 — 대회 완료 버튼 상태를 맞춘다
     lgLoadLeagues();
   })();
 
