@@ -1208,11 +1208,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b22--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b22 · 자동갱신</div>
+<!--TVBUILD:b23--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b23 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b22"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b23"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -2509,8 +2509,23 @@
       }
       return s;
     };
-    let best = drawable[0], bestS = -1;
-    drawable.forEach((t) => { const s = scoreOf(t); if (s >= bestS) { best = t; bestS = s; } }); // 동점이면 뒤(최근 생성) 우선
+    // ⚠️ 지금 이 코트와 상관있는 대회만 띄운다 — **오늘 날짜** 이거나, 끝나지 않았고
+    //    **지금 코트의 두 팀이 그 대회 소속**일 때. 예전엔 아무 대회도 안 맞아도
+    //    점수 0 짜리 중 마지막 대회를 그대로 띄워서, 리그 경기 중에 끝난 지 한 달 된
+    //    대회(9/5 PS 8th Open)의 조별 순위·대진표가 TV 를 차지했다(2026-10-01 신고).
+    //    맞는 대회가 없으면 점수판만 남는다(bkApply).
+    const relevant = (t) => {
+      if (String(t.date || '').slice(0, 10) === today) return true;
+      if (t.stage === 'completed' || !bkLiveA || !bkLiveB) return false;
+      const names = bkAllNames(t);
+      return names.indexOf(bkLiveA) >= 0 && names.indexOf(bkLiveB) >= 0;
+    };
+    let best = null, bestS = -1;
+    drawable.forEach((t) => {
+      if (!relevant(t)) return;
+      const s = scoreOf(t);
+      if (s >= bestS) { best = t; bestS = s; } // 동점이면 뒤(최근 생성) 우선
+    });
     return best;
   }
 
