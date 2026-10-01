@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PS Scoreboard – OBS Overlay</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 <style>
+  /* 서체 = IBM Plex Sans KR (OFL-1.1, fonts/OFL-IBMPlexSansKR.txt) — 앱·예약앱·토너먼트와 같은 하나(2026-10-01 "전부 통일").
+     한글 11,172자 전부 + 라틴. 우리 repo 에서 직접 서빙(오프라인 TV 에서도 뜨게). */
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/IBMPlexSansKR-Regular.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/IBMPlexSansKR-Medium.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:transparent; width:680px; }
+  body { background:transparent; width:680px; font-family:'IBM Plex Sans KR',system-ui,sans-serif; }
 
   :root {
     --green-dark: #1a472a;
@@ -23,7 +28,7 @@
     border-radius:5px;
     overflow:hidden;
     box-shadow:0 6px 32px rgba(0,0,0,.7);
-    font-family:'Barlow Condensed','Noto Sans KR',sans-serif;
+    font-family:'IBM Plex Sans KR',system-ui,sans-serif;
     /* 데이터가 오기 전(그리고 경기 종료 후)에는 숨긴다. 안 그러면 방송에
        'Team A / Team B 0 0' 빈 점수판이 그대로 나간다. */
     opacity:0;
@@ -159,7 +164,7 @@
   }
   .gold-banner.visible { display:block; }
   .gold-banner-text {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'IBM Plex Sans KR',system-ui,sans-serif;
     font-size: 28px;
     font-weight: 900;
     letter-spacing: 8px;
@@ -191,7 +196,7 @@
   }
   .star-banner.visible { display:block; }
   .star-banner-text {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'IBM Plex Sans KR',system-ui,sans-serif;
     font-size: 28px;
     font-weight: 900;
     letter-spacing: 8px;
@@ -232,7 +237,7 @@
   }
   .tb-banner.visible { display: block; animation: tbIn .5s cubic-bezier(.2,.9,.25,1.1); }
   .tb-banner-text {
-    font-family: 'Barlow Condensed', sans-serif;
+    font-family: 'IBM Plex Sans KR',system-ui,sans-serif;
     font-size: 22px; font-weight: 900; letter-spacing: 6px;
     color: #e8f0f7; text-transform: uppercase;
   }
