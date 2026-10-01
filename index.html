@@ -11,11 +11,14 @@
 <meta name="apple-mobile-web-app-title" content="PS Control">
 <meta name="theme-color" content="#071B20">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* 서체 = IBM Plex Sans KR (OFL-1.1, fonts/OFL-IBMPlexSansKR.txt) — 앱·예약앱·토너먼트와 같은 하나(2026-10-01 "전부 통일").
+     한글 11,172자 전부 + 라틴. 우리 repo 에서 직접 서빙(오프라인 TV 에서도 뜨게). */
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/IBMPlexSansKR-Regular.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/IBMPlexSansKR-Medium.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
   /* 콘솔 = TV 와 같은 잉크 톤 (DESIGN_SYSTEM.md §1 다크 · §4-③). 승인 시안: mock-console-a (좌우 분할 · 중앙 레일). */
-  @font-face{font-family:'MaruBuri';src:url('fonts/MaruBuri-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
-  @font-face{font-family:'MaruBuri';src:url('fonts/MaruBuri-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
 
   :root{
     --ink:#0E3038; --ink2:#071B20; --ink-btn:#153F49; --ink-btn2:#1B4A55;
@@ -29,7 +32,7 @@
   body{
     min-height:100vh; color:var(--cream);
     background:var(--ink2) radial-gradient(ellipse at 50% 0%, var(--ink) 0%, var(--ink2) 72%) no-repeat;background-size:100% 100vh;
-    font-family:'Inter','MaruBuri',sans-serif; font-size:14px;
+    font-family:'IBM Plex Sans KR',system-ui,sans-serif; font-size:14px;
     font-variant-numeric:lining-nums tabular-nums;   /* 모든 숫자 lnum+tnum — 7 이 내려가지 않게 */
     -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
@@ -38,9 +41,9 @@
   button:disabled{opacity:.35;cursor:default}
   input:focus,select:focus{outline:none;border-color:var(--gold)}
 
-  .serif{font-family:'Playfair Display','MaruBuri',serif}
-  .kr{font-family:'MaruBuri','Playfair Display',serif}
-  .caps{font-family:'Inter','MaruBuri',sans-serif;text-transform:uppercase;letter-spacing:2px;font-weight:600;font-size:11px;line-height:1}
+  .serif{font-family:'IBM Plex Sans KR',system-ui,sans-serif}
+  .kr{font-family:'IBM Plex Sans KR',system-ui,sans-serif}
+  .caps{font-family:'IBM Plex Sans KR',system-ui,sans-serif;text-transform:uppercase;letter-spacing:2px;font-weight:600;font-size:11px;line-height:1}
 
   /* ═══════ 골격: 56 + 124 + 524(flex) + 64 = 768 ═══════ */
   .console{min-height:100vh;display:flex;flex-direction:column;transition:opacity .2s}
@@ -134,7 +137,7 @@
   .rail{display:flex;flex-direction:column;gap:8px}
   .rail .btn{width:100%}
   .r-undo{height:120px;border:1.5px solid var(--live);color:var(--terra)}
-  .r-undo .sym{font-size:34px;font-family:'Inter',sans-serif;font-weight:500}
+  .r-undo .sym{font-size:34px;font-family:'IBM Plex Sans KR',system-ui,sans-serif;font-weight:500}
   .r-save{height:72px}
   .r-save .caps{font-size:13px;letter-spacing:3px}
   .r-repeat{height:60px;flex-direction:row;gap:10px}
@@ -164,7 +167,7 @@
   .td-done .caps{font-size:12px;letter-spacing:2px}
   .td-done:not(:disabled){border-color:var(--gold);color:var(--gold)}
   .sel{position:relative;flex:1;min-width:0}
-  .sel select{width:100%;height:48px;appearance:none;-webkit-appearance:none;background:rgba(7,27,32,.65);border:1px solid var(--line2);border-radius:6px;color:var(--cream);padding:0 48px 0 16px;font-family:'Playfair Display','MaruBuri',serif;font-size:17px;line-height:1}
+  .sel select{width:100%;height:48px;appearance:none;-webkit-appearance:none;background:rgba(7,27,32,.65);border:1px solid var(--line2);border-radius:6px;color:var(--cream);padding:0 48px 0 16px;font-family:'IBM Plex Sans KR',system-ui,sans-serif;font-size:17px;line-height:1}
   .sel::after{content:'';position:absolute;right:18px;top:50%;width:9px;height:9px;border-right:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);transform:translateY(-70%) rotate(45deg);pointer-events:none}
 
   /* ═══════ SETTINGS 서랍 — 오른쪽에서 밀려온다 ═══════ */
@@ -179,11 +182,11 @@
   .s-group>.caps{color:var(--gold);padding-bottom:8px;border-bottom:1px solid var(--line)}
   .frow{display:flex;align-items:center;gap:12px}
   .frow label{width:64px;flex:none;color:var(--muted)}
-  .in{flex:1;min-width:0;height:48px;background:rgba(7,27,32,.65);border:1px solid var(--line2);border-radius:6px;color:var(--cream);padding:0 14px;font-family:'Playfair Display','MaruBuri',serif;font-size:16px}
+  .in{flex:1;min-width:0;height:48px;background:rgba(7,27,32,.65);border:1px solid var(--line2);border-radius:6px;color:var(--cream);padding:0 14px;font-family:'IBM Plex Sans KR',system-ui,sans-serif;font-size:16px}
   .in::placeholder{color:rgba(138,160,160,.6)}
   .frow .sel select{height:48px;font-size:16px}
   .seg{flex:1;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line2);border-radius:6px;overflow:hidden;height:48px}
-  .seg button{display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line2);color:var(--muted);font-family:'MaruBuri',serif;font-size:15px}
+  .seg button{display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line2);color:var(--muted);font-family:'IBM Plex Sans KR',system-ui,sans-serif;font-size:15px}
   .seg button:first-child{border-left:0}
   .seg button.on{background:var(--gold);color:var(--ink2);font-weight:700}
   .danger{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -204,7 +207,7 @@
   .d-body{padding:16px;display:flex;flex-direction:column;gap:12px}
   .d-body .frow label{width:56px}
   .row-btns{display:flex;gap:10px;flex-wrap:wrap}
-  .row-btns .btn{height:48px;flex:1;flex-direction:row;padding:0 14px;font-family:'MaruBuri',serif;font-size:14px;white-space:nowrap}
+  .row-btns .btn{height:48px;flex:1;flex-direction:row;padding:0 14px;font-family:'IBM Plex Sans KR',system-ui,sans-serif;font-size:14px;white-space:nowrap}
 
   /* ═══════ ≤768: 세로 태블릿 — 팀 A / 레일 / 팀 B 위아래 ═══════ */
   @media (max-width:768px){
@@ -238,7 +241,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b26</span>
+      <span class="build caps" id="psBuild">b27</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>

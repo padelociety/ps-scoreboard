@@ -8,14 +8,13 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>PS Scoreboard – TV</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@400;600;700;800;900&family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
-  /* 한글 디스플레이 = 마루부리 (OFL-1.1, fonts/OFL-MaruBuri.txt).
-     라틴·숫자는 Playfair Display 가 먼저 잡고, 한글만 여기로 폴백된다. */
-  @font-face { font-family:'MaruBuri'; font-style:normal; font-weight:400; font-display:swap;
-               src:url('fonts/MaruBuri-Regular.woff2') format('woff2'); }
-  @font-face { font-family:'MaruBuri'; font-style:normal; font-weight:700; font-display:swap;
-               src:url('fonts/MaruBuri-Bold.woff2') format('woff2'); }
+  /* 서체 = IBM Plex Sans KR (OFL-1.1, fonts/OFL-IBMPlexSansKR.txt) — 앱·예약앱·토너먼트와 같은 하나(2026-10-01 "전부 통일").
+     한글 11,172자 전부 + 라틴. 우리 repo 에서 직접 서빙(오프라인 TV 에서도 뜨게). */
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/IBMPlexSansKR-Regular.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/IBMPlexSansKR-Medium.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
   * { margin:0; padding:0; box-sizing:border-box; }
   /* 럭셔리 잉크 — DESIGN_SYSTEM.md §1 다크(잉크). 전광판이라 페이퍼 대신 잉크 배경.
      --green/--green2/--dark 이름은 기존 규칙들이 계속 참조해서 그대로 두고 값만 잉크로 바꾼다. */
@@ -39,19 +38,18 @@
     --silver:   #d0d8e0;
     --conn:     #4caf50;
 
-    --disp: 'Playfair Display','MaruBuri',Georgia,'Times New Roman',serif;
-    --ui:   'Inter','Noto Sans KR',system-ui,sans-serif;
+    --disp: 'IBM Plex Sans KR',system-ui,sans-serif;
+    --ui:   'IBM Plex Sans KR',system-ui,sans-serif;
     --num:  lining-nums tabular-nums;
   }
 
-  /* ── 클래식: 리디자인 전 전광판 그대로 (딥그린 + 골드 + Barlow Condensed).
+  /* ── 클래식: 리디자인 전 전광판 그대로 (딥그린 + 골드).
    *    형태(레이아웃·헤어라인·번호 거터)는 공유하고 팔레트와 서체만 바꾼다.
    *    서브권은 두 테마 다 골드 점 — 예전 라켓 PNG 는 b10 에서 걷어냈다. ── */
   /* ── 클래식: 회원 앱 '클래식' 스킨(다크)의 색 그대로.
    *    background #0F1B2D · cardBg #1B2A41 · primary #4CBEAA · accent #34B39F · red #E53E3E
    *    형태(2단 레이아웃·헤어라인·번호 거터·홈/원정 스택)는 럭셔리와 공유하고 색·서체만 바뀐다.
-   *    서체는 예전 전광판 그대로 Barlow Condensed(+한글 Noto Sans KR).
-   *    앱과 똑같이 AstaSans 를 쓰려면 폰트 파일을 이 공개 repo 에 같이 올려야 한다 — 라이선스 확인 후. ── */
+   *    서체는 두 테마 다 IBM Plex Sans KR(앱과 같다 · OFL 이라 이 공개 repo 에 둔다 — b24). ── */
   body.theme-classic {
     --ink0:     #1B2A41;   /* cardBg */
     --green:    #0F1B2D;   /* background */
@@ -67,8 +65,8 @@
     --muted:    #7A95A5;                               /* secondary */
     --conn:     #4CBEAA;
 
-    --disp: 'Barlow Condensed','Noto Sans KR',sans-serif;
-    --ui:   'Barlow Condensed','Noto Sans KR',sans-serif;
+    --disp: 'IBM Plex Sans KR',system-ui,sans-serif;
+    --ui:   'IBM Plex Sans KR',system-ui,sans-serif;
     --num:  normal;
   }
 
@@ -85,7 +83,7 @@
     align-items: center;
     justify-content: center;
     font-family: var(--disp);
-    /* Playfair 기본은 올드스타일 숫자 — 점수·순위가 베이스라인 아래로 떨어진다 (§2) */
+    /* 숫자는 라이닝·고정폭 — 점수·순위가 흔들리지 않게 (§2) */
     font-variant-numeric: var(--num);
     min-height: 100vh;
   }
@@ -1101,7 +1099,7 @@
   .bk-table tr.liverow td { background: rgba(var(--live-rgb),0.10); }
   .bk-table tr.liverow td.rk::before { content: '\25CF'; color: var(--terra); margin-right: 5px; font-size: 0.6em; vertical-align: middle; }
 
-  /* ── 캡스 라벨·뱃지·표 머리는 산세리프 (§2: PWA/TV 본문 = Inter·system).
+  /* ── 캡스 라벨·뱃지·표 머리는 산세리프 (§2: PWA/TV 본문 = IBM Plex Sans KR).
      본문 서체가 세리프라 이 목록만 되돌린다. ── */
   .sb-header-cell, .bk-title, .bk-sub, .bk-table th, .bk-group-name,
   .gs-col-name, .gs-col-state, .gs-livebadge, .gs-nextbadge,
@@ -1208,11 +1206,11 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b23--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 Inter,sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b23 · 자동갱신</div>
+<!--TVBUILD:b24--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b24 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b23"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b24"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
