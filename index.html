@@ -241,7 +241,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b27</span>
+      <span class="build caps" id="psBuild">b28</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -512,6 +512,8 @@
   // TV 테마 리모컨 — tv.html 이 scoreboard.tvTheme 을 읽어 body.theme-classic 을 켠다.
   // push() 가 scoreboard 노드를 통째로 set 하므로 superTB 처럼 여기서 들고 있다가 같이 실어 보낸다.
   let tvTheme = 'luxury';
+  // OBS 오버레이 표시 — 노드에 있던 값을 들고 있다가 그대로 되싣고, **점수를 움직일 때만** 켠다(push).
+  let nodeVisible = true;
 
   /* ── 듀스 규칙 (26S3) ──────────────────────────────────────────────────────
    * 26S2 는 **골든포인트**였다 — 40-40 이면 그 한 점으로 게임이 끝난다. 빠른 대신
@@ -600,14 +602,15 @@
   const undoStack = [];
   const snapshot = () => JSON.stringify({ S, superTB, deuceLimit, gameTarget });
   function syncUndoBtn() { $('btnUndo').disabled = !undoStack.length; }
-  function mutate(fn) {
+  // show — 점수를 움직이는 동작(chPoint·chGame·saveSet)만 true. OBS 오버레이를 그때만 켠다(push).
+  function mutate(fn, show) {
     const before = snapshot();
     fn();
     if (snapshot() === before) return false;   // 0 에서 − 같은 헛손질은 스택에 안 남긴다
     undoStack.push(before);
     if (undoStack.length > 30) undoStack.shift();
     syncUndoBtn();
-    push();
+    push(show);
     return true;
   }
   window.undo = () => {
@@ -636,6 +639,7 @@
   onValue(sbRef, snap => {
     if (snap.val()) {
       S = snap.val();
+      nodeVisible = S.visible !== false;
       if (typeof S.superTB === 'boolean') superTB = S.superTB;   // superTB 상태 복원
       // 듀스 규칙 복원 — 없으면(옛 데이터) 기본값 2듀스. 심판 태블릿을 새로 열어도
       // 진행 중인 경기의 규칙이 그대로 따라와야 한다.
@@ -1276,8 +1280,16 @@
     say(`Game and ${ord} set. ${gamesPhrase(S.a.sets[i], S.b.sets[i])}.`);
   }
 
-  function push() {
-    set(sbRef, { ...liveState(), tvTheme });
+  function push(show) {
+    // ⚠️ 점수를 움직이는 푸시는 visible:true 를 싣는다(2026-10-05). 리그 태블릿은 매치 목록에 앉을
+    //    때·경기가 끝날 때 `visible:false` 를 남기는데(OBS 오버레이를 숨긴다), S 는 그 노드를 통째로
+    //    받아 와서 PS Control 이 푸시할 때마다 false 를 되써 넣었다 — 대회 결승을 여기서 쳐도 유튜브
+    //    방송에서 점수판이 통째로 사라졌다(코트 TV 는 visible 을 안 봐서 멀쩡했다).
+    // ⚠️ 그렇다고 **모든** 푸시가 켜면 안 된다 — 테마·제목·설정만 바꿔도 태블릿이 경기 사이에 숨겨 둔
+    //    오버레이가 지난 점수를 달고 방송에 돌아온다. 그 밖의 푸시는 노드에 있던 값을 그대로 싣는다.
+    //    liveState() 엔 넣지 않는다 — 세 파일이 글자 단위로 맞춰 둔 판정 함수가 그 한 벌을 읽는다.
+    if (show) nodeVisible = true;
+    set(sbRef, { ...liveState(), tvTheme, visible: nodeVisible });
     renderPreview();
     renderCP();
     try { lgMaybeBroadcastLive(); } catch (_) {}
@@ -1415,7 +1427,7 @@
       } else {
         S.gamelog = (S.gamelog || []).slice(0, -1);     // 정정이면 마지막 한 칸만 무른다
       }
-    });
+    }, true);
     if (changed && d > 0) speakGame();   // 내릴 때는 침묵 — 정정이지 게임 종료가 아니다
     // 단판 녹아웃이면 이 순간이 기록 지점이다. 세트제는 [Save Set] 이 맡는다 —
     // 세트제에서 게임마다 보내면 '세트 승수' 가 아직 안 끝난 세트로 계속 들실러린다.
@@ -1531,7 +1543,7 @@
         if ((S.a.point | 0) < 3 || (S.b.point | 0) < 3) { S.deuce = 0; S.starForce = false; }
         syncDecidingFlags();
       }
-    });
+    }, true);
     if (!changed) return;
     // 내릴 때(정정)도 읽는다 — 지금 몇 대 몇인지가 콜의 목적이라.
     if (starLive()) sayDeciding(); else speakPoint();
@@ -1550,7 +1562,7 @@
       S.a.game=0; S.b.game=0; S.a.point=0; S.b.point=0;
       S.deuce = 0; S.starForce = false; S.starPoint = false; S.goldenPoint = false;
       S.gamelog = []; S.run = null;    // 게임 타임라인은 세트마다 새로
-    });
+    }, true);
     if (changed) speakSet();
     if (changed && tdSetMode) tdMaybeSave();   // 세트제 녹아웃 — 세트가 끝나는 순간이 기록 지점이다
   };
@@ -1559,11 +1571,13 @@
     if (!confirm('선수 이름과 스코어를 초기화 하시겠습니까?')) return;
     mutate(() => { S = { title:S.title, a:blank(), b:blank() }; });
     syncInputs();
+    tdRelease();   // 새 경기다 — 고른 녹아웃 경기에 계속 저장하면 안 된다
   };
   window.resetAll = () => {
     if (!confirm('대회명, 선수 이름, 스코어 전체 초기화 하시겠습니까?')) return;
     mutate(() => { S = { title:'', a:blank(), b:blank() }; });
     syncInputs();
+    tdRelease();
   };
 
   // ── Render ──
@@ -1658,14 +1672,18 @@
 
   /* ══════════════ 오늘 경기 선택 (토너먼트 스토어, 공개 GET) ══════════════
    * tv.html 과 같은 규칙으로 대회를 고른다: 진행중(4) + 오늘 날짜(2) + 점수판 두 팀이 소속(1), 동점이면 배열 뒤쪽.
+   * ⚠️ 지금 이 코트와 상관있는 대회만 — 오늘 날짜 · 어제 시작해 진행중(이틀짜리 2일차) ·
+   *    끝나지 않았고 점수판 두 팀이 소속. 맞는 게 없으면 '오늘 진행중 대회 없음'(tdPick → null).
    * 고른 대회의 groups[].rounds[][] 를 평탄화해 matchTime 순으로 나열. 60초마다 갱신, 선택은 유지. */
   const TD_API = 'https://api.padelsociety.co.kr/api/tournament-store/tournaments';
   let tdTournament = null, tdMatches = [], tdKey = null, tdMsg = '대회 목록 불러오는 중';   // tdMsg = 대회가 없을 때 select 한 줄
   // 지금 채점 중인 대회 경기 — 경기를 고를 때 박히고, 완료하거나 풀면 비운다.
   // tdKind: 'rr'(조별 — 읽기 전용) | 'ko'(녹아웃 — 저장 대상) · tdSetMode: 세트제인가
   let tdTid = '', tdMid = '', tdKind = '', tdSetMode = false, tdSaveTimer = null, tdSaving = false;
-  function todayStr() {
+  // off: 날짜를 며칠 옮긴다(−1 = 어제). tdPick 이 이틀짜리 대회 2일차를 알아보는 데 쓴다.
+  function todayStr(off) {
     const d = new Date(), p = (n) => (n < 10 ? '0' : '') + n;
+    if (off) d.setDate(d.getDate() + off);
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   }
   function tdAllNames(t) {
@@ -1676,10 +1694,26 @@
   }
   function tdPick(items) {
     if (!Array.isArray(items)) return null;
-    const today = todayStr();
+    const today = todayStr(), yest = todayStr(-1);
+    // ⚠️ 2026-10-05: 예전엔 '경기가 있는가' 만 걸렀다 — 아무것도 안 맞아도 점수 0 짜리 중 마지막
+    //    대회를 집어서, 대회가 없는 리그 날에도 하단 줄이 'Today · 9/5 PS 8th Open' 이고 그 대회
+    //    경기를 늘어놓았다('오늘 진행중 대회 없음' 은 사실상 뜰 수가 없었다). TV 가 b23(2026-10-01)
+    //    에서 고친 증상과 같다 — 같은 조건(tv.html bkPick 의 relevant)으로 거른다.
+    //    하나 더: PS Control 은 이름을 **이 목록에서** 채우므로 이름 대조만으로는 둘째 날 대회를
+    //    열 수가 없다(점수판이 비어 있으면 목록도 비어 있다) — 어제 시작한 진행중 대회는 연다.
+    const relevant = (t) => {
+      const d = String(t.date || '').slice(0, 10);
+      if (d === today) return true;
+      if (t.stage === 'completed') return false;
+      if (t.stage !== 'registration' && d === yest) return true;
+      if (!S.a.name || !S.b.name) return false;
+      const names = tdAllNames(t);
+      return names.includes(S.a.name) && names.includes(S.b.name);
+    };
     let best = null, bestS = -1;
     items.forEach((t) => {
       if (!(t.groups || []).some((g) => (g.rounds || []).some((r) => (r || []).length))) return;   // 경기가 없으면 고를 게 없다
+      if (!relevant(t)) return;
       let s = 0;
       if (t.stage !== 'completed' && t.stage !== 'registration') s += 4;
       if (String(t.date || '').slice(0, 10) === today) s += 2;
@@ -1753,6 +1787,27 @@
     if (k === tdKey) return;
     tdKey = k;
     tdRender();
+  }
+  /**
+   * 고른 녹아웃 경기를 놓는다 — 이후 점수는 대회에 안 나간다.
+   *
+   * ⚠️ 2026-10-05: 저장 대상(tdTid·tdMid)은 pickTodayMatch 에서만 박히고 완료할 때만 풀렸다.
+   *    [8강] A vs B 를 고른 뒤 초기화하거나 리그 경기 이름을 불러와도 그대로 남아서, 그다음
+   *    [+Game] 마다 **다른 경기의 게임 수가 그 8강 경기에 live:true 로** 덮였다(대진표·TV 에
+   *    가짜 라이브 점수). 화면엔 다른 경기를 저장 중이라는 표시가 없었다.
+   *    새 경기를 여는 길(초기화 둘 · 리그 이름 불러오기)에서 부른다. 이름 칸 손수정(onNameChange)
+   *    은 **지금 경기의 이름을 고치는** 자리라 놓지 않는다.
+   */
+  function tdRelease() {
+    const had = !!(tdTid || tdMid || tdKind);
+    clearTimeout(tdSaveTimer);
+    tdTid = ''; tdMid = ''; tdKind = ''; tdSetMode = false;
+    const sel = $('selToday');
+    if (sel) sel.value = '';
+    tdKey = null;    // 목록을 다시 그린다 — 드롭다운·상단 'Match n' 이 옛 경기를 가리키지 않게
+    tdSync();
+    tdSyncDoneBtn();
+    if (had) tdSetStatus('대회 경기 선택이 풀렸어요 — 이 경기는 대회에 저장하지 않아요.', '');
   }
   window.pickTodayMatch = (val) => {
     const m = tdMatches[val];
@@ -2159,6 +2214,7 @@
     if (!m) return;
     mutate(() => { S.a.name = lgTeamName(m.teamA); S.b.name = lgTeamName(m.teamB); });
     syncInputs();
+    tdRelease();   // 리그 경기다 — 고른 녹아웃 경기에 계속 저장하면 안 된다
     lgSetStatus(`선수 이름 적용: ${S.a.name} vs ${S.b.name}`);
   };
 
