@@ -241,7 +241,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b28</span>
+      <span class="build caps" id="psBuild">b29</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -2033,6 +2033,19 @@
   function lgTeamName(arr) {
     return (arr || []).map(lgUserName).filter(Boolean).join('/') || 'TBD';
   }
+  // 방송 이름(b29 · 2026-10-10) — 회원이 '방송에 닉네임으로' 를 고르면 서버가 매치 목록의
+  // 선수마다 onAir {name, showPhoto, mode} 를 단다. 점수판 이름은 TV·OBS·앱 라이브로 그대로
+  // 나가니 **불러오기는 이걸 쓴다**(태블릿 psAirName 과 같은 규칙). 구분자는 lgTeamName 과 같은 '/' —
+  // 실명을 쓰는 회원의 점수판 모양은 그대로다.
+  // ⚠️ 닉네임이 비면 서버가 '선수' 를 준다 — 여기서 실명으로 되돌리지 않는다.
+  //    onAir 가 아예 없을 때(옛 서버)만 지금까지처럼 실명.
+  // 매치 고르는 목록은 실명 그대로 — 현장 운영자가 보는 자리다.
+  function lgAirName(u) {
+    return (u && u.onAir && String(u.onAir.name || '').trim()) || lgUserName(u);
+  }
+  function lgAirTeamName(arr) {
+    return (arr || []).map(lgAirName).filter(Boolean).join('/') || 'TBD';
+  }
 
   async function lgFetch(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -2208,14 +2221,30 @@
     lg.matchId = $('lgMatchSelect').value;
   };
 
-  window.lgApplyMatch = () => {
+  window.lgApplyMatch = async () => {
     if (!lg.matchId) { lgSetStatus('매치를 먼저 선택해주세요.', true); return; }
-    const m = lg.matches.find(x => x._id === lg.matchId);
-    if (!m) return;
-    mutate(() => { S.a.name = lgTeamName(m.teamA); S.b.name = lgTeamName(m.teamB); });
+    // ⚠️ 이름은 **지금 서버 값**으로 채운다(태블릿 fetchFreshMatch 와 같은 이유). lg.matches 는 리그를 고를 때
+    //    한 번 읽은 사본이라, 그 뒤 '방송에 닉네임으로' 를 고른 회원의 **실명**이 그대로 TV·OBS 로 나갔다.
+    //    못 읽으면 사본으로 채우고 상태 줄에 그렇게 적는다. 목록(select)은 다시 그리지 않는다(고른 값이 풀린다).
+    const id = lg.matchId, leagueId = lg.leagueId;
+    let stale = false;
+    try {
+      const res = await lgFetch(`/league/${leagueId}/matches`);
+      const list = (res && res.data) || [];
+      if (lg.leagueId === leagueId && list.length) lg.matches = list;
+    } catch (_) { stale = true; }
+    if (lg.matchId !== id || lg.leagueId !== leagueId) return;   // 읽는 사이 다른 매치를 골랐다
+    const m = lg.matches.find(x => x._id === id);
+    if (!m) { lgSetStatus('이 매치를 찾지 못했어요 — 목록을 새로고침해 주세요.', true); return; }
+    // 방송에 나가는 이름(onAir)으로 채운다 — 실명과 다르면 상태 줄에 실명을 같이 적는다
+    // (이름 칸이 닉네임이라 현장에서 누가 누군지 헷갈리지 않게).
+    mutate(() => { S.a.name = lgAirTeamName(m.teamA); S.b.name = lgAirTeamName(m.teamB); });
     syncInputs();
     tdRelease();   // 리그 경기다 — 고른 녹아웃 경기에 계속 저장하면 안 된다
-    lgSetStatus(`선수 이름 적용: ${S.a.name} vs ${S.b.name}`);
+    const differs = [...(m.teamA || []), ...(m.teamB || [])].some((u) => lgAirName(u) !== lgUserName(u));
+    lgSetStatus(`선수 이름 적용: ${S.a.name} vs ${S.b.name}`
+      + (differs ? ` · 📺 방송 이름이에요 (실명 ${lgTeamName(m.teamA)} vs ${lgTeamName(m.teamB)})` : '')
+      + (stale ? ' · ⚠️ 서버에서 다시 못 읽어 목록 값으로 채웠어요' : ''), stale);
   };
 
   window.lgRefresh = async () => {
