@@ -241,7 +241,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b30</span>
+      <span class="build caps" id="psBuild">b31</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -773,7 +773,8 @@
         if (!sel) return;
         if (!vs.length) { sel.innerHTML = '<option value="">클립 목소리 없음 (TTS 사용)</option>'; return; }
         if (!vs.some((v) => v.key === clipVoice)) clipVoice = vs[0].key;
-        sel.innerHTML = vs.map((v) => `<option value="${v.key}"${v.key === clipVoice ? ' selected' : ''}>${v.gender === 'f' ? '♀ ' : '♂ '}${v.label}</option>`).join('');
+        sel.innerHTML = '';
+        vs.forEach((v) => { const on = v.key === clipVoice; sel.append(new Option(`${v.gender === 'f' ? '♀ ' : '♂ '}${v.label}`, v.key, on, on)); });
       })
       .catch(() => {});
   }
@@ -1648,8 +1649,9 @@
   }
 
   function renderChips(t, sets) {
+    // 세트 점수는 Firebase 값이다 — 숫자가 아니면 글자로만 그린다(b31).
     $('cpSets'+t).innerHTML = sets.map((v, i) =>
-      `<span class="chip"><span class="cl"><span class="caps">S${i+1}</span><b class="serif">${v}</b></span><button class="cx" onclick="delSet(${i})" aria-label="세트 ${i+1} 삭제">✕</button></span>`
+      `<span class="chip"><span class="cl"><span class="caps">S${i+1}</span><b class="serif">${String(v == null ? '' : v).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';')}</b></span><button class="cx" onclick="delSet(${i})" aria-label="세트 ${i+1} 삭제">✕</button></span>`
     ).join('');
   }
 
@@ -2219,8 +2221,10 @@
     try {
       const res = await lgFetch('/league/list');
       lg.leagues = (res && res.data && res.data.items) || [];
-      sel.innerHTML = '<option value="">— 리그 선택 —</option>' +
-        lg.leagues.map(l => `<option value="${l._id}">${l.name || '리그'}${l.status === 'completed' ? ' (종료)' : ''}</option>`).join('');
+      // ⚠️ 리그 이름은 서버 글자다 — innerHTML 로 이어 붙이지 않고 Option 으로(tdRender 와 같은 방식 · b31).
+      sel.innerHTML = '';
+      sel.append(new Option('— 리그 선택 —', ''));
+      lg.leagues.forEach((l) => sel.append(new Option(`${l.name || '리그'}${l.status === 'completed' ? ' (종료)' : ''}`, String(l._id || ''))));
       if (lg.leagueId) sel.value = lg.leagueId;
     } catch (e) {
       sel.innerHTML = '<option value="">불러오기 실패</option>';
@@ -2251,12 +2255,15 @@
         mSel.innerHTML = '<option value="">— 매치 없음 (앱에서 대진 생성) —</option>';
         return;
       }
-      mSel.innerHTML = '<option value="">— 매치 선택 —</option>' +
-        lg.matches.map(m => {
-          const div = m.division ? `[${m.division}] ` : '';
-          const tag = m.status === 'completed' ? ' ✓' : (m.status === 'live' ? ' · LIVE' : '');
-          return `<option value="${m._id}">${div}#${m.matchNumber} ${lgTeamName(m.teamA)} vs ${lgTeamName(m.teamB)}${tag}</option>`;
-        }).join('');
+      // ⚠️ 선수·부문 이름은 서버(회원이 적은) 글자다 — Option 으로 만든다(b31). 예전엔 innerHTML 로 이어 붙여
+      //    이름 하나로 심판 콘솔에서 스크립트가 돌 수 있었다(운영자 토큰 lg_token 이 같은 페이지에 있다).
+      mSel.innerHTML = '';
+      mSel.append(new Option('— 매치 선택 —', ''));
+      lg.matches.forEach((m) => {
+        const div = m.division ? `[${m.division}] ` : '';
+        const tag = m.status === 'completed' ? ' ✓' : (m.status === 'live' ? ' · LIVE' : '');
+        mSel.append(new Option(`${div}#${m.matchNumber} ${lgTeamName(m.teamA)} vs ${lgTeamName(m.teamB)}${tag}`, String(m._id || '')));
+      });
     } catch (e) {
       mSel.innerHTML = '<option value="">불러오기 실패</option>';
       lgSetStatus('매치 목록 실패: ' + e.message, true);
