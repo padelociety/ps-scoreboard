@@ -1206,11 +1206,12 @@
 <div class="conn-dot" id="connDot"></div>
 
 <!-- 빌드 표시 — TV가 최신 파일을 로드했는지 육안 확인용 (캐시 판별). -->
-<!--TVBUILD:b24--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b24 · 자동갱신</div>
+<!-- b25(2026-10-19): 대회 팀·선수·조 이름을 HTML 에 실을 때 이스케이프(tvEsc). -->
+<!--TVBUILD:b25--><div id="tvBuild" style="position:fixed;left:8px;bottom:6px;z-index:9999;font:600 12px/1 'IBM Plex Sans KR',sans-serif;color:rgba(255,255,255,.35);letter-spacing:1px;pointer-events:none;">TV b25 · 자동갱신</div>
 <script>
 // 자동 업데이트 — 서버의 tv.html 빌드가 바뀌면 스스로 새로고침(키오스크 무인 갱신, ?x= 불필요).
 (function () {
-  var BUILD = "b24"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
+  var BUILD = "b25"; // ⚠️ 배포마다 위 <!--TVBUILD:xx--> 와 함께 증가시킬 것
   function check() {
     fetch(location.pathname + "?_ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.text() : null; })
@@ -1852,6 +1853,13 @@
   });
 
   // ── 팀 id → 이름 (registrations / groups.teams / americano·special players) ──
+  // 대회 데이터(팀·선수 이름 · 조 이름 · 시각)를 HTML 에 실을 때 — 태그로 풀지 않는다(b25 · 2026-10-19).
+  // ⚠️ 이름은 대회 신청자가 적은 글자다. 예전엔 그대로 innerHTML 에 들어가 코트 TV·OBS 에서 스크립트가 돌 수 있었다.
+  //    판정·비교(bkIsLiveMatch · bkIsOnCourt · gsFitNames)는 원래 글자로 하고 **그릴 때만** 바꾼다.
+  function tvEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
   function bkNameOf(t, id) {
     if (!id) return 'TBD';
     const reg = (t.registrations || []).find((r) => r.id === id);
@@ -2009,11 +2017,11 @@
           ${rows.map((s, i) => `
             <tr class="${bkIsOnCourt(s.player && s.player.name) ? 'liverow' : ''}">
               <td class="rk">${i + 1}</td>
-              <td class="nm l">${s.player.name}</td>
-              ${multiGroup ? `<td class="grp">${s.groupName}</td>` : ''}
-              <td>${s.wins}</td>
-              <td>${s.losses}</td>
-              <td class="gw">${s.gamesWon}</td>
+              <td class="nm l">${tvEsc(s.player.name)}</td>
+              ${multiGroup ? `<td class="grp">${tvEsc(s.groupName)}</td>` : ''}
+              <td>${tvEsc(s.wins)}</td>
+              <td>${tvEsc(s.losses)}</td>
+              <td class="gw">${tvEsc(s.gamesWon)}</td>
             </tr>`).join('')}
         </tbody>
       </table>`;
@@ -2046,11 +2054,11 @@
             return `
             <tr class="${cls}">
               <td class="rk">${i + 1}</td>
-              <td class="nm l">${s.team.name}${opt.bye && i === 0 ? '<span class="bk-bye">8강 부전승</span>' : ''}</td>
-              <td>${s.played}</td>
-              <td>${s.wins}</td>
-              <td class="gw">${s.gamesWon}</td>
-              <td class="gw">${diff > 0 ? '+' + diff : diff}</td>
+              <td class="nm l">${tvEsc(s.team.name)}${opt.bye && i === 0 ? '<span class="bk-bye">8강 부전승</span>' : ''}</td>
+              <td>${tvEsc(s.played)}</td>
+              <td>${tvEsc(s.wins)}</td>
+              <td class="gw">${tvEsc(s.gamesWon)}</td>
+              <td class="gw">${tvEsc(diff > 0 ? '+' + diff : diff)}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -2086,7 +2094,7 @@
     document.getElementById('bkSub').textContent = multi ? '조별 순위 · 각 조 상위 4팀 진출' : '순위';
     box.innerHTML = `<div class="bk-groups">${gs.map((g) => `
       <div class="bk-group">
-        ${multi ? `<div class="bk-group-name">${(g.name || '').length <= 2 ? g.name + '조' : g.name}</div>` : ''}
+        ${multi ? `<div class="bk-group-name">${tvEsc((g.name || '').length <= 2 ? g.name + '조' : g.name)}</div>` : ''}
         ${bkStandingsTable(g.rows, { cut: 4 })}
       </div>`).join('')}</div>`;
   }
@@ -2138,14 +2146,14 @@
       : m.away != null ? bkNameOf(t, m.away)
       : (m.team2 || []).map((id) => bkNameOf(t, id)).join(' · ') || 'TBD';
     const sc = (v) => (proj || v == null ? '' : v);
-    const seedTag = (id) => { const s = bkSeedOf(t, id); return s ? `<span class="bk-seed">${s}</span>` : ''; };
+    const seedTag = (id) => { const s = bkSeedOf(t, id); return s ? `<span class="bk-seed">${tvEsc(s)}</span>` : ''; };
     const cls = 'bk-match' + (live ? ' live' : done ? ' done' : '');
     const head = live ? `<div class="bk-livebadge"><i></i>LIVE</div>`
-      : (m.matchTime ? `<div class="bk-time">${m.matchTime}</div>` : '');
+      : (m.matchTime ? `<div class="bk-time">${tvEsc(m.matchTime)}</div>` : '');
     return `<div class="${cls}" data-done="${done ? 1 : 0}">
       ${head}
-      <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}${m.advH ? ' adv' : ''}">${seedTag(hId)}<span class="nm">${hName}</span><span class="sc">${sc(hs)}</span></div>
-      <div class="bk-team${aWin ? ' win' : ''}${hWin ? ' lose' : ''}${m.advA ? ' adv' : ''}">${seedTag(aId)}<span class="nm">${aName}</span><span class="sc">${sc(as)}</span></div>
+      <div class="bk-team${hWin ? ' win' : ''}${aWin ? ' lose' : ''}${m.advH ? ' adv' : ''}">${seedTag(hId)}<span class="nm">${tvEsc(hName)}</span><span class="sc">${tvEsc(sc(hs))}</span></div>
+      <div class="bk-team${aWin ? ' win' : ''}${hWin ? ' lose' : ''}${m.advA ? ' adv' : ''}">${seedTag(aId)}<span class="nm">${tvEsc(aName)}</span><span class="sc">${tvEsc(sc(as))}</span></div>
     </div>`;
   }
 
@@ -2165,7 +2173,7 @@
       <div class="bk-champ">
         <div class="cup">🏆</div>
         <div class="clabel">Champion</div>
-        ${decided ? `<div class="cbox"><div class="cname">${name}</div><div class="cmeta">우승</div></div>` : ''}
+        ${decided ? `<div class="cbox"><div class="cname">${tvEsc(name)}</div><div class="cmeta">우승</div></div>` : ''}
       </div>
     </div>`;
   }
@@ -2319,15 +2327,15 @@
     // ⚠️ '– : –' 로 두면 0 : 0 처럼 읽혀서 "0-0 으로 끝난 경기인가?" 가 된다.
     const n = (v) => (v != null ? v : 0);
     const scs = (done || live)
-      ? `<span class="scs"><b class="${hW ? 'w' : aW ? 'l' : ''}">${n(hs)}</b>`
-        + `<i class="vs">:</i><b class="${aW ? 'w' : hW ? 'l' : ''}">${n(as)}</b></span>`
+      ? `<span class="scs"><b class="${hW ? 'w' : aW ? 'l' : ''}">${tvEsc(n(hs))}</b>`
+        + `<i class="vs">:</i><b class="${aW ? 'w' : hW ? 'l' : ''}">${tvEsc(n(as))}</b></span>`
       : '<span class="scs"><i class="vs">vs</i></span>';
     const tn = (name, win, lose, side) =>
-      `<span class="tn ${side} ${win ? 'w' : lose ? 'l' : ''}">${name}</span>`;
+      `<span class="tn ${side} ${win ? 'w' : lose ? 'l' : ''}">${tvEsc(name)}</span>`;
     // ⚠️ **한 경기 = 한 줄**(홈 · 점수 · 원정). 예전엔 홈/원정이 위아래 두 줄이라
     //    한 행이 글자 두 줄을 담아야 했고, 15경기면 애초에 들어갈 수가 없었다.
     return `<div class="gs-m ${cls}">
-      <div class="no"><b>${no}</b><i>${m.matchTime || '--:--'}</i>${badge}</div>
+      <div class="no"><b>${no}</b><i>${tvEsc(m.matchTime || '--:--')}</i>${badge}</div>
       <div class="pair">${tn(hName, hW, aW, 'h')}${scs}${tn(aName, aW, hW, 'a')}</div>
     </div>`;
   }
@@ -2357,7 +2365,7 @@
       const state = gLive ? '진행중' : (gDone === ms.length && ms.length) ? '완료' : '대기';
       return `<div class="gs-col${gLive ? ' livecol' : ''}">
         <div class="gs-col-head">
-          <div class="gs-col-name">${label}</div>
+          <div class="gs-col-name">${tvEsc(label)}</div>
           <div class="gs-col-state${gLive ? ' on' : ''}">${state} ${gDone}/${ms.length}</div>
         </div>
         <div class="gs-list">${ms.map((m, i) =>
