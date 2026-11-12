@@ -7,11 +7,11 @@
 <style>
   /* 라이브 코너 광고(2026-11-12) — OBS 브라우저 소스(352 x 198 · 16:9)로 방송 화면 오른쪽 위에 얹는다.
      ⚠️ 유튜브 시청자가 보는 화면이고 영상 위에 얹힌다 — 잠깐 떴다가 빠진다(늘 떠 있지 않다) · 소리 없음.
-     모션: 로고가 그려진다 → 구석으로 물러나며 글자가 올라온다 → 아랫줄이 넘어간다(개점 시기 ⇄ 코트 수) → 빠진다.
+     모션: 로고가 그려진다 → 구석으로 물러나며 글자가 올라온다 → 아랫줄이 넘어간다(어디 ⇄ 개점 시기) → 빠진다.
      ⚠️ 칸이 16:9 인 이유: 같은 자리에 동영상 광고(ADS 의 video)를 그대로 넣는다.
      ⚠️ prefers-reduced-motion 을 따르지 않는다 — 보는 사람은 유튜브 시청자이고, 방송 PC 의 윈도우 '애니메이션 효과' 설정이
         방송에 나가는 광고를 멈춘 그림으로 바꾸면 안 된다(obs.html 과 다른 점).
-     문구·색은 아래 ADS 한 곳. 사실(개점 시기·코트 수)은 공개 사이트 centers.json 과 같은 말로 적는다. */
+     문구·색은 아래 ADS 한 곳. 세 줄(몇 호점 · 이름 · 어디)은 대표가 정한 말 그대로, 개점 시기는 공개 사이트 centers.json 과 같은 말로 적는다. */
   @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
   @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -45,18 +45,19 @@
   @keyframes adIn  { from{opacity:0; transform:translateX(16px) scale(.97)} to{opacity:1; transform:none} }
   @keyframes adOut { from{opacity:1; transform:none} to{opacity:0; transform:translateX(12px)} }
 
-  /* ══ 센터 카드 — 아래 값이 '다 그려진 모습'이고, .on 이 붙으면 시간표대로 그려 나간다 ══
+  /* ══ 센터 카드 — .on 이 붙으면 시간표대로 그려 나간다 ══
      0.35s 늑대가 그려진다(가운데 · 크게) → 0.95s 워드마크 → 3.0s 늑대가 오른쪽 위로 물러난다 · 워드마크 빠짐
-     → 3.35s 라벨 → 3.5s 제목(글자마다) → 4.0s 금줄 → 4.3s 아랫줄(개점 시기 ⇄ 코트 수 · --flip 초마다) */
+     → 3.35s 몇 호점 → 3.5s 이름(글자마다) → 4.0s 금줄 → 4.3s 아랫줄(어디 ⇄ 개점 시기 · --flip 초마다) */
   .card { position:absolute; inset:0; }
 
-  .wolf { position:absolute; right:16px; top:20px; width:104px; height:auto; transform-origin:50% 50%; }
+  /* 늑대 — 큰 쪽이 기본 크기다(작게 그려 놓고 키우면 흐려진다). 물러날 때 줄어든다. */
+  .wolf { position:absolute; left:92px; top:22px; width:156px; height:auto; transform-origin:50% 50%; }
   .ad.on .wolf {
     animation: wolfDraw .9s cubic-bezier(.4,0,.2,1) .35s both,
                wolfSettle .8s cubic-bezier(.6,0,.2,1) 3s both;
   }
   @keyframes wolfDraw   { from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0 0 0)} }       /* 머리부터 */
-  @keyframes wolfSettle { from{transform:translate(-102px,18px) scale(1.5)} to{transform:none} }
+  @keyframes wolfSettle { from{transform:none} to{transform:translate(123px,-32px) scale(.3974)} }  /* 62px · 오른쪽 위(몇 호점 줄 높이) */
 
   .mark { position:absolute; left:50%; top:126px; width:150px; height:auto; transform:translateX(-50%); opacity:0; }
   .ad.on .mark {
@@ -66,21 +67,23 @@
   @keyframes markIn  { from{opacity:0; transform:translate(-50%,10px)} to{opacity:1; transform:translate(-50%,0)} }
   @keyframes markOut { from{opacity:1; transform:translate(-50%,0)} to{opacity:0; transform:translate(-50%,-8px)} }
 
-  .info  { position:absolute; left:20px; right:20px; top:20px; }
-  .label { height:22px; line-height:22px; overflow:hidden; font-size:16px; font-weight:600; color:var(--label); white-space:nowrap; }
+  /* 세 줄 — 몇 호점 · 이름 · 어디(아랫줄은 개점 시기와 번갈아) */
+  .info  { position:absolute; left:18px; right:18px; top:27px; }
+  .label { height:26px; line-height:26px; overflow:hidden; font-size:16px; font-weight:600; color:var(--label); white-space:nowrap; }
   .label span { display:inline-block; }
   .ad.on .label span { animation: riseIn .5s cubic-bezier(.2,.8,.2,1) 3.35s both; }
 
-  .title { height:70px; line-height:70px; overflow:hidden; font-size:64px; font-weight:700; color:var(--fg); letter-spacing:1px; white-space:nowrap; }
+  /* 이름 — 폭에 맞춰 줄인다(fitTitle · 최대 30px). 글자마다 올라온다. */
+  .title { margin-top:6px; height:42px; line-height:42px; overflow:hidden; font-size:30px; font-weight:700; color:var(--fg); white-space:pre; }
   .title .ch { display:inline-block; }
-  .ad.on .title .ch { animation: riseIn .6s cubic-bezier(.2,.8,.2,1) calc(3.5s + var(--i) * .12s) both; }
+  .ad.on .title .ch { animation: riseIn .6s cubic-bezier(.2,.8,.2,1) calc(3.5s + var(--i) * .045s) both; }
   @keyframes riseIn { from{transform:translateY(110%)} to{transform:none} }
 
-  .rule { height:1px; margin-top:9px; background:var(--hair); transform-origin:0 50%; }
+  .rule { height:1px; margin-top:10px; background:var(--hair); transform-origin:0 50%; }
   .ad.on .rule { animation: ruleDraw .7s cubic-bezier(.4,0,.2,1) 4s both; }
   @keyframes ruleDraw { from{transform:scaleX(0)} to{transform:none} }
 
-  .flip { position:relative; height:36px; margin-top:6px; overflow:hidden; font-size:23px; line-height:36px; font-weight:700; color:var(--accent); white-space:nowrap; }
+  .flip { position:relative; height:40px; margin-top:8px; overflow:hidden; font-size:27px; line-height:40px; font-weight:700; color:var(--accent); white-space:nowrap; }
   .flip span { position:absolute; left:0; top:0; }
   .flip .fb { opacity:0; }
   .ad.on .flip .fa { animation: flipA var(--flip, 8.35s) cubic-bezier(.3,0,.2,1) 4.3s infinite both; }
@@ -105,13 +108,14 @@
 
 <script>
 /* ══════ 광고 목록 — 문구·색은 여기 한 곳 ══════
-   센터 카드: { id, theme, wolf, mark, label, title, when, note }      동영상: { id, video }(소리 없이 튼다)
-   theme: 'ink'(점수판과 한 벌) | 'daejeon'(대전점 로고 색 — 차콜 브라운 + 흰색) */
+   센터 카드: { id, theme, wolf, mark, label(몇 호점), title(이름), place(어디), when(개점 시기) }      동영상: { id, video }(소리 없이 튼다)
+   theme: 'ink'(점수판과 한 벌) | 'daejeon'(대전점 로고 색 — 차콜 브라운 + 흰색)
+   세 줄(label · title · place)은 대표가 정한 말(2026-11-12) — 아랫줄은 place 와 when 이 번갈아 뜬다. */
 const ADS = [
   { id: 'gimpo2',  theme: 'ink',     wolf: 'brand/wolf-cream.png', mark: 'brand/wordmark-cream.png',
-    label: '빠델소사이어티 2호점', title: '김포', when: '2026년 12월 오픈 예정', note: '실내 코트 2면' },
+    label: '빠델소사이어티 2호점', title: '빠델소사이어티 아카데미', place: '김포 통진', when: '2026년 12월 오픈 예정' },
   { id: 'daejeon', theme: 'daejeon', wolf: 'brand/wolf-white.png', mark: 'brand/wordmark-daejeon-white.png',
-    label: '빠델소사이어티 3호점', title: '대전', when: '2027년 1월 오픈 예정',  note: '실내 코트 1면' },
+    label: '빠델소사이어티 3호점', title: '빠델소사이어티 대전',     place: '대전 와동', when: '2027년 1월 오픈 예정' },
 ];
 
 /* ══════ 시간표(순수 함수 — ads.test.cjs 가 떼어 와 돌린다) ══════
@@ -155,14 +159,22 @@ function pickAds(all, only) {
   return picked.length ? picked : all.slice();
 }
 
-/* 아랫줄이 넘어가는 주기(초) — 대략 8초에 한 바퀴(개점 시기 → 코트 수)이고, **빠질 때는 코트 수가 떠 있게** 바퀴 수에 맞춰 늘이고 줄인다.
-   4.3 = 아랫줄이 처음 올라오는 때 · 0.5 = 빠지는 시간 · 0.94 = 한 바퀴에서 코트 수가 떠 있는 끝(flipB 94%).
-   (주기를 아무 값으로 두면 빠지기 직전에 개점 시기가 다시 올라오다 잘린다.) */
+/* 아랫줄이 넘어가는 주기(초) — 대략 8초에 한 바퀴(어디 → 개점 시기)이고, **빠질 때는 개점 시기가 떠 있게** 바퀴 수에 맞춰 늘이고 줄인다.
+   4.3 = 아랫줄이 처음 올라오는 때 · 0.5 = 빠지는 시간 · 0.94 = 한 바퀴에서 둘째 줄이 떠 있는 끝(flipB 94%).
+   (주기를 아무 값으로 두면 빠지기 직전에 첫째 줄이 다시 올라오다 잘린다.) */
 function flipSeconds(show) {
   const span = show + 0.5 - 4.3;
   const laps = Math.max(1, Math.round(span / 8));
   const v = Math.round(span / (laps - 1 + 0.94) * 100) / 100;
   return Math.max(5, Math.min(13, v));
+}
+
+/* 이름이 칸보다 길면 글자를 줄인다(0.5px 씩 · min 까지). 긴 이름을 말줄임으로 자르지 않는다. */
+function fitTitle(el, max, min) {
+  let fs = max;
+  el.style.fontSize = fs + 'px';
+  while (el.scrollWidth > el.clientWidth && fs > min) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
+  return fs;
 }
 
 /* ══════ 그리기 ══════ */
@@ -196,8 +208,8 @@ function flipSeconds(show) {
     const title = el('div', 'title');
     Array.from(ad.title).forEach((ch, i) => { const s = el('span', 'ch', ch); s.style.setProperty('--i', i); title.appendChild(s); });
     const flip = el('div', 'flip');
-    flip.appendChild(el('span', 'fa', ad.when));
-    flip.appendChild(el('span', 'fb', ad.note));
+    flip.appendChild(el('span', 'fa', ad.place));
+    flip.appendChild(el('span', 'fb', ad.when));
     info.appendChild(label); info.appendChild(title); info.appendChild(el('div', 'rule')); info.appendChild(flip);
     card.appendChild(info);
     box.appendChild(card);
@@ -206,6 +218,9 @@ function flipSeconds(show) {
 
   const boxes = ads.map(build);
   boxes.forEach(b => slot.appendChild(b));
+  const fitAll = () => boxes.forEach(b => { const t = b.querySelector('.title'); if (t) fitTitle(t, 30, 18); });
+  fitAll();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);   // 글꼴이 실린 뒤 한 번 더(폭이 달라진다)
 
   function enter(b) {
     clearTimeout(b._off);
