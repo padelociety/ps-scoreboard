@@ -241,7 +241,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b31</span>
+      <span class="build caps" id="psBuild">b32</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -413,6 +413,18 @@
       <div class="seg" id="btnGameTarget"><button data-g="4" onclick="setGameTarget(4)">4게임</button><button data-g="6" onclick="setGameTarget(6)">6게임</button><button data-g="8" onclick="setGameTarget(8)">8게임</button></div>
     </div>
     <p class="hint" id="gameHint"></p>
+  </div>
+
+  <div class="s-group">
+    <span class="caps">Third Set · 3세트 방식</span>
+    <div class="frow"><label class="caps">1–1</label>
+      <div class="seg" id="btnThirdSet"><button data-t="stb" onclick="setThirdSet('stb')">슈퍼TB</button><button data-t="set" onclick="setThirdSet('set')">일반 3세트</button><button data-t="" onclick="setThirdSet('')">직접</button></div>
+    </div>
+    <p class="hint" id="thirdHint"></p>
+    <div class="frow"><label class="caps">TB 끝</label>
+      <div class="seg" id="btnTbAuto"><button data-a="1" onclick="setTbAuto(true)">자동</button><button data-a="0" onclick="setTbAuto(false)">직접</button></div>
+    </div>
+    <p class="hint" id="tbAutoHint"></p>
   </div>
 
   <div class="s-group">
@@ -1325,6 +1337,51 @@
 
   window.toggleSuperTB = () => { mutate(() => { superTB = !superTB; }); };
 
+  /* ── 3세트 방식 · 타이브레이크 끝내기 (b32 · 2026-11-12 사용자 *"3세트를 진행할 수도 있으니 점수판에서 그런걸 설정할 수 있게"* ·
+   *    *"상황에 맞게 점수를 조종할 수 있게"*) ─────────────────────────────────────────────
+   *   S.thirdSet  'stb' = 세트 1–1 이면 [Save Set] 이 슈퍼 타이브레이크를 켠다(대회 결승 set2super 기본)
+   *               'set' = 1–1 이어도 일반 3세트(슈퍼TB 를 켜지 않는다 · 대회 set3 기본)
+   *               ''    = 직접 — 자동으로 켜지도 끄지도 않는다([Super TB] 버튼만)
+   *     값이 없으면 고른 대회 경기의 형식을 따른다. 대회 경기를 고르면 그 형식으로 다시 맞추고, 그 뒤 심판이 바꾸면 그 값이 이긴다.
+   *   S.tbAuto    true(기본) = 타이브레이크 7점 · 슈퍼TB 10점(2점 차)이면 그 자리에서 끝낸다 / false = [+Game]·[Save Set] 을 손으로
+   *   [Super TB] · [+Game] · [−Game] · [Save Set] · 세트 지우기 · [Undo] 는 어느 방식이든 그대로 쓴다.
+   */
+  function thirdSetMode() {
+    if (S.thirdSet === 'stb' || S.thirdSet === 'set' || S.thirdSet === '') return S.thirdSet;
+    // ⚠️ tdFormat 은 아래(대회 절)에서 let 으로 선언된다 — Firebase 콜백이 초기화 중 동기로 오면 renderCP → 여기가 TDZ 로 죽고
+    //    버튼이 잠긴다(setUILocked 주석의 그 사고). 그래서 읽기를 감싼다.
+    let f = '';
+    try { f = tdFormat; } catch (e) { f = ''; }
+    return f === 'set2super' ? 'stb' : f === 'set3' ? 'set' : '';
+  }
+  window.setThirdSet = (v) => {
+    const t = v === 'stb' || v === 'set' ? v : '';
+    if (!mutate(() => {
+      S.thirdSet = t;
+      // 지금 2세트가 끝난 자리면 바로 적용한다(1–1 이면 슈퍼TB 켜고 · 일반 3세트면 끈다)
+      if ((S.a.sets || []).length === 2 && t) {
+        const aw = S.a.sets.filter((x, i) => x > S.b.sets[i]).length, bw = S.b.sets.filter((x, i) => x > S.a.sets[i]).length;
+        superTB = t === 'stb' && aw === 1 && bw === 1;
+      }
+    })) return;
+    syncThirdUI();
+  };
+  window.setTbAuto = (on) => { if (mutate(() => { S.tbAuto = !!on; })) syncThirdUI(); };
+  function syncThirdUI() {
+    const mode = thirdSetMode(), auto = S.tbAuto !== false;
+    const seg = $('btnThirdSet');
+    if (seg) [...seg.children].forEach((x) => x.classList.toggle('on', x.dataset.t === mode));
+    const seg2 = $('btnTbAuto');
+    if (seg2) [...seg2.children].forEach((x) => x.classList.toggle('on', (x.dataset.a === '1') === auto));
+    const h = $('thirdHint');
+    if (h) h.textContent = mode === 'stb' ? '세트 1–1 이면 [Save Set] 이 슈퍼 타이브레이크(10점)를 자동으로 켜요.'
+      : mode === 'set' ? '세트 1–1 이어도 3세트를 일반 세트로 쳐요(슈퍼TB 를 켜지 않아요).'
+      : '자동으로 켜지 않아요 — 필요하면 [Super TB] 를 직접 누르세요.';
+    const h2 = $('tbAutoHint');
+    if (h2) h2.textContent = auto ? '타이브레이크 7점 · 슈퍼TB 10점을 2점 차로 따면 그 자리에서 게임/세트가 끝나요.'
+      : '타이브레이크 포인트가 끝없이 올라가요 — 끝나면 [+Game] · [Save Set] 을 직접 누르세요.';
+  }
+
   // 세트 길이 바꾸기 — 경기 도중에도 바꿀 수 있다(1세트는 6게임, 3세트는 4게임 같은 운영).
   // 바꾸면 지금 상태에 바로 적용된다: 6-6 에서 8게임으로 늘리면 타이브레이크가 풀려
   // 일반 게임으로 돌아가고, 8게임에서 6으로 줄이면 그 자리가 타이브레이크가 된다.
@@ -1421,7 +1478,7 @@
         [S.a.serving, S.b.serving] = [!!S.b.serving, !!S.a.serving];
         // 듀스 이력은 **게임마다** 처음부터 센다 — 지난 게임에서 세 번 듀스를 갔다고
         // 다음 게임 첫 40-40 이 결정 포인트가 되면 안 된다.
-        S.deuce = 0; S.starForce = false;
+        S.deuce = 0; S.starForce = false; S.deuceHold = false;
         S.starPoint = false; S.goldenPoint = false;
         S.run = null;                                   // 연속 득점은 게임 단위
         S.gamelog = [...(S.gamelog || []), t];          // 이번 세트의 게임 주인 (TV 타임라인)
@@ -1516,6 +1573,19 @@
       const q = o.point | 0;
       if (starLive() || (p >= 4 && p - q >= 2)) { window.chGame(t, 1); return; }
     }
+    // b32(2026-11-12): 타이브레이크(7점)·슈퍼 타이브레이크(10점)도 2점 차로 이기는 점이면 **그 자리에서 끝낸다**.
+    // 예전엔 포인트가 끝없이 올라가고([+Game] 을 손으로 눌러야 했다) 슈퍼TB 를 이기고 [경기 완료] 를 누르면 1–1 무승부로 저장됐다
+    // (9월 대회 '타이브레이크에서 점수가 제대로 안 올라감'). 타이브레이크는 게임 7-6 → 세트 저장은 예전처럼 [Save Set].
+    // 슈퍼TB 는 3세트를 그 점수(10-8)로 바로 저장한다 — 대회 PWA 가 슈퍼TB 세트를 점수로 받는다.
+    if (d > 0 && raw && S.tbAuto !== false) {
+      const target = isSuperTiebreak() ? 10 : 7;
+      const p = (s.point | 0) + 1;
+      const q = o.point | 0;
+      if (p >= target && p - q >= 2) {
+        if (isSuperTiebreak()) { finishSuperTB(t); return; }
+        window.chGame(t, 1); return;
+      }
+    }
 
     // 타이브레이크(6-6)·슈퍼타이브레이크: 1점씩 무제한. 일반 포인트: 0~AD.
     const max = raw ? Infinity : POINTS.length - 1;
@@ -1539,9 +1609,14 @@
       if (!raw) {
         // 40-40 에 **새로** 도착하면 듀스 한 번. 정정(−)으로 내려온 건 세지 않는다 —
         // 실제로 겨룬 듀스가 아니라 입력을 되돌린 것이라, 세면 결정 포인트가 앞당겨진다.
-        if (d > 0 && !wasDeuce && atDeuce()) S.deuce = (S.deuce || 0) + 1;
-        // 둘 중 하나라도 40 밑으로 내려가면(정정) 듀스 이력도 같이 내려간다.
-        if ((S.a.point | 0) < 3 || (S.b.point | 0) < 3) { S.deuce = 0; S.starForce = false; }
+        // ⚠️ b32(2026-11-12): 40-40 에서 [−Point] 로 정정해도 **횟수를 지우지 않는다** — 예전엔 0 으로 지워서 듀스 2회차에서
+        //    오타 하나를 고치면 다시 1회차가, ★(3회차)에서 고치면 ★ 가 사라졌다. 정정으로 듀스를 떠나면 '돌아올 자리'(deuceHold)를
+        //    잡아 두고, 다시 40-40 에 오면 같은 회차로 친다(새로 세지 않는다). 게임이 끝나면 지운다.
+        if (d > 0 && !wasDeuce && atDeuce()) {
+          if (S.deuceHold) S.deuceHold = false;
+          else S.deuce = (S.deuce || 0) + 1;
+        }
+        if (d < 0 && wasDeuce && !atDeuce()) S.deuceHold = (S.deuce || 0) > 0;
         syncDecidingFlags();
       }
     }, true);
@@ -1556,13 +1631,35 @@
       if (me.serving) other.serving = false;
     });
   };
+  /** 슈퍼 타이브레이크를 t 가 이겼다 — 3세트를 포인트 점수(예: 10-8)로 저장하고 슈퍼TB 를 끈다. */
+  function finishSuperTB(t) {
+    const pa = (S.a.point | 0) + (t === 'A' ? 1 : 0);
+    const pb = (S.b.point | 0) + (t === 'B' ? 1 : 0);
+    const changed = mutate(() => {
+      S.a.sets = [...(S.a.sets || []), pa]; S.b.sets = [...(S.b.sets || []), pb];
+      S.a.game = 0; S.b.game = 0; S.a.point = 0; S.b.point = 0;
+      S.deuce = 0; S.starForce = false; S.starPoint = false; S.goldenPoint = false; S.deuceHold = false;
+      S.gamelog = []; S.run = null;
+      superTB = false;
+    }, true);
+    if (changed) speakSet();
+    if (changed && tdSetMode) tdMaybeSave();
+  }
   window.saveSet = () => {
     if ((S.a.sets||[]).length >= 3) { alert('최대 3세트입니다.'); return; }
     const changed = mutate(() => {
       S.a.sets = [...(S.a.sets||[]), S.a.game]; S.b.sets = [...(S.b.sets||[]), S.b.game];
       S.a.game=0; S.b.game=0; S.a.point=0; S.b.point=0;
-      S.deuce = 0; S.starForce = false; S.starPoint = false; S.goldenPoint = false;
+      S.deuce = 0; S.starForce = false; S.starPoint = false; S.goldenPoint = false; S.deuceHold = false;
       S.gamelog = []; S.run = null;    // 게임 타임라인은 세트마다 새로
+      // b32: '2세트 + 슈퍼 타이브레이크' 경기(대회 결승 set2super)는 두 세트가 1–1 이면 슈퍼TB 를 **자동으로 켠다**.
+      // 예전엔 심판이 [Super TB] 를 손으로 켜야 했고, 잊으면 3세트가 일반 게임으로 갔다(9월 대회 '슈퍼TB 가 안 켜짐').
+      const third = thirdSetMode();
+      if (third && S.a.sets.length === 2) {
+        const aw = S.a.sets.filter((v, i) => v > S.b.sets[i]).length;
+        const bw = S.b.sets.filter((v, i) => v > S.a.sets[i]).length;
+        superTB = third === 'stb' && aw === 1 && bw === 1;
+      }
     }, true);
     if (changed) speakSet();
     if (changed && tdSetMode) tdMaybeSave();   // 세트제 녹아웃 — 세트가 끝나는 순간이 기록 지점이다
@@ -1642,6 +1739,7 @@
     syncGameUI();
     syncCritBtn();
     setToggle('btnSuperTB', superTB);
+    syncThirdUI();
     renderChips('A', S.a.sets||[]);
     renderChips('B', S.b.sets||[]);
     $('topTitle').textContent = S.title || 'PS Scoreboard';
@@ -1681,7 +1779,7 @@
   let tdTournament = null, tdMatches = [], tdKey = null, tdMsg = '대회 목록 불러오는 중';   // tdMsg = 대회가 없을 때 select 한 줄
   // 지금 채점 중인 대회 경기 — 경기를 고를 때 박히고, 완료하거나 풀면 비운다.
   // tdKind: 'rr'(조별 — 읽기 전용) | 'ko'(녹아웃 — 저장 대상) · tdSetMode: 세트제인가
-  let tdTid = '', tdMid = '', tdKind = '', tdSetMode = false, tdSaveTimer = null, tdSaving = false;
+  let tdTid = '', tdMid = '', tdKind = '', tdSetMode = false, tdFormat = '', tdSaveTimer = null, tdSaving = false;
   // off: 날짜를 며칠 옮긴다(−1 = 어제). tdPick 이 이틀짜리 대회 2일차를 알아보는 데 쓴다.
   function todayStr(off) {
     const d = new Date(), p = (n) => (n < 10 ? '0' : '') + n;
@@ -1739,16 +1837,15 @@
     };
     // ⚠️ **id 를 버리지 않는다.** 예전엔 이름·시각만 남겨서 고른 경기가 대회의 어느
     //    매치인지 말할 수가 없었다 — 점수를 되돌려 저장할 수 없던 이유가 이것이다.
-    const row = (m, kind, setMode, label) => ({
-      id: m.id, kind, setMode, label: label || '',
+    const row = (m, kind, setMode, label, fmt, gTarget) => ({
+      id: m.id, kind, setMode, label: label || '', fmt: fmt || '', gTarget: gTarget || 0,
       time: m.matchTime || '', a: nameOf(m.home), b: nameOf(m.away),
       done: !!m.completed, live: !!m.live,
       ha: typeof m.homeScore === 'number' ? m.homeScore : null,
       ab: typeof m.awayScore === 'number' ? m.awayScore : null,
     });
     // 조별리그 — 읽기 전용(이름만 채운다). 시각순.
-    const rr = (t.groups || []).flatMap((g) => (g.rounds || []).flat())
-      .map((m) => row(m, 'rr', false, ''))
+    const rr = (t.groups || []).flatMap((g) => (g.rounds || []).flat().map((m) => row(m, 'rr', false, '', '', g.gameTarget)))
       .sort((x, y) => (x.time || '99:99').localeCompare(y.time || '99:99'));
     // 녹아웃 — 저장 대상. 라운드 순서 그대로(8강 → 4강 → 결승).
     const fmts = t.knockoutFormats || {};
@@ -1756,12 +1853,12 @@
     const ko = [];
     (kb.rounds || []).forEach((rd, ri) => (rd || []).forEach((m) => {
       const label = m.round || `Round ${ri + 1}`;
-      ko.push(row(m, 'ko', TD_SET_FORMATS.includes(fmts[tdFormatKey(label)]), label));
+      ko.push(row(m, 'ko', TD_SET_FORMATS.includes(fmts[tdFormatKey(label)]), label, fmts[tdFormatKey(label)]));
     }));
     if (kb.thirdPlaceMatch) {
       const m = kb.thirdPlaceMatch;
       const label = m.round || '3/4위 결정전';
-      ko.push(row(m, 'ko', TD_SET_FORMATS.includes(fmts[tdFormatKey(label)]), label));
+      ko.push(row(m, 'ko', TD_SET_FORMATS.includes(fmts[tdFormatKey(label)]), label, fmts[tdFormatKey(label)]));
     }
     return rr.concat(ko);
   }
@@ -1803,7 +1900,7 @@
   function tdRelease() {
     const had = !!(tdTid || tdMid || tdKind);
     clearTimeout(tdSaveTimer);
-    tdTid = ''; tdMid = ''; tdKind = ''; tdSetMode = false;
+    tdTid = ''; tdMid = ''; tdKind = ''; tdSetMode = false; tdFormat = '';
     const sel = $('selToday');
     if (sel) sel.value = '';
     tdKey = null;    // 목록을 다시 그린다 — 드롭다운·상단 'Match n' 이 옛 경기를 가리키지 않게
@@ -1818,10 +1915,20 @@
       S.title = m.time ? `${tdTournament.name} · ${m.time}` : String(tdTournament.name || '');
       S.a = { ...blank(), name: m.a };
       S.b = { ...blank(), name: m.b };
-      S.deuce = 0; S.starForce = false;
+      S.deuce = 0; S.starForce = false; S.deuceHold = false;
       S.starPoint = false; S.goldenPoint = false;
       S.startedAt = 0; S.gamelog = []; S.run = null;   // 새 경기 — 시계·타임라인도 새로
+      // b32(2026-11-12): 그 경기의 규칙을 맞춘다 — 예전엔 직전 경기(리그 태블릿이 남긴 골든포인트 · 6게임 · 슈퍼TB 켜짐)가 그대로 남아
+      // 심판이 설정에서 손으로 바꿔야 했다. 대회는 2듀스(스타포인트) · 형식 set1game8 이면 8게임 · 조별은 그 조의 게임 수 · 슈퍼TB 는 꺼진 채
+      // (set2super 는 1–1 이 되면 [Save Set] 이 켠다). 경기 도중 설정에서 바꾸면 그 값이 이긴다.
+      deuceLimit = DEUCE_DEFAULT;
+      gameTarget = m.fmt === 'set1game8' ? 8 : (GAME_STEPS.includes(m.gTarget) ? m.gTarget : GAME_DEFAULT);
+      superTB = false;
+      S.thirdSet = m.fmt === 'set2super' ? 'stb' : m.fmt === 'set3' ? 'set' : '';
+      S.tbAuto = true;
     });
+    tdFormat = m.fmt || '';
+    syncDeuceUI(); syncGameUI(); syncThirdUI();
     // 녹아웃일 때만 이 경기의 점수가 대회에 기록된다.
     // ⚠️ 조별리그는 선수 태블릿이 한 게임씩 올리는 자리다 — 여기서 쓰면 그걸 덮어쓴다.
     tdKind = m.kind || '';
@@ -1966,7 +2073,7 @@
       tdSetStatus(`완료 저장됨 ${tdScoreText(sc)}`, 'ok');
       const cur = tdMatches.findIndex((m) => m.id === tdMid);
       if (cur >= 0) tdMatches[cur] = { ...tdMatches[cur], done: true, live: false, ha: sc.homeScore, ab: sc.awayScore };
-      tdTid = ''; tdMid = ''; tdKind = ''; tdSetMode = false;
+      tdTid = ''; tdMid = ''; tdKind = ''; tdSetMode = false; tdFormat = '';
       // 다음 = 아직 안 끝난 **녹아웃** 경기. 조별은 선수 태블릿 몫이라 건너뛴다.
       const after = tdMatches.findIndex((m, i) => i > cur && !m.done && m.kind === 'ko');
       const next = after >= 0 ? after : tdMatches.findIndex((m) => !m.done && m.kind === 'ko');
