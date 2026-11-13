@@ -5,57 +5,111 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PS Live Banner – OBS Overlay</title>
 <style>
-  /* 라이브 위 띠(2026-11-13 · 사용자 "화면 위쪽에 얇은 배너 만들자. PS 9th Open 에 대한거" · "배너는 원래 이렇게 했었어" —
-     8th Open 때 띠: 흰 바탕에 'Padel Society' 필기체 로고 + 아래 오른쪽 'Nth Open' 을 가로로 다섯 번).
-     OBS 브라우저 소스(너비 1920 · 높이 48)로 방송 화면 맨 위에 얹는다. 움직이지 않는다(늘 떠 있는 띠라 경기에서 눈을 뺏지 않게).
-     기본은 **초록 바탕 + 크림 로고·글씨**(2026-11-13 · 사용자 "띠 바탕색을 초록색으로 하고 로고색과 대회명을 바꿔볼까?") —
-     초록 #104734 · 크림 #F3DAB2 = 공개 사이트 brand/logo-green.png · logo-cream.png 의 색, 로고는 그 둘의 필기체 부분(brand/script-*.png).
-     8th Open 때 모양(흰 바탕 + 초록 로고)은 ?theme=white.
-     주소로 바꿀 수 있다: ?text=9th%20Open(로고 아래 글) · ?n=5(몇 번) · ?theme=white · ?bg=fff(바탕 · 6자리/3자리 hex) */
+  /* 라이브 위 띠(2026-11-13) — OBS 브라우저 소스 **1920 x 48** · 방송 화면 맨 위.
+     사용자 "화면 위쪽에 얇은 배너 만들자. PS 9th Open 에 대한거" → "배너는 원래 이렇게 했었어"(8th Open: 흰 바탕 + 필기체 로고 반복)
+     → "띠 바탕색을 초록색으로" → "더 좋은 아이디어 없어? 움직여도 돼 ticker처럼".
+     기본(티커): 왼쪽 고정 칸 = 필기체 로고 + '9th Open'(크림 · 진한 초록) · 오른쪽 = 소식이 오른쪽에서 왼쪽으로 흐른다(TICKER · 끊김 없이 돈다).
+     색 = 공개 사이트 로고의 초록 #104734 · 크림 #F3DAB2(brand/logo-green.png · logo-cream.png). 소식 사이 점은 금색.
+     ⚠️ prefers-reduced-motion 을 따르지 않는다(ads.html 과 같은 이유 — 방송 PC 설정이 방송 화면을 바꾸면 안 된다).
+     주소: ?speed=70(초당 px) · ?text=9th%20Open · ?lines=첫%20소식|둘째%20소식 · ?style=repeat(예전 반복 띠 · ?theme=white 면 흰 바탕) · ?n=5 */
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
   @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
   * { margin:0; padding:0; box-sizing:border-box; }
-  :root { --fg:#F3DAB2; --bg:#104734; }
+  :root { --fg:#F3DAB2; --bg:#104734; --bg2:#0B3627; --gold:#D9BC7A; }
   :root.white { --fg:#104734; --bg:#FFFFFF; }
   html, body { background:transparent; width:100%; height:48px; overflow:hidden; }
-  body { font-family:'IBM Plex Sans KR',system-ui,sans-serif; }
+  body { font-family:'IBM Plex Sans KR',system-ui,sans-serif; font-variant-numeric: lining-nums tabular-nums; }
 
-  .bar {
-    position:absolute; inset:0;
-    display:flex; align-items:center; justify-content:space-around;
-    background:var(--bg);
-  }
+  .bar { position:absolute; inset:0; display:flex; align-items:center; background:var(--bg); overflow:hidden; }
+
+  /* ── 반복 띠(?style=repeat) ── */
+  .bar.repeat { justify-content:space-around; }
   .item { position:relative; height:48px; width:104px; flex:none; }
   .item img { position:absolute; left:0; top:2px; width:102px; height:auto; }   /* 102 → 높이 30 · 바로 아래 글과 붙는다 */
-  .item .ed {
-    position:absolute; right:0; bottom:1px;
-    font-size:16px; font-weight:700; line-height:1; color:var(--fg); white-space:nowrap;
+  .item .ed { position:absolute; right:0; bottom:1px; font-size:16px; font-weight:700; line-height:1; color:var(--fg); white-space:nowrap; }
+
+  /* ── 티커(기본) ── */
+  .tag {
+    position:relative; z-index:2; flex:none; height:48px;
+    display:flex; align-items:center; gap:12px;
+    padding:0 26px 0 24px;
+    background:var(--bg2);
+    box-shadow:6px 0 12px rgba(0,0,0,.35);
   }
+  .tag::after {                       /* 오른쪽 금줄 */
+    content:''; position:absolute; right:0; top:9px; bottom:9px; width:2px; background:var(--gold); border-radius:1px;
+  }
+  .tag img { height:30px; width:auto; display:block; }
+  .tag .ed { font-size:20px; font-weight:700; color:var(--fg); white-space:nowrap; line-height:1; padding-top:4px; }
+
+  .run { position:relative; flex:1; min-width:0; height:48px; overflow:hidden;
+         -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+                 mask-image:linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%); }
+  .track { position:absolute; left:0; top:0; height:48px; display:flex; align-items:center; white-space:nowrap; will-change:transform;
+           animation: run var(--dur, 60s) linear infinite; }
+  @keyframes run { from{transform:translateX(0)} to{transform:translateX(-50%)} }   /* 같은 줄을 두 번 이어 붙여 끊김 없이 */
+  .msg { font-size:19px; font-weight:600; color:var(--fg); }
+  .msg b { font-weight:700; color:#FFFFFF; }
+  .sep { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--gold); margin:0 34px; flex:none; transform:translateY(1px); }
 </style>
 </head>
 <body>
 <div class="bar" id="bar"></div>
 <script>
+  // 소식은 여기 한 곳. 사실만 — 기간·장소는 대회 데이터(공개 사이트 PS 9th Open), 센터 줄은 ads.html ADS 와 같은 말. **굵게** 는 흰 글자.
+  const TICKER = [
+    '**PS 9th Open** · 11.13 – 11.22 · 빠델소사이어티',
+    '대진표 · 실시간 결과는 **Playus 앱** › 대회에서',
+    '빠델소사이어티 2호점 **빠델소사이어티 아카데미** · 김포 통진 · 실내 코트 2면 · 2026년 12월 오픈 예정',
+    '빠델소사이어티 3호점 **빠델소사이어티 대전** · 대전 와동 · 실내 코트 1면 · 2027년 1월 오픈 예정',
+  ];
+
   const q = new URLSearchParams(location.search);
   const text = q.get('text') || '9th Open';
-  const n = Math.min(12, Math.max(1, parseInt(q.get('n'), 10) || 5));
+  const lines = q.get('lines') ? q.get('lines').split('|').map((s) => s.trim()).filter(Boolean) : TICKER;
+  const speed = Math.min(300, Math.max(20, Number(q.get('speed')) || 70));   // 초당 px
+  const repeat = q.get('style') === 'repeat';
   const white = q.get('theme') === 'white';
   if (white) document.documentElement.classList.add('white');
   const logo = white ? 'brand/script-green.png' : 'brand/script-cream.png';
   const bg = (q.get('bg') || '').replace(/[^0-9a-fA-F]/g, '');
   if (bg.length === 3 || bg.length === 6) document.documentElement.style.setProperty('--bg', '#' + bg);
 
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');   // 이스케이프한 뒤에만 — 주소의 글이 HTML 이 되지 않게
+  const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
   const bar = document.getElementById('bar');
-  for (let i = 0; i < n; i++) {
-    const it = document.createElement('div');
-    it.className = 'item';
-    const img = document.createElement('img');
-    img.src = logo;
-    img.alt = i === 0 ? 'Padel Society' : '';
-    const ed = document.createElement('div');
-    ed.className = 'ed';
-    ed.textContent = text; // 글자로 넣는다 — 주소의 글이 HTML 이 되지 않게
-    it.append(img, ed);
-    bar.appendChild(it);
+
+  if (repeat) {
+    bar.classList.add('repeat');
+    const n = Math.min(12, Math.max(1, parseInt(q.get('n'), 10) || 5));
+    for (let i = 0; i < n; i++) {
+      const it = el('div', 'item');
+      const img = el('img'); img.src = logo; img.alt = i === 0 ? 'Padel Society' : '';
+      const ed = el('div', 'ed'); ed.textContent = text;
+      it.append(img, ed); bar.appendChild(it);
+    }
+  } else {
+    const tag = el('div', 'tag');
+    const img = el('img'); img.src = 'brand/script-cream.png'; img.alt = 'Padel Society';
+    const ed = el('div', 'ed'); ed.textContent = text;
+    tag.append(img, ed);
+    const run = el('div', 'run');
+    const track = el('div', 'track');
+    run.appendChild(track); bar.append(tag, run);
+    // 한 벌 = 소식 + 점 … 을 화면보다 길게 채운 뒤 두 번 이어 붙인다 → -50% 까지 흘리면 처음과 똑같은 자리.
+    const one = () => { const f = document.createDocumentFragment(); for (const l of lines) { const m = el('span', 'msg'); m.innerHTML = rich(l); f.append(m, el('span', 'sep')); } return f; };
+    const build = () => {
+      track.textContent = '';
+      const half = el('div'); half.style.display = 'flex'; half.style.alignItems = 'center';
+      half.appendChild(one());
+      track.appendChild(half);
+      while (half.scrollWidth < run.clientWidth + 200) half.appendChild(one());
+      track.appendChild(half.cloneNode(true));
+      track.style.setProperty('--dur', (half.scrollWidth / speed).toFixed(2) + 's');   // 길이와 상관없이 같은 빠르기
+    };
+    build();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);   // 글꼴이 실린 뒤 폭이 바뀐다
   }
 </script>
 </body>

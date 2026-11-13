@@ -135,7 +135,7 @@ function adAt(t, n, o) {
   return { index: -1, wait: cycle - into };
 }
 
-/* 주소 옵션: ?show=20&gap=100&first=30 (초) · ?only=gimpo2,daejeon(고른 것만 · 적은 순서) · ?demo=1(쉬는 시간 없이 계속 — OBS 자리 잡기)
+/* 주소 옵션: ?show=20&gap=400&first=120 (초 — 기본: 2분 뒤 첫 광고 · 20초 보이고 약 7분 쉰다 · 2026-11-13 사용자 "코너광고 너무 자주 뜨면 안좋을거같아" — 예전 100초) · ?only=gimpo2,daejeon(고른 것만 · 적은 순서) · ?demo=1(쉬는 시간 없이 계속 — OBS 자리 잡기)
    숫자가 아니거나 범위를 벗어나면 기본값. show 는 15초부터(글자가 다 올라오는 데 5초 · 아랫줄 세 줄을 읽는 데 10초). */
 function adOptions(search) {
   const q = new URLSearchParams(search || '');
@@ -149,8 +149,8 @@ function adOptions(search) {
   const only = (q.get('only') || '').split(',').map(s => s.trim()).filter(Boolean);
   return {
     show:  num('show', 20, 15, 600),
-    gap:   demo ? 0 : num('gap', 100, 0, 3600),
-    first: demo ? 0 : num('first', 30, 0, 3600),
+    gap:   demo ? 0 : num('gap', 400, 0, 3600),
+    first: demo ? 0 : num('first', 120, 0, 3600),
     only, demo,
   };
 }
