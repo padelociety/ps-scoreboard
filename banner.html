@@ -12,8 +12,9 @@
      색 = 공개 사이트 로고의 초록 #104734 · 크림 #F3DAB2(brand/logo-green.png · logo-cream.png). 소식 사이 점은 금색.
      ⚠️ prefers-reduced-motion 을 따르지 않는다(ads.html 과 같은 이유 — 방송 PC 설정이 방송 화면을 바꾸면 안 된다).
      소식은 **방송 중에 폰으로 바꾼다** — banner-edit.html 이 Firebase scoreboard.ticker 에 적고 여기서 곧바로 다시 그린다(비우면 아래 TICKER).
-     **늘 떠 있지 않다**(같은 날 · 사용자 "이것도 계속 나오는게 아니라 5분에 한번 나오는거 하자!") — 10분마다 내려와 소식을 한 바퀴 다 흘리고 올라간다
-     (처음엔 5초 뒤 · ?every=600 초 · ?first=5 · ?always=1 = 늘 떠 있음(OBS 자리 잡기)) · 폰에서 소식을 바꾸면 그 자리에서 한 번 내려와 보여 준다.
+     **띠는 늘 떠 있고 소식만 10분에 한 번 지나간다**(같은 날 · 사용자 "5분에 한번 나오는거 하자!" → "10분에 한번으로" → "계속 띄어놓고 ticker만 10분에 한번 지나가게") —
+     소식 한 벌이 오른쪽 끝에서 들어와 마지막 소식이 왼쪽으로 빠질 때까지 한 번 흐르고(기본 빠르기로 약 80초) 그 사이엔 로고 칸 + 빈 초록 띠
+     (처음엔 5초 뒤 · ?every=600 초 · ?first=5 · ?always=1 = 소식이 쉬지 않고 돈다) · 폰에서 소식을 바꾸면 그 자리에서 한 번 지나간다.
      소식 안 표시: **굵게** = 흰 글자 · [[PS10]] = 금색 칩(할인 코드처럼 받아 적을 글자).
      주소: ?speed=70(초당 px) · ?text=9th%20Open · ?lines=첫%20소식|둘째%20소식 · ?style=repeat(예전 반복 띠 · ?theme=white 면 흰 바탕) · ?n=5 */
   @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
@@ -24,9 +25,7 @@
   html, body { background:transparent; width:100%; height:48px; overflow:hidden; }
   body { font-family:'IBM Plex Sans KR',system-ui,sans-serif; font-variant-numeric: lining-nums tabular-nums; }
 
-  .bar { position:absolute; inset:0; display:flex; align-items:center; background:var(--bg); overflow:hidden;
-         transition: transform .7s cubic-bezier(.2,.9,.25,1), opacity .5s ease; }
-  .bar.off { transform:translateY(-100%); opacity:0; }   /* 쉬는 동안은 위로 숨는다(투명 소스라 방송엔 아무것도 없다) */
+  .bar { position:absolute; inset:0; display:flex; align-items:center; background:var(--bg); overflow:hidden; }
 
   /* ── 반복 띠(?style=repeat) ── */
   .bar.repeat { justify-content:space-around; }
@@ -52,7 +51,10 @@
          -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
                  mask-image:linear-gradient(90deg, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%); }
   .track { position:absolute; left:0; top:0; height:48px; display:flex; align-items:center; white-space:nowrap; will-change:transform;
-           animation: run var(--dur, 60s) linear infinite; }
+           transform:translateX(200vw); }                          /* 쉬는 동안은 화면 밖(오른쪽) — 띠는 그대로 떠 있다 */
+  .track.loop { animation: run var(--dur, 60s) linear infinite; }   /* ?always=1 — 쉬지 않고 돈다 */
+  .track.pass { animation: pass var(--pdur, 60s) linear 1 both; }   /* 한 번 지나간다: 오른쪽 끝에서 들어와 마지막 소식이 왼쪽으로 빠질 때까지 */
+  @keyframes pass { from{transform:translateX(var(--from, 1600px))} to{transform:translateX(var(--to, -4000px))} }
   @keyframes run { from{transform:translateX(0)} to{transform:translateX(-50%)} }   /* 같은 줄을 두 번 이어 붙여 끊김 없이 */
   .msg { font-size:19px; font-weight:600; color:var(--fg); }
   .msg b { font-weight:700; color:#FFFFFF; }
@@ -118,7 +120,8 @@
     const run = el('div', 'run');
     const track = el('div', 'track');
     run.appendChild(track); bar.append(tag, run);
-    // 한 벌 = 소식 + 점 … 을 화면보다 길게 채운 뒤 두 번 이어 붙인다 → -50% 까지 흘리면 처음과 똑같은 자리.
+    const always = q.get('always') === '1';
+    // 한 번 지나가기: 소식 한 벌만. 쉬지 않고 돌기(?always=1): 한 벌을 화면보다 길게 채운 뒤 두 번 이어 붙인다 → -50% 까지 흘리면 처음과 똑같은 자리.
     const one = () => { const f = document.createDocumentFragment(); for (const l of lines) { const m = el('span', 'msg'); m.innerHTML = rich(l); f.append(m, el('span', 'sep')); } return f; };
     let setWidth = 0;
     const build = () => {
@@ -126,30 +129,28 @@
       const half = el('div'); half.style.display = 'flex'; half.style.alignItems = 'center';
       half.appendChild(one());
       track.appendChild(half);
-      setWidth = half.scrollWidth;   // 소식 한 벌의 폭 — 한 바퀴 시간을 잰다
+      setWidth = half.scrollWidth;   // 소식 한 벌의 폭 — 한 번 지나가는 시간을 잰다
+      if (!always) return;
       while (half.scrollWidth < run.clientWidth + 200) half.appendChild(one());
       track.appendChild(half.cloneNode(true));
       track.style.setProperty('--dur', (half.scrollWidth / speed).toFixed(2) + 's');   // 길이와 상관없이 같은 빠르기
+      track.classList.add('loop');
     };
     build();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);   // 글꼴이 실린 뒤 폭이 바뀐다
 
-    // ── 나타났다 들어가기 — 5분마다 한 번 · 소식 한 바퀴(모든 소식이 화면을 한 번 지나간다) 동안 ──
-    const always = q.get('always') === '1';
+    // ── 소식 한 번 지나가기 — 10분마다 ──
     const every = Math.max(60, Number(q.get('every')) || 600);   // 기본 10분(2026-11-13 사용자 "10분에 한번으로 바꾸자" — 처음엔 5분)
     const firstAt = q.has('first') ? Math.max(0, Number(q.get('first')) || 0) : 5;
-    let hideT = null;
-    const passSeconds = () => Math.max(20, (setWidth + run.clientWidth) / speed);   // 처음 보인 글자부터 마지막 소식이 왼쪽 끝을 지날 때까지
     function appear() {
-      clearTimeout(hideT);
-      track.style.animation = 'none'; void track.offsetWidth; track.style.animation = '';   // 처음 소식부터
-      bar.classList.remove('off');
-      hideT = setTimeout(() => bar.classList.add('off'), passSeconds() * 1000);
+      if (always) return;
+      const w = run.clientWidth;
+      track.style.setProperty('--from', w + 'px');               // 오른쪽 끝 바로 밖에서
+      track.style.setProperty('--to', -setWidth + 'px');         // 마지막 소식이 왼쪽으로 다 빠질 때까지
+      track.style.setProperty('--pdur', ((w + setWidth) / speed).toFixed(2) + 's');
+      track.classList.remove('pass'); void track.offsetWidth; track.classList.add('pass');   // 처음부터 다시
     }
-    if (!always) {
-      bar.classList.add('off');
-      setTimeout(() => { appear(); setInterval(appear, every * 1000); }, firstAt * 1000);
-    }
+    if (!always) setTimeout(() => { appear(); setInterval(appear, every * 1000); }, firstAt * 1000);
     window.__bannerAppear = appear;   // 소식이 바뀌면 한 번 보여 준다(아래)
 
     // 방송 중 소식 바꾸기 — scoreboard.ticker(banner-edit.html). 주소에 ?lines= 를 줬으면 그게 이긴다.
