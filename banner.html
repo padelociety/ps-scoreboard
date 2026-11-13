@@ -11,6 +11,7 @@
      기본(티커): 왼쪽 고정 칸 = 필기체 로고 + '9th Open'(크림 · 진한 초록) · 오른쪽 = 소식이 오른쪽에서 왼쪽으로 흐른다(TICKER · 끊김 없이 돈다).
      색 = 공개 사이트 로고의 초록 #104734 · 크림 #F3DAB2(brand/logo-green.png · logo-cream.png). 소식 사이 점은 금색.
      ⚠️ prefers-reduced-motion 을 따르지 않는다(ads.html 과 같은 이유 — 방송 PC 설정이 방송 화면을 바꾸면 안 된다).
+     소식은 **방송 중에 폰으로 바꾼다** — banner-edit.html 이 Firebase scoreboard.ticker 에 적고 여기서 곧바로 다시 그린다(비우면 아래 TICKER).
      주소: ?speed=70(초당 px) · ?text=9th%20Open · ?lines=첫%20소식|둘째%20소식 · ?style=repeat(예전 반복 띠 · ?theme=white 면 흰 바탕) · ?n=5 */
   @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
   @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
@@ -55,8 +56,8 @@
 </head>
 <body>
 <div class="bar" id="bar"></div>
-<script>
-  // 소식은 여기 한 곳. 사실만 — 기간·장소는 대회 데이터(공개 사이트 PS 9th Open), 센터 줄은 ads.html ADS 와 같은 말. **굵게** 는 흰 글자.
+<script type="module">
+  // 기본 소식은 여기 한 곳. 사실만 — 기간·장소는 대회 데이터(공개 사이트 PS 9th Open), 센터 줄은 ads.html ADS 와 같은 말. **굵게** 는 흰 글자.
   const TICKER = [
     '**PS 9th Open** · 11.13 – 11.22 · 빠델소사이어티',
     '대진표 · 실시간 결과는 **Playus 앱** › 대회에서',
@@ -64,9 +65,21 @@
     '빠델소사이어티 3호점 **빠델소사이어티 대전** · 대전 와동 · 실내 코트 1면 · 2027년 1월 오픈 예정',
   ];
 
+  // obs.html 과 같은 프로젝트(점수판 RTDB).
+  const FIREBASE = {
+    apiKey: 'AIzaSyBkrib1qzN8IE9NcW8tXTfKb4Z6JsOjcvE',
+    authDomain: 'ps-score-868bb.firebaseapp.com',
+    databaseURL: 'https://ps-score-868bb-default-rtdb.asia-southeast1.firebasedatabase.app',
+    projectId: 'ps-score-868bb',
+    storageBucket: 'ps-score-868bb.firebasestorage.app',
+    messagingSenderId: '48470302084',
+    appId: '1:48470302084:web:b037acc0b58f7e85d191d1',
+  };
+
   const q = new URLSearchParams(location.search);
   const text = q.get('text') || '9th Open';
-  const lines = q.get('lines') ? q.get('lines').split('|').map((s) => s.trim()).filter(Boolean) : TICKER;
+  const urlLines = q.get('lines') ? q.get('lines').split('|').map((s) => s.trim()).filter(Boolean) : null;
+  let lines = urlLines || TICKER;
   const speed = Math.min(300, Math.max(20, Number(q.get('speed')) || 70));   // 초당 px
   const repeat = q.get('style') === 'repeat';
   const white = q.get('theme') === 'white';
@@ -110,6 +123,27 @@
     };
     build();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);   // 글꼴이 실린 뒤 폭이 바뀐다
+
+    // 방송 중 소식 바꾸기 — scoreboard.ticker(banner-edit.html). 주소에 ?lines= 를 줬으면 그게 이긴다.
+    // Firebase 를 못 불러와도 띠는 기본 소식으로 살아 있다(obs.html 과 같은 방식).
+    if (!urlLines) (async () => {
+      try {
+        const [{ initializeApp }, { getDatabase, ref, onValue }] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+          import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js'),
+        ]);
+        const db = getDatabase(initializeApp(FIREBASE));
+        let last = '';
+        onValue(ref(db, 'scoreboard/ticker'), (snap) => {
+          const v = snap.val();
+          const got = Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 12) : [];
+          const next = got.length ? got : TICKER;
+          const key = JSON.stringify(next);
+          if (key === last) return;      // 같은 소식이면 흐르던 자리를 그대로 둔다
+          last = key; lines = next; build();
+        });
+      } catch (_) { /* CDN 이 안 닿으면 기본 소식 그대로 */ }
+    })();
   }
 </script>
 </body>

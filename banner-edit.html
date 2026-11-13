@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>띠 소식 편집</title>
+<style>
+  /* 방송 위 띠(banner.html) 소식 편집 — 폰으로 연다(2026-11-13 · 사용자 "띠 뉴스 소식은 내가 정할 수 있을까?").
+     한 줄 = 소식 하나 · **굵게** 는 띠에서 흰 글자 · [방송에 반영] = Firebase scoreboard.ticker 에 적는다 → 띠가 몇 초 안에 바뀐다.
+     [기본 소식으로] = 칸을 비운다(띠가 banner.html 의 TICKER 로 돌아간다).
+     ⚠️ PS Control 은 점수를 보낼 때 노드를 통째로 set 하지만 ticker 는 되싣는다(b33) — 그 전 판 PS Control 이 떠 있으면 점수 한 번에 지워진다(새로고침). */
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
+  :root { --green:#104734; --deep:#0B3627; --cream:#F3DAB2; --gold:#D9BC7A; --ink:#1B2B25; --muted:#5B6B64; --line:#D8DDD9; --bg:#F6F4EE; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans KR',system-ui,sans-serif; }
+  header { background:var(--green); color:var(--cream); padding:calc(14px + env(safe-area-inset-top,0px)) 18px 14px; }
+  header h1 { margin:0; font-size:19px; font-weight:700; }
+  header p { margin:4px 0 0; font-size:13px; color:rgba(243,218,178,.8); font-weight:600; }
+  main { padding:16px 18px calc(28px + env(safe-area-inset-bottom,0px)); max-width:720px; margin:0 auto; display:grid; gap:14px; }
+  label { font-size:14px; font-weight:700; }
+  .hint { font-size:13px; color:var(--muted); font-weight:600; line-height:1.5; }
+  textarea { width:100%; min-height:220px; padding:12px; border:1px solid var(--line); border-radius:12px; font:600 15px/1.6 'IBM Plex Sans KR',system-ui,sans-serif; color:var(--ink); background:#fff; resize:vertical; }
+  textarea:focus-visible, button:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  button { flex:1; min-width:140px; min-height:48px; border-radius:12px; border:1px solid var(--green); font:700 15px 'IBM Plex Sans KR',system-ui,sans-serif; cursor:pointer; }
+  .primary { background:var(--green); color:var(--cream); }
+  .ghost { background:#fff; color:var(--green); }
+  button:disabled { opacity:.5; cursor:default; }
+  #status { min-height:20px; font-size:14px; font-weight:700; }
+  #status.ok { color:var(--green); } #status.err { color:#B3261E; }
+  .preview { background:var(--green); color:var(--cream); border-radius:10px; padding:10px 14px; font-size:14px; font-weight:600; line-height:1.7; overflow-wrap:anywhere; }
+  .preview b { color:#fff; }
+  .preview .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--gold); margin:0 12px; transform:translateY(-1px); }
+  .count { font-size:12px; color:var(--muted); text-align:right; font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>띠 소식 편집</h1>
+  <p>방송 화면 맨 위 띠에 흐르는 소식이에요. 한 줄에 소식 하나.</p>
+</header>
+<main>
+  <div>
+    <label for="lines">소식</label>
+    <textarea id="lines" spellcheck="false" placeholder="예) **PS 9th Open** · 11.13 – 11.22 · 빠델소사이어티"></textarea>
+    <div class="count" id="count"></div>
+  </div>
+  <p class="hint">**굵게** 로 감싼 글자는 띠에서 흰색으로 보여요. 최대 12줄 · 한 줄 120자까지. 비우고 [방송에 반영]을 누르면 기본 소식으로 돌아가요.</p>
+  <div class="row">
+    <button class="primary" id="save" disabled>방송에 반영</button>
+    <button class="ghost" id="reset" disabled>기본 소식으로</button>
+  </div>
+  <div id="status" role="status" aria-live="polite">불러오는 중…</div>
+  <div>
+    <label>띠에 이렇게 흘러요</label>
+    <div class="preview" id="preview"></div>
+  </div>
+</main>
+<script type="module">
+  const MAX_LINES = 12, MAX_LEN = 120;
+  const $ = (id) => document.getElementById(id);
+  const FIREBASE = {
+    apiKey: 'AIzaSyBkrib1qzN8IE9NcW8tXTfKb4Z6JsOjcvE',
+    authDomain: 'ps-score-868bb.firebaseapp.com',
+    databaseURL: 'https://ps-score-868bb-default-rtdb.asia-southeast1.firebasedatabase.app',
+    projectId: 'ps-score-868bb',
+    storageBucket: 'ps-score-868bb.firebasestorage.app',
+    messagingSenderId: '48470302084',
+    appId: '1:48470302084:web:b037acc0b58f7e85d191d1',
+  };
+
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const parse = () => $('lines').value.split('\n').map((l) => l.trim().slice(0, MAX_LEN)).filter(Boolean).slice(0, MAX_LINES);
+  const status = (t, cls) => { $('status').textContent = t; $('status').className = cls || ''; };
+
+  function paint() {
+    const ls = parse();
+    $('preview').innerHTML = ls.length ? ls.map(rich).join('<span class="dot"></span>') : '(기본 소식이 흘러요)';
+    const raw = $('lines').value.split('\n').filter((l) => l.trim()).length;
+    $('count').textContent = `${ls.length}줄` + (raw > MAX_LINES ? ` · ${MAX_LINES}줄까지만 나가요` : '');
+  }
+  $('lines').addEventListener('input', () => { paint(); status('바꾼 내용은 [방송에 반영]을 눌러야 나가요.'); });
+
+  paint();
+  // Firebase 는 따로 불러온다 — 못 불러와도 편집·미리보기는 살아 있게(무엇이 안 되는지 말한다).
+  let db, ref, update;
+  try {
+    const [{ initializeApp }, fdb] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js'),
+    ]);
+    db = fdb.getDatabase(initializeApp(FIREBASE)); ref = fdb.ref; update = fdb.update;
+    var onValue = fdb.onValue;
+  } catch (_) {
+    status('방송 서버(Firebase)에 연결하지 못했어요 — 인터넷을 확인하고 새로고침해 주세요.', 'err');
+  }
+
+  let loaded = false;
+  if (db) onValue(ref(db, 'scoreboard/ticker'), (snap) => {
+    const v = snap.val();
+    if (!loaded) {   // 처음 한 번만 칸을 채운다(쓰는 중에 덮지 않게)
+      $('lines').value = Array.isArray(v) ? v.join('\n') : '';
+      loaded = true;
+      $('save').disabled = false; $('reset').disabled = false;
+      paint();
+      status(Array.isArray(v) && v.length ? '지금 방송에 나가는 소식이에요.' : '지금은 기본 소식이 나가요.');
+    }
+  }, (e) => status('불러오지 못했어요 — ' + (e && e.message ? e.message : '연결을 확인해 주세요'), 'err'));
+
+  async function save(lines) {
+    $('save').disabled = true; $('reset').disabled = true;
+    try {
+      await update(ref(db, 'scoreboard'), { ticker: lines.length ? lines : null });
+      status(lines.length ? `방송에 반영했어요 · ${lines.length}줄` : '기본 소식으로 돌렸어요.', 'ok');
+    } catch (e) {
+      status('반영하지 못했어요 — ' + (e && e.message ? e.message : '다시 눌러 주세요'), 'err');
+    } finally {
+      $('save').disabled = false; $('reset').disabled = false;
+    }
+  }
+  $('save').addEventListener('click', () => save(parse()));
+  $('reset').addEventListener('click', () => { $('lines').value = ''; paint(); save([]); });
+</script>
+</body>
+</html>
