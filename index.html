@@ -241,7 +241,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b34</span>
+      <span class="build caps" id="psBuild">b35</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -825,6 +825,11 @@
    */
   const GAP_MS = 90;          // 말과 말 사이에 남길 간격 (원본은 260~310ms)
   const SEG_TH = 0.02;        // 무음 판정 진폭(-34dB) — 구운 클립 바닥 잡음보다 위
+  // b35(2026-11-13 · 사용자 "15 발음이 13으로 들리는데"): 'f'·'s'·'th' 같은 마찰음 첫소리는 -34dB 보다 작아서
+  //   예전엔 낱말 머리 60~110ms 가 잘렸다(fifteen → "ifteen" — thirteen 처럼 들림). 구간을 찾는 건 SEG_TH 로 하고,
+  //   앞뒤 가장자리는 이 작은 문턱(-50dB)이 끝날 때까지 늘린다(최대 EDGE_MAX — 바닥 잡음까지 끌고 오지 않게).
+  const SEG_LO = 0.003;
+  const EDGE_MAX = 15;        // 창 15개 = 150ms
   let actx = null;
   function audioCtx() {
     const C = window.AudioContext || window.webkitAudioContext;
@@ -837,12 +842,17 @@
   function speechSegments(buf) {
     const d = buf.getChannelData(0);
     const win = Math.round(buf.sampleRate * 0.01);             // 10ms 창
-    const loud = [];
+    const peaks = [];
     for (let i = 0; i + win <= d.length; i += win) {
       let m = 0;
       for (let j = i; j < i + win; j++) { const v = Math.abs(d[j]); if (v > m) m = v; }
-      loud.push(m >= SEG_TH);
+      peaks.push(m);
     }
+    return segmentsOfPeaks(peaks, buf.duration);
+  }
+  /** 10ms 창 최댓값 목록 → 소리 나는 구간 [{off,dur}](초). 순수 함수 — 테스트가 떼어 와 돌린다. */
+  function segmentsOfPeaks(peaks, duration) {
+    const loud = peaks.map((m) => m >= SEG_TH);
     const raw = [];
     let st = -1;
     for (let i = 0; i <= loud.length; i++) {
@@ -853,11 +863,18 @@
         st = -1;
       }
     }
-    // 앞 20ms · 뒤 30ms 를 남긴다 — 첫 자음과 끝 여운이 잘리면 말이 뭉개진다
+    // 가장자리를 작은 소리(SEG_LO)가 이어지는 데까지 늘린다 — 마찰음 첫소리·끝 여운. 앞 구간 끝은 넘지 않는다.
+    raw.forEach((r, k) => {
+      const floor = k > 0 ? raw[k - 1].e : 0;
+      for (let n = 0; n < EDGE_MAX && r.s - 1 >= floor && peaks[r.s - 1] >= SEG_LO; n++) r.s--;
+      const ceil = k + 1 < raw.length ? raw[k + 1].s : peaks.length;
+      for (let n = 0; n < EDGE_MAX && r.e < ceil && peaks[r.e] >= SEG_LO; n++) r.e++;
+    });
+    // 그 위에 앞 20ms · 뒤 30ms 를 더 남긴다 — 첫 자음과 끝 여운이 잘리면 말이 뭉개진다
     return raw
       .map((r) => {
         const off = Math.max(0, r.s * 0.01 - 0.02);
-        return { off, dur: Math.min(buf.duration, r.e * 0.01 + 0.03) - off };
+        return { off, dur: Math.min(duration, r.e * 0.01 + 0.03) - off };
       })
       .filter((r) => r.dur > 0.05);
   }

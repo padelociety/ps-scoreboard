@@ -23,6 +23,18 @@
       "label": "Jenny · 미국 여",
       "voice": "en-US-JennyNeural",
       "gender": "f"
+    },
+    {
+      "key": "konglish_m",
+      "label": "콩글리시 · 한국 남",
+      "voice": "ko-KR-InJoonNeural",
+      "gender": "m"
+    },
+    {
+      "key": "konglish_f",
+      "label": "콩글리시 · 한국 여",
+      "voice": "ko-KR-SunHiNeural",
+      "gender": "f"
     }
   ]
 }
