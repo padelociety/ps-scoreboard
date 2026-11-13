@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS Live Ads – OBS Overlay</title>
+<style>
+  /* 라이브 코너 광고(2026-11-12) — OBS 브라우저 소스(352 x 198 · 16:9)로 방송 화면 오른쪽 위에 얹는다.
+     ⚠️ 유튜브 시청자가 보는 화면이고 영상 위에 얹힌다 — 잠깐 떴다가 빠진다(늘 떠 있지 않다) · 소리 없음.
+     모션: 로고가 그려진다 → 구석으로 물러나며 글자가 올라온다 → 아랫줄이 넘어간다(어디 → 코트 수 → 개점 시기) → 빠진다.
+     ⚠️ 칸이 16:9 인 이유: 같은 자리에 동영상 광고(ADS 의 video)를 그대로 넣는다.
+     ⚠️ prefers-reduced-motion 을 따르지 않는다 — 보는 사람은 유튜브 시청자이고, 방송 PC 의 윈도우 '애니메이션 효과' 설정이
+        방송에 나가는 광고를 멈춘 그림으로 바꾸면 안 된다(obs.html 과 다른 점).
+     문구·색은 아래 ADS 한 곳. 세 줄(몇 호점 · 이름 · 어디)은 대표가 정한 말 그대로, 개점 시기는 공개 사이트 centers.json 과 같은 말로 적는다. */
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/IBMPlexSansKR-Bold.woff2') format('woff2')}
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:transparent; width:352px; height:198px; overflow:hidden; }
+  body { font-family:'IBM Plex Sans KR',system-ui,sans-serif; font-variant-numeric: lining-nums tabular-nums; }
+
+  .slot { position:absolute; left:6px; top:6px; width:340px; height:186px; }   /* 그림자 자리 6px */
+
+  /* ── 색 한 벌(광고마다 theme) ── */
+  .ad {                                   /* ink — 점수판과 한 벌('잉크 & 포일') */
+    --bg:linear-gradient(180deg,#123A42 0%,#0E3038 46%,#071B20 100%);
+    --fg:#F2ECDC; --label:#D9BC7A; --accent:#D9BC7A;
+    --hair:rgba(198,168,103,.34); --edge:rgba(198,168,103,.38); --shine:rgba(217,188,122,.18);
+  }
+  .ad.t-daejeon {                         /* 대전점 로고 색 — 차콜 브라운 + 흰색 */
+    --bg:linear-gradient(180deg,#423836 0%,#3B3230 46%,#2F2826 100%);
+    --fg:#FFFFFF; --label:rgba(255,255,255,.80); --accent:#FFFFFF;
+    --hair:rgba(255,255,255,.30); --edge:rgba(255,255,255,.26); --shine:rgba(255,255,255,.13);
+  }
+
+  .ad {
+    position:absolute; inset:0; overflow:hidden;
+    border-radius:12px;
+    background:var(--bg);
+    border:1px solid var(--edge);
+    box-shadow:0 4px 6px rgba(0,0,0,.45);
+    opacity:0;
+  }
+  .ad.on     { animation: adIn .6s cubic-bezier(.2,.9,.25,1) both; }
+  .ad.on.off { animation: adOut .5s ease both; }
+  @keyframes adIn  { from{opacity:0; transform:translateX(16px) scale(.97)} to{opacity:1; transform:none} }
+  @keyframes adOut { from{opacity:1; transform:none} to{opacity:0; transform:translateX(12px)} }
+
+  /* ══ 센터 카드 — .on 이 붙으면 시간표대로 그려 나간다 ══
+     0.35s 늑대가 그려진다(가운데 · 크게) → 0.95s 워드마크 → 3.0s 늑대가 오른쪽 위로 물러난다 · 워드마크 빠짐
+     → 3.35s 몇 호점 → 3.5s 이름(글자마다) → 4.0s 금줄 → 4.3s 아랫줄(어디 → 코트 수 → 개점 시기 · 한 바퀴 --flip 초) */
+  .card { position:absolute; inset:0; }
+
+  /* 늑대 — 큰 쪽이 기본 크기다(작게 그려 놓고 키우면 흐려진다). 물러날 때 줄어든다. */
+  .wolf { position:absolute; left:92px; top:22px; width:156px; height:auto; transform-origin:50% 50%; }
+  .ad.on .wolf {
+    animation: wolfDraw .9s cubic-bezier(.4,0,.2,1) .35s both,
+               wolfSettle .8s cubic-bezier(.6,0,.2,1) 3s both;
+  }
+  @keyframes wolfDraw   { from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0 0 0)} }       /* 머리부터 */
+  @keyframes wolfSettle { from{transform:none} to{transform:translate(123px,-32px) scale(.3974)} }  /* 62px · 오른쪽 위(몇 호점 줄 높이) */
+
+  .mark { position:absolute; left:50%; top:126px; width:150px; height:auto; transform:translateX(-50%); opacity:0; }
+  .ad.on .mark {
+    animation: markIn .6s ease .95s both,
+               markOut .45s ease 2.85s forwards;
+  }
+  @keyframes markIn  { from{opacity:0; transform:translate(-50%,10px)} to{opacity:1; transform:translate(-50%,0)} }
+  @keyframes markOut { from{opacity:1; transform:translate(-50%,0)} to{opacity:0; transform:translate(-50%,-8px)} }
+
+  /* 세 줄 — 몇 호점 · 이름 · 어디(아랫줄은 어디 → 코트 수 → 개점 시기로 넘어간다) */
+  .info  { position:absolute; left:18px; right:18px; top:27px; }
+  .label { height:26px; line-height:26px; overflow:hidden; font-size:16px; font-weight:600; color:var(--label); white-space:nowrap; }
+  .label span { display:inline-block; }
+  .ad.on .label span { animation: riseIn .5s cubic-bezier(.2,.8,.2,1) 3.35s both; }
+
+  /* 이름 — 폭에 맞춰 줄인다(fitTitle · 최대 30px). 글자마다 올라온다. */
+  .title { margin-top:6px; height:42px; line-height:42px; overflow:hidden; font-size:30px; font-weight:700; color:var(--fg); white-space:pre; }
+  .title .ch { display:inline-block; }
+  .ad.on .title .ch { animation: riseIn .6s cubic-bezier(.2,.8,.2,1) calc(3.5s + var(--i) * .045s) both; }
+  @keyframes riseIn { from{transform:translateY(110%)} to{transform:none} }
+
+  .rule { height:1px; margin-top:10px; background:var(--hair); transform-origin:0 50%; }
+  .ad.on .rule { animation: ruleDraw .7s cubic-bezier(.4,0,.2,1) 4s both; }
+  @keyframes ruleDraw { from{transform:scaleX(0)} to{transform:none} }
+
+  .flip { position:relative; height:40px; margin-top:8px; overflow:hidden; font-size:27px; line-height:40px; font-weight:700; color:var(--accent); white-space:nowrap; }
+  /* 아랫줄 — 줄마다 같은 키프레임을 한 칸씩(--k) 늦게 돌린다. 한 줄이 올라갈 때 다음 줄이 올라온다.
+     ⚠️ 떠 있는 끝(flip2 46% · flip3 30.7%)은 flipSeconds 의 END 와 같은 수다 — 같이 고친다. */
+  .flip span { position:absolute; left:0; top:0; opacity:0; }
+  .ad.on .flip.n1 span { opacity:1; animation: riseIn .6s cubic-bezier(.2,.8,.2,1) 4.3s both; }
+  .ad.on .flip.n2 span { animation: flip2 var(--flip, 8.27s)  cubic-bezier(.3,0,.2,1) calc(4.3s + var(--k) * var(--flip, 8.27s) / 2)  infinite both; }
+  .ad.on .flip.n3 span { animation: flip3 var(--flip, 16.64s) cubic-bezier(.3,0,.2,1) calc(4.3s + var(--k) * var(--flip, 16.64s) / 3) infinite both; }
+  @keyframes flip2 { 0%{transform:translateY(105%);opacity:0} 6%,46%{transform:none;opacity:1} 52%,100%{transform:translateY(-105%);opacity:0} }
+  @keyframes flip3 { 0%{transform:translateY(105%);opacity:0} 4%,30.7%{transform:none;opacity:1} 34.7%,100%{transform:translateY(-105%);opacity:0} }
+
+  /* 글자가 다 올라온 뒤 빛이 한 번 지나간다 */
+  .ad::after {
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:0;
+    background:linear-gradient(100deg, transparent 30%, var(--shine) 50%, transparent 70%);
+  }
+  .ad.on::after { animation: adSweep 1.1s ease-out 4.8s 1 both; }
+  @keyframes adSweep { 0%{opacity:0;transform:translateX(-60%)} 30%{opacity:1} 100%{opacity:0;transform:translateX(60%)} }
+
+  /* 동영상 광고(같은 16:9 칸) */
+  .ad video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+</style>
+</head>
+<body>
+<div class="slot" id="slot"></div>
+
+<script>
+/* ══════ 광고 목록 — 문구·색은 여기 한 곳 ══════
+   센터 카드: { id, theme, wolf, mark, label(몇 호점), title(이름), place(어디), courts(코트 수), when(개점 시기) }      동영상: { id, video }(소리 없이 튼다)
+   theme: 'ink'(점수판과 한 벌) | 'daejeon'(대전점 로고 색 — 차콜 브라운 + 흰색)
+   세 줄(label · title · place)은 대표가 정한 말(2026-11-12) — 아랫줄은 place → courts → when 순서로 넘어간다(없는 칸은 건너뛴다). */
+const ADS = [
+  { id: 'gimpo2',  theme: 'ink',     wolf: 'brand/wolf-cream.png', mark: 'brand/wordmark-cream.png',
+    label: '빠델소사이어티 2호점', title: '빠델소사이어티 아카데미', place: '김포 통진', courts: '실내 코트 2면', when: '2026년 12월 오픈 예정' },
+  { id: 'daejeon', theme: 'daejeon', wolf: 'brand/wolf-white.png', mark: 'brand/wordmark-daejeon-white.png',
+    label: '빠델소사이어티 3호점', title: '빠델소사이어티 대전',     place: '대전 와동', courts: '실내 코트 1면', when: '2027년 1월 오픈 예정' },
+];
+
+/* ══════ 시간표(순수 함수 — ads.test.cjs 가 떼어 와 돌린다) ══════
+   first 초 뒤 첫 광고 → show 초 보이고 → gap 초 쉬고 → 다음 광고 …  (광고 하나가 도는 주기 = (show + gap) x 광고 수)
+   t = 페이지를 연 뒤 흐른 초. 돌려주는 값 { index: 지금 보일 광고(-1 = 없음), wait: 다음에 바뀔 때까지 초 } */
+function adAt(t, n, o) {
+  const show = o.show, gap = o.gap, first = o.first;
+  if (!(n > 0) || !(show > 0)) return { index: -1, wait: 3600 };
+  if (t < first) return { index: -1, wait: first - t };
+  const cycle = show + gap;
+  const u = t - first;
+  const k = Math.floor(u / cycle);
+  const into = u - k * cycle;
+  if (into < show) return { index: k % n, wait: show - into };
+  return { index: -1, wait: cycle - into };
+}
+
+/* 주소 옵션: ?show=20&gap=100&first=30 (초) · ?only=gimpo2,daejeon(고른 것만 · 적은 순서) · ?demo=1(쉬는 시간 없이 계속 — OBS 자리 잡기)
+   숫자가 아니거나 범위를 벗어나면 기본값. show 는 15초부터(글자가 다 올라오는 데 5초 · 아랫줄 세 줄을 읽는 데 10초). */
+function adOptions(search) {
+  const q = new URLSearchParams(search || '');
+  const num = (key, def, min, max) => {
+    const raw = q.get(key);
+    if (raw === null || raw.trim() === '') return def;
+    const v = Number(raw);
+    return Number.isFinite(v) && v >= min && v <= max ? v : def;
+  };
+  const demo = q.get('demo') === '1';
+  const only = (q.get('only') || '').split(',').map(s => s.trim()).filter(Boolean);
+  return {
+    show:  num('show', 20, 15, 600),
+    gap:   demo ? 0 : num('gap', 100, 0, 3600),
+    first: demo ? 0 : num('first', 30, 0, 3600),
+    only, demo,
+  };
+}
+
+function pickAds(all, only) {
+  if (!only || !only.length) return all.slice();
+  const picked = only.map(id => all.find(a => a.id === id)).filter(Boolean);
+  return picked.length ? picked : all.slice();
+}
+
+/* 아랫줄 줄 목록 — 어디 → 코트 수 → 개점 시기(없는 칸은 건너뛴다 · 많아야 셋). */
+function flipLines(ad) {
+  return [ad.place, ad.courts, ad.when].filter(Boolean).slice(0, 3);
+}
+
+/* 아랫줄 한 바퀴(초) — 한 줄에 4초쯤 떠 있게 하고, **빠질 때는 마지막 줄(개점 시기)이 떠 있게** 바퀴 수에 맞춰 늘이고 줄인다.
+   4.3 = 아랫줄이 처음 올라오는 때 · 0.5 = 빠지는 시간 · END = 한 바퀴에서 마지막 줄이 떠 있는 끝(키프레임 flip2 46% · flip3 30.7%).
+   (아무 값으로 두면 빠지기 직전에 첫 줄이 다시 올라오다 잘린다.) n = 줄 수(2 · 3). */
+function flipSeconds(show, n) {
+  n = n === 3 ? 3 : 2;
+  const END = n === 3 ? 2 / 3 + 0.307 : 0.5 + 0.46;
+  const span = show + 0.5 - 4.3;
+  const laps = Math.max(1, Math.round(span / (n * 4.2)));
+  const v = Math.round(span / (laps - 1 + END) * 100) / 100;
+  return Math.max(n * 2.5, Math.min(n * 6.5, v));
+}
+
+/* 이름이 칸보다 길면 글자를 줄인다(0.5px 씩 · min 까지). 긴 이름을 말줄임으로 자르지 않는다. */
+function fitTitle(el, max, min) {
+  let fs = max;
+  el.style.fontSize = fs + 'px';
+  while (el.scrollWidth > el.clientWidth && fs > min) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
+  return fs;
+}
+
+/* ══════ 그리기 ══════ */
+(function () {
+  const opt = adOptions(location.search);
+  const ads = pickAds(ADS, opt.only);
+  const slot = document.getElementById('slot');
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;      // 문구는 글자로만 넣는다
+    return e;
+  }
+  function img(cls, src) { const e = el('img', cls); e.src = src; e.alt = ''; return e; }
+  function build(ad) {
+    const box = el('div', 'ad t-' + (ad.theme || 'ink'));
+    box.dataset.id = ad.id;
+    if (ad.video) {
+      const v = el('video');
+      v.src = ad.video; v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+      box.appendChild(v);
+      return box;
+    }
+    const card = el('div', 'card');
+    card.appendChild(img('wolf', ad.wolf));
+    card.appendChild(img('mark', ad.mark));
+    const info = el('div', 'info');
+    const label = el('div', 'label'); label.appendChild(el('span', '', ad.label));
+    const title = el('div', 'title');
+    Array.from(ad.title).forEach((ch, i) => { const s = el('span', 'ch', ch); s.style.setProperty('--i', i); title.appendChild(s); });
+    const lines = flipLines(ad);
+    const flip = el('div', 'flip n' + lines.length);
+    lines.forEach((text, k) => { const sp = el('span', '', text); sp.style.setProperty('--k', k); flip.appendChild(sp); });
+    if (lines.length > 1) box.style.setProperty('--flip', flipSeconds(opt.show, lines.length) + 's');
+    info.appendChild(label); info.appendChild(title); info.appendChild(el('div', 'rule')); info.appendChild(flip);
+    card.appendChild(info);
+    box.appendChild(card);
+    return box;
+  }
+
+  const boxes = ads.map(build);
+  boxes.forEach(b => slot.appendChild(b));
+  const fitAll = () => boxes.forEach(b => { const t = b.querySelector('.title'); if (t) fitTitle(t, 30, 18); });
+  fitAll();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);   // 글꼴이 실린 뒤 한 번 더(폭이 달라진다)
+
+  function enter(b) {
+    clearTimeout(b._off);
+    b.classList.remove('on', 'off');
+    void b.offsetWidth;                          // 다시 그리게 — 안 하면 두 번째부터 모션이 안 돈다
+    b.classList.add('on');
+    const v = b.querySelector('video');
+    if (v) { try { v.currentTime = 0; } catch (e) {} v.play().catch(() => {}); }
+  }
+  function leave(b) {
+    b.classList.add('off');
+    b._off = setTimeout(() => {
+      b.classList.remove('on', 'off');
+      const v = b.querySelector('video'); if (v) v.pause();
+    }, 600);
+  }
+
+  let shown = -1;
+  function show(i) {
+    if (i === shown) return;
+    if (shown >= 0) leave(boxes[shown]);
+    if (i >= 0) enter(boxes[i]);
+    shown = i;
+  }
+
+  const t0 = performance.now();
+  function tick() {
+    const t = (performance.now() - t0) / 1000;
+    const a = adAt(t, boxes.length, opt);
+    show(a.index);
+    setTimeout(tick, Math.max(250, Math.min(a.wait, 30) * 1000));   // 길게 자지 않는다(탭이 멈췄다 돌아와도 30초 안에 맞춘다)
+  }
+  tick();
+})();
+</script>
+</body>
+</html>
