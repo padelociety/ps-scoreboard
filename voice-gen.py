@@ -113,6 +113,12 @@ async def gen_one(sem, voice, rate, text, path, spoken=None):
             except Exception as e:  # 네트워크 흔들림 — 재시도
                 err = e
                 await asyncio.sleep(1 + attempt)
+        # ⚠️ 실패해도 save() 가 빈 파일(0바이트)을 남긴다 — 남기면 그대로 올라가 콘솔이 그 콜을 '무음' 으로 낸다(2026-11-13).
+        try:
+            if os.path.exists(path) and os.path.getsize(path) == 0:
+                os.remove(path)
+        except OSError:
+            pass
         return f'FAIL {err}'
 
 
@@ -135,8 +141,12 @@ async def main():
     tasks = [gen_one(sem, a.voice, a.rate, p, os.path.join(folder, slug(p) + '.mp3'), spoken[p]) for p in ps]
     results = await asyncio.gather(*tasks)
 
+    # 목록엔 **실제로 구운 클립만** 싣는다 — 없는 문장을 올리면 콘솔이 브라우저 TTS 로 떨어지지 못하고 빈 소리를 낸다.
+    def baked(p):
+        f = os.path.join(folder, slug(p) + '.mp3')
+        return os.path.exists(f) and os.path.getsize(f) > 0
     manifest = {'voice': a.voice, 'rate': a.rate,
-                'phrases': [{'text': p, 'file': slug(p) + '.mp3'} for p in ps]}
+                'phrases': [{'text': p, 'file': slug(p) + '.mp3'} for p in ps if baked(p)]}
     with open(os.path.join(folder, 'manifest.json'), 'w', encoding='utf-8') as f:
         json.dump(manifest, f, ensure_ascii=False, indent=1)
 
