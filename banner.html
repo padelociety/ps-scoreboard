@@ -12,8 +12,8 @@
      색 = 공개 사이트 로고의 초록 #104734 · 크림 #F3DAB2(brand/logo-green.png · logo-cream.png). 소식 사이 점은 금색.
      ⚠️ prefers-reduced-motion 을 따르지 않는다(ads.html 과 같은 이유 — 방송 PC 설정이 방송 화면을 바꾸면 안 된다).
      소식은 **방송 중에 폰으로 바꾼다** — banner-edit.html 이 Firebase scoreboard.ticker 에 적고 여기서 곧바로 다시 그린다(비우면 아래 TICKER).
-     **늘 떠 있지 않다**(같은 날 · 사용자 "이것도 계속 나오는게 아니라 5분에 한번 나오는거 하자!") — 5분마다 내려와 소식을 한 바퀴 다 흘리고 올라간다
-     (처음엔 5초 뒤 · ?every=300 초 · ?first=5 · ?always=1 = 늘 떠 있음(OBS 자리 잡기)) · 폰에서 소식을 바꾸면 그 자리에서 한 번 내려와 보여 준다.
+     **늘 떠 있지 않다**(같은 날 · 사용자 "이것도 계속 나오는게 아니라 5분에 한번 나오는거 하자!") — 10분마다 내려와 소식을 한 바퀴 다 흘리고 올라간다
+     (처음엔 5초 뒤 · ?every=600 초 · ?first=5 · ?always=1 = 늘 떠 있음(OBS 자리 잡기)) · 폰에서 소식을 바꾸면 그 자리에서 한 번 내려와 보여 준다.
      소식 안 표시: **굵게** = 흰 글자 · [[PS10]] = 금색 칩(할인 코드처럼 받아 적을 글자).
      주소: ?speed=70(초당 px) · ?text=9th%20Open · ?lines=첫%20소식|둘째%20소식 · ?style=repeat(예전 반복 띠 · ?theme=white 면 흰 바탕) · ?n=5 */
   @font-face{font-family:'IBM Plex Sans KR';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexSansKR-SemiBold.woff2') format('woff2')}
@@ -136,7 +136,7 @@
 
     // ── 나타났다 들어가기 — 5분마다 한 번 · 소식 한 바퀴(모든 소식이 화면을 한 번 지나간다) 동안 ──
     const always = q.get('always') === '1';
-    const every = Math.max(60, Number(q.get('every')) || 300);
+    const every = Math.max(60, Number(q.get('every')) || 600);   // 기본 10분(2026-11-13 사용자 "10분에 한번으로 바꾸자" — 처음엔 5분)
     const firstAt = q.has('first') ? Math.max(0, Number(q.get('first')) || 0) : 5;
     let hideT = null;
     const passSeconds = () => Math.max(20, (setWidth + run.clientWidth) / speed);   // 처음 보인 글자부터 마지막 소식이 왼쪽 끝을 지날 때까지
