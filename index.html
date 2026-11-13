@@ -241,7 +241,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b33</span>
+      <span class="build caps" id="psBuild">b34</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -766,7 +766,7 @@
         // ⚠️ 디코드를 미리 안 해 두면 그 구절의 **첫 콜만** 잘리지 않은 옛 소리로 나간다
         //    (playTrimmed 는 동기라 디코드를 기다릴 수 없다).
         const PT4 = ['love', 'fifteen', 'thirty', 'forty'];
-        const warm = ['Deuce', 'Advantage', 'Star point', 'Golden point'];
+        const warm = ['Deuce', 'Advantage', 'Star point', 'Golden point', 'Advantage in', 'Advantage out', 'First deuce', 'Second deuce', 'Third deuce'];
         PT4.forEach((a, i) => PT4.forEach((b, j) => {
           warm.push(i === j ? (i < 3 ? `${a} all` : 'Deuce') : `${a}, ${b}`);
         }));
@@ -1267,19 +1267,27 @@
   const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
   const num = (n) => NUM[n] || String(n);
 
+  // b34(2026-11-13 · 사용자 "first juice, second juice 말하게 … 서브권 내가 선택해놨으니까 advantage in, advantage out"):
+  //   40-40 은 이번 게임 몇 번째 듀스인지(S.deuce — 정정으로 돌아와도 같은 회차) "First deuce" · "Second deuce" …,
+  //   어드밴티지는 서브 팀이 앞서면 "Advantage in", 받는 팀이 앞서면 "Advantage out".
+  //   ⚠️ 서브권을 안 골랐으면 in/out 을 말하지 않는다("Advantage") — 누가 서브인지 모르면 틀린 말이 된다.
+  //   결정 포인트(Star/Golden point)는 chPoint 가 sayDeciding() 으로 먼저 부른다 — 여기 오지 않는다.
+  const DEUCE_ORD = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+  function pointCallOf(sp, rp, serverKnown, deuceN) {
+    if (sp === rp) {
+      if (sp < 3) return `${PT_WORD[sp]} all`;
+      const ord = DEUCE_ORD[(deuceN | 0) - 1];
+      return ord ? `${ord} deuce` : 'Deuce';
+    }
+    if (sp === 4 || rp === 4) return serverKnown ? (sp === 4 ? 'Advantage in' : 'Advantage out') : 'Advantage';
+    return `${PT_WORD[sp]}, ${PT_WORD[rp]}`;
+  }
   // 서브 넣는 팀 점수를 먼저 읽는 테니스 관례. 서브권이 안 정해졌으면 A 먼저.
   function speakPoint() {
     const aServes = !!S.a.serving || !S.b.serving;
     const sv = aServes ? S.a : S.b, rc = aServes ? S.b : S.a;
     if (isSuperTiebreak() || isTiebreak()) { say(`${num(sv.point || 0)}, ${num(rc.point || 0)}`); return; }
-    const sp = sv.point || 0, rp = rc.point || 0;
-    if (sp === rp) { say(sp >= 3 ? 'Deuce' : `${PT_WORD[sp]} all`); return; }
-    // 결정 포인트는 chPoint 가 sayDeciding() 으로 따로 부른다 — 여기까지 오면 평범한 어드밴티지다.
-    if (sp === 4 || rp === 4) {
-      say('Advantage');            // 이름을 못 부르니 'server/receiver' 를 붙이면 어색하다
-      return;
-    }
-    say(`${PT_WORD[sp]}, ${PT_WORD[rp]}`);
+    say(pointCallOf(sv.point || 0, rc.point || 0, !!S.a.serving || !!S.b.serving, S.deuce || 1));
   }
   // 심판은 앞선 쪽을 먼저 말한다 — "three games to two", 동점이면 "two games all".
   function gamesPhrase(a, b) {
