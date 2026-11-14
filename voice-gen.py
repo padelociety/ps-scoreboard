@@ -23,12 +23,9 @@ NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', '
        'eleven', 'twelve']
 
 
-def games_phrase(a, b):
-    """index.html gamesPhrase() 와 글자 단위로 같아야 한다."""
-    if a == b:
-        return f"{NUM[a]} {'game' if a == 1 else 'games'} all"
-    hi, lo = max(a, b), min(a, b)
-    return f"{NUM[hi]} {'game' if hi == 1 else 'games'} to {NUM[lo]}"
+def games_phrase(sv, rc):
+    """index.html gamesPhrase() 와 글자 단위로 같아야 한다 — 서브 팀 먼저 숫자 둘(b38 · "three, one" · 동점 "two all")."""
+    return f"{NUM[sv]} all" if sv == rc else f"{NUM[sv]}, {NUM[rc]}"
 
 
 def phrases():
@@ -50,16 +47,16 @@ def phrases():
     out.append('Fifteen, love. Deuce. Advantage, server.')     # 목소리 고르기 샘플
     # 게임 — 1~9 게임 범위. ⚠️ 8게임 세트(gameTarget=8)가 생기면서 8·9 가 나온다 —
     #    안 굽으면 그 콜만 브라우저 TTS 로 떨어져 목소리가 바뀜다.
-    for hi in range(1, 10):
-        for lo in range(0, hi):
-            out.append(f"Game. {games_phrase(hi, lo)}.")
-        out.append(f"Game. {games_phrase(hi, hi)}.")
-    # 세트 — 4·6·8게임 세트의 끝나는 점수를 전부(4-5 / 6-7 / 8-9), 1~3세트
+    for sv in range(0, 10):
+        for rc in range(0, 10):
+            if sv or rc:
+                out.append(f"Game. {games_phrase(sv, rc)}.")
+    # 세트 — 4·6·8게임 세트의 끝나는 점수(진 쪽 0~9 · 이긴 쪽 4~9) · 서브 팀이 이긴 쪽일 수도 진 쪽일 수도 있다
     for ordn in ['first', 'second', 'third']:
         for hi in (4, 5, 6, 7, 8, 9):
-            for lo in range(0, hi):
+            for lo in range(0, hi + 1):
                 out.append(f"Game and {ordn} set. {games_phrase(hi, lo)}.")
-            out.append(f"Game and {ordn} set. {games_phrase(hi, hi)}.")
+                out.append(f"Game and {ordn} set. {games_phrase(lo, hi)}.")
     # 타이브레이크 숫자 — 콘솔이 "x, y" 를 두 클립으로 이어 붙인다
     out += NUM
     # 중복 제거, 순서 유지

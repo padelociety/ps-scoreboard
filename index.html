@@ -254,7 +254,7 @@
       <!-- ⚠️ 버전 표시가 없으면 "새 기능이 아직 안 보이는데" 를 확인할 방법이 없다 —
            새로고침을 했는지, 배포가 안 끝난 건지, 진짜로 없는 건지를 가를 수 없다.
            TV 의 `TV b22` 배지와 같은 역할. sw.js 의 CACHE 와 **함께** 올릴 것. -->
-      <span class="build caps" id="psBuild">b37</span>
+      <span class="build caps" id="psBuild">b38</span>
       <div class="conn caps"><i id="connDot"></i><span id="connText">Connecting</span></div>
       <button class="tbtn caps" id="btnVoice" onclick="toggleVoice()"><i></i><span>Voice On</span></button>
       <button class="tbtn caps" id="btnMusic" onclick="toggleMusic()"><i></i><span>Music Off</span></button>
@@ -612,7 +612,7 @@
    * 새로고침·재접속 뒤에도 맞고, 'Voice on'·'Undo' 같은 콜이 되풀이되지 않는다.
    *   · 결정 포인트면 그것(Star/Golden point) — 점수 조작 때와 같은 우선순위
    *   · 포인트가 있으면 포인트("Fifteen, love")
-   *   · 0-0 이면 게임 스코어("Game. three games to two.") — 방금 게임이 끝난 뒤 가장 궁금한 값
+   *   · 0-0 이면 게임 스코어("Game. three, two.") — 방금 게임이 끝난 뒤 가장 궁금한 값
    *   · 게임도 0-0 이면 "love all"
    */
   window.repeatCall = () => {
@@ -1325,21 +1325,31 @@
     if (isSuperTiebreak() || isTiebreak()) { say(`${num(sv.point || 0)}, ${num(rc.point || 0)}`); return; }
     say(pointCallOf(sv.point || 0, rc.point || 0, !!S.a.serving || !!S.b.serving, S.deuce || 1));
   }
-  // 심판은 앞선 쪽을 먼저 말한다 — "three games to two", 동점이면 "two games all".
-  function gamesPhrase(a, b) {
-    if (a === b) return `${num(a)} ${a === 1 ? 'game' : 'games'} all`;
-    const hi = Math.max(a, b), lo = Math.min(a, b);
-    return `${num(hi)} ${hi === 1 ? 'game' : 'games'} to ${num(lo)}`;
+  // b38(2026-11-14 · 사용자 "3 game to 1 이러는데 그냥 쓰리 원 … 서브권인 사람 점수 얘기해주고. 이기는순간 서브권이 바뀌자나. 그 바꾼걸로"):
+  // 게임 스코어는 숫자 둘만 — "three, one" · 동점은 "two all". **서브권을 가진 쪽이 먼저**다 — 게임을 따는 순간 chGame 이
+  // 서브권을 넘기므로(이 콜보다 먼저) 다음 게임에 서브할 팀의 게임 수를 먼저 부른다. 서브권을 안 골랐으면 앞선 쪽 먼저.
+  // 예전엔 늘 앞선 쪽 먼저 "three games to one" 이었다.
+  function gamesPhrase(sv, rc) {
+    return sv === rc ? `${num(sv)} all` : `${num(sv)}, ${num(rc)}`;
+  }
+  /** [서브 팀 값, 받는 팀 값] — 서브권을 모르면 큰 값 먼저. */
+  function serverFirst(a, b) {
+    if (S.a.serving && !S.b.serving) return [a, b];
+    if (S.b.serving && !S.a.serving) return [b, a];
+    return a >= b ? [a, b] : [b, a];
   }
   function speakGame() {
-    say(`Game. ${gamesPhrase(S.a.game, S.b.game)}.`);
+    const [x, y] = serverFirst(S.a.game || 0, S.b.game || 0);
+    say(`Game. ${gamesPhrase(x, y)}.`);
   }
   function speakSet() {
     const i = (S.a.sets || []).length - 1;
     if (i < 0) return;
     const n = i + 1, ord = ['first', 'second', 'third'][i] || `${n}th`;
-    say(`Game and ${ord} set. ${gamesPhrase(S.a.sets[i], S.b.sets[i])}.`);
+    const [x, y] = serverFirst(S.a.sets[i], S.b.sets[i]);
+    say(`Game and ${ord} set. ${gamesPhrase(x, y)}.`);
   }
+
 
   function push(show) {
     // ⚠️ 점수를 움직이는 푸시는 visible:true 를 싣는다(2026-10-05). 리그 태블릿은 매치 목록에 앉을
